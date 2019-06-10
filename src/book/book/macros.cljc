@@ -1,16 +1,15 @@
 (ns book.macros
   #?(:cljs (:require-macros book.macros))
   (:require
-    [fulcro.client :as fc]
-    #?(:cljs [devcards.util.edn-renderer :as edn])
-    #?(:cljs [goog.object :as obj])
-    fulcro-css.css
-    #?(:cljs [fulcro.client.dom :as dom]
-       :clj
-             [fulcro.client.dom-server :as dom])
-    [fulcro.logging :as log]
-    [fulcro.client.mutations :as m :refer [defmutation]]
-    [fulcro.client.primitives :as prim :refer [defsc]]))
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro-css.css :as css]
+    #?@(:cljs [[goog.object :as obj]
+               [devcards.util.edn-renderer :as edn]])
+    #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
+       :clj  [com.fulcrologic.fulcro.dom-server :as dom])
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [taoensso.timbre :as log]))
 
 #?(:clj (def clj->js identity))
 
@@ -21,25 +20,25 @@
 
 #?(:cljs
    (defn watch-state [this example-app]
-     (let [target-app-state (some-> example-app :reconciler prim/app-state)]
+     (let [target-app-state (some-> example-app ::app/state-atom)]
        (when target-app-state
-         (prim/transact! this `[(update-db-view {:value ~(deref target-app-state)})])
+         (comp/transact! this `[(update-db-view {:value ~(deref target-app-state)})])
          (add-watch target-app-state
            :example-watch (fn []
-                            (prim/transact! this `[(update-db-view {:value ~(deref target-app-state)})])))))))
+                            (comp/transact! this `[(update-db-view {:value ~(deref target-app-state)})])))))))
 
 (defsc AppHolder [this _ _ {:keys [app-holder]}]
   {:shouldComponentUpdate (fn [_ _] false)
    :css                   [[:.app-holder {:border  "2px solid grey"
                                           :padding "10px"}]]
-   :componentDidCatch     (fn [err info] #?(:cljs (js/console.error "App holder failed to start." err info)))
+   :componentDidCatch     (fn [err info] (log/error "App holder failed to start." err info))
    :componentDidMount     (fn []
-                            #?(:cljs (let [{:keys [app root]} (meta (prim/props this))]
+                            #?(:cljs (let [{:keys [app root]} (meta (comp/props this))]
                                        (if (and app root)
                                          ;; necessary so we don't close over the outer app's reconciler when rendering
                                          (js/setTimeout #(if-let [target-div (obj/get this "appdiv")]
-                                                           (let [app (fc/mount app root target-div)]
-                                                             (prim/set-state! this {:app app})
+                                                           (let [app (app/mount! app root target-div)]
+                                                             (comp/set-state! this {:app app})
                                                              (watch-state this app))
                                                            (log/fatal "App holder: Target div not found."))
                                            10)
@@ -47,7 +46,7 @@
   #?(:clj  (dom/div nil "")
      :cljs (dom/div {:className app-holder :ref (fn [r] (obj/set this "appdiv" r))} "")))
 
-(def ui-app-holder (prim/factory AppHolder))
+(def ui-app-holder (comp/factory AppHolder))
 
 (defsc EDN [this {:keys [ui/open?] :as props} {:keys [edn]} {:keys [toggle-button db-block]}]
   {:initial-state {:ui/open? false}
@@ -62,10 +61,10 @@
        (dom/div {:className db-block :style {:display (if open? "block" "none")}}
          (edn/html-edn edn)))))
 
-(def ui-edn (prim/factory EDN))
+(def ui-edn (comp/factory EDN))
 
 (defsc ExampleRoot [this {:keys [edn-tool watched-state title example-app] :as props} _ {:keys [example-title]}]
-  {:query         [{:edn-tool (prim/get-query EDN)}
+  {:query         [{:edn-tool (comp/get-query EDN)}
                    :watched-state
                    :title
                    :example-app]
@@ -82,24 +81,23 @@
     (dom/div nil
       (when has-title? (dom/h4 {:className example-title} title))
       (ui-app-holder example-app)
-      (when has-title? (ui-edn (prim/computed edn-tool {:edn watched-state}))))))
+      (when has-title? (ui-edn (comp/computed edn-tool {:edn watched-state}))))))
 
 (defn new-example [{:keys [title example-app root-class]}]
-  (fc/new-fulcro-client
-    :initial-state (merge (prim/get-initial-state ExampleRoot {})
-                     {:example-app (with-meta {} {:app example-app :root root-class})
-                      :title       title})))
+  (app/fulcro-app {:initial-state (merge (comp/get-initial-state ExampleRoot {})
+                                    {:example-app (with-meta {} {:app example-app :root root-class})
+                                     :title       title})}))
 
 (defmacro defexample [title root-class id & args]
   (let [app         (with-meta (symbol (str "fulcroapp-" id)) {:extern true})
         example-app (with-meta (symbol (str "example-container-" id)) {:extern true})]
     `(do
-       (defonce ~app (fulcro.client/new-fulcro-client :reconciler-options {:id ~(name app)} ~@args))
+       (defonce ~app (app/fulcro-app (into {:id ~(name app)} ~@args)))
        (defonce ~example-app (book.macros/new-example {:title ~title :example-app ~app :root-class ~root-class}))
-       (fulcro.client/mount ~example-app ExampleRoot ~id))))
+       (app/mount! ~example-app ExampleRoot ~id))))
 
 (defmacro deftool [root-class id & args]
   (let [app (symbol (str "fulcroapp-" id))]
     `(do
-       (defonce ~app (fulcro.client/new-fulcro-client ~@args))
-       (fulcro.client/mount ~app ~root-class ~id))))
+       (defonce ~app (app/fulcro-app (into {} ~@args)))
+       (app/mount! ~app ~root-class ~id))))

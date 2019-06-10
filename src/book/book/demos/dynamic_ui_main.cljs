@@ -1,8 +1,9 @@
 (ns book.demos.dynamic-ui-main
-  (:require [fulcro.client.primitives :refer [defsc]]
-            [fulcro.client.routing :as r]
-            cljs.loader
-            [fulcro.client.dom :as dom]))
+  (:require
+    [fulcro.client.primitives :refer [defsc]]
+    [fulcro.client.routing :as r]
+    cljs.loader
+    [fulcro.client.dom :as dom]))
 
 ; This is a "screen" that we want to load with code-splitting modules. See the "demos" build in project.clj. The name
 ; of the module needs to match the first element of the ident, as that's how the dynamic router figures out what module

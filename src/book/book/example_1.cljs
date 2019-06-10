@@ -1,9 +1,8 @@
 (ns book.example-1
-  (:require [fulcro.client.primitives :as prim :refer [defsc]]
-            [fulcro.client.mutations :refer [defmutation]]
-    #?(:cljs [fulcro.client.dom :as dom]
-       :clj
-            [fulcro.client.dom-server :as dom])))
+  (:require
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
+    [com.fulcrologic.fulcro.dom :as dom]))
 
 (defmutation bump-number [ignored]
   (action [{:keys [state]}]
@@ -14,5 +13,5 @@
    :initial-state {:ui/number 0}}
   (dom/div
     (dom/h4 "This is an example.")
-    (dom/button {:onClick #(prim/transact! this `[(bump-number {})])}
+    (dom/button {:onClick #(comp/transact! this `[(bump-number {})])}
       "You've clicked this button " number " times.")))

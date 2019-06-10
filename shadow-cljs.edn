@@ -1,4 +1,4 @@
-{:deps     {:aliases [:book]}
+{:deps     {:aliases []}
  :nrepl    {:port 9000}
  :jvm-opts ["-Xmx2G"]
  :builds   {:book {:target     :browser
