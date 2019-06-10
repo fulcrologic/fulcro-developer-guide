@@ -1,8 +1,10 @@
 (ns book.tree-to-db
-  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-            [com.fulcrologic.fulcro.dom :as dom]
-            [devcards.util.edn-renderer :refer [html-edn]]
-            [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]))
+  (:require
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [devcards.util.edn-renderer :refer [html-edn]]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]))
 
 (defsc SubQuery [t p]
   {:ident [:sub/by-id :id]
@@ -14,7 +16,7 @@
 
 (defmutation normalize-from-to-result [ignored-params]
   (action [{:keys [state]}]
-    (let [result (comp/tree->db TopQuery (:from @state) true)]
+    (let [result (fnorm/tree->db TopQuery (:from @state) true)]
       (swap! state assoc :result result))))
 
 (defmutation reset [ignored-params] (action [{:keys [state]}] (swap! state dissoc :result)))

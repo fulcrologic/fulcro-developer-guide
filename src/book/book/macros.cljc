@@ -42,7 +42,6 @@
                                       ;; necessary so we don't close over the outer app's reconciler when rendering
                                       (js/setTimeout #(if-let [target-div (obj/get this "appdiv")]
                                                         (do
-                                                          (log/info "Mounting example")
                                                           (app/mount! app root target-div)
                                                           (comp/set-state! this {:app app})
                                                           (watch-state this app))

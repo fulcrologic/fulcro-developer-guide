@@ -30,12 +30,12 @@
     ;book.forms.whole-form-logic
     ;book.forms.full-stack-forms-demo
     [book.demos.autocomplete :as autocomplete]
-    ;book.ui-routing
-    ;book.simple-router-1
-    ;book.simple-router-2
-    ;book.tree-to-db
-    ;book.merge-component
-    ;book.html-converter
+    book.ui-routing
+    book.simple-router-1
+    book.simple-router-2
+    book.tree-to-db
+    book.merge-component
+    book.html-converter
     ;book.server.morphing-example
     ;book.demos.cascading-dropdowns
     book.demos.component-localized-css
@@ -207,30 +207,16 @@
 (defexample "Unions to Select Type" union-example-1/Root "union-example-1")
 ;#?(:cljs (defexample "UI Blocking" ui-blocking/Root "ui-blocking-example" :networking book.main/example-server))
 ;
-;;; Parsing Chapter
-;#?(:cljs (defexample "Parser Tracing" trace/Root "parsing-trace-example"))
-;#?(:cljs (defexample "Parser Dispatch Trace" book.queries.parsing-key-trace/Root "parsing-key-trace"))
-;#?(:cljs (defexample "Naive Read" book.queries.naive-read/Root "naive-read"))
-;#?(:cljs (defexample "Parsing Simple Properties" book.queries.simple-property-read/Root "simple-property-read"))
-;#?(:cljs (defexample "Parsing a Simple Join" book.queries.parsing-simple-join/Root "parsing-simple-join"))
-;#?(:cljs (defexample "Recursive Part 1" book.queries.parsing-recursion-one/Root "parsing-recursion-one"))
-;#?(:cljs (defexample "Recursive Part 2" book.queries.parsing-recursion-two/Root "parsing-recursion-two"))
-;#?(:cljs (defexample "Parsing Parameters" book.queries.parsing-parameters/Root "parsing-parameters"))
-;#?(:cljs (defexample "Recursive Demo 1" book.queries.recursive-demo-1/Root "recursive-demo-1"))
-;#?(:cljs (defexample "Recursive Demo 2" book.queries.recursive-demo-2/Root "recursive-demo-2"))
-;#?(:cljs (defexample "Recursive Demo 3" book.queries.recursive-demo-3/Root "recursive-demo-3"))
-;#?(:cljs (defexample "Recursive Demo 4" book.queries.recursive-demo-bullets/Root "recursive-demo-bullets"))
-;
 ;;; Dynamic queries
 ;#?(:cljs (defexample "Dynamic Query" book.queries.dynamic-queries/Root "dynamic-queries"))
 ;#?(:cljs (defexample "Dyanmic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters"))
 ;
-;#?(:cljs (defexample "Routing Demo" book.ui-routing/Root "ui-routing" :networking book.main/example-server))
-;#?(:cljs (defexample "Simple Router" book.simple-router-1/Root "simple-router-1"))
-;#?(:cljs (defexample "Nested Router" book.simple-router-2/Root "simple-router-2"))
-;#?(:cljs (defexample "Tree to DB with Queries" book.tree-to-db/Root "tree-to-db" :networking book.main/example-server))
-;#?(:cljs (defexample "Merging with a Component" book.merge-component/Root "merge-component" :networking book.main/example-server))
-;#?(:cljs (defexample "HTML Converter" book.html-converter/Root "html-converter"))
+(defexample "Routing Demo" book.ui-routing/Root "ui-routing" :networking book.main/example-server)
+(defexample "Simple Router" book.simple-router-1/Root "simple-router-1")
+(defexample "Nested Router" book.simple-router-2/Root "simple-router-2")
+(defexample "Tree to DB with Queries" book.tree-to-db/Root "tree-to-db" :networking book.main/example-server)
+(defexample "Merging with a Component" book.merge-component/Root "merge-component" :networking book.main/example-server)
+(defexample "HTML Converter" book.html-converter/Root "html-converter")
 ;
 ;;; Forms
 ;#?(:cljs (defexample "Editing Existing Data" book.forms.form-state-demo-1/Root "form-state-demo-1" :networking book.main/example-server))

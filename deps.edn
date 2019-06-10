@@ -1,7 +1,7 @@
 {:paths ["src/book"],
 
  :deps  {com.fulcrologic/fulcro            {:local/root "/Users/tonykay/fulcrologic/fulcro3"}
-         com.fulcrologic/fulcro-garden-css {:mvn/version "3.0.0-SNAPSHOT"}
+         com.fulcrologic/fulcro-garden-css {:mvn/version "3.0.1"}
          com.wsscode/pathom                {:mvn/version "2.2.14"}
          devcards                          {:mvn/version "0.2.6"}
          bidi                              {:mvn/version "2.1.5"},

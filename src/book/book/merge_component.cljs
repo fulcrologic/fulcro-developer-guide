@@ -1,9 +1,10 @@
 (ns book.merge-component
-  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-            [com.fulcrologic.fulcro.dom :as dom]
-            [fulcro.client.cards :refer [defcard-fulcro]]
-            [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-            [com.fulcrologic.fulcro.data-fetch :as df]))
+  (:require
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]))
 
 (defsc Counter [this {:keys [counter/id counter/n] :as props} {:keys [onClick] :as computed}]
   {:query [:counter/id :counter/n]
@@ -54,17 +55,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defn add-counter
   "NOTE: A function callable from anywhere as long as you have a reconciler..."
-  [reconciler counter]
-  (comp/merge-component! reconciler Counter counter
+  [app counter]
+  (merge/merge-component! app Counter counter
     :append [:panels/by-kw :counter :counters]))
 
 (defsc Root [this {:keys [panel]}]
   {:query         [{:panel (comp/get-query CounterPanel)}]
    :initial-state {:panel {}}}
-  (let [reconciler (comp/get-reconciler this)]              ; pretend we've got the reconciler saved somewhere...
-    (dom/div {:style {:border "1px solid black"}}
-      ; NOTE: A plain function...pretend this is happening outside of the UI...we're doing it here so we can embed it in the book...
-      (dom/button {:onClick #(add-counter reconciler {:counter/id 4 :counter/n 22})} "Simulate Data Import")
-      (dom/hr)
-      "Counters:"
-      (ui-counter-panel panel))))
+  (dom/div {:style {:border "1px solid black"}}
+    ; NOTE: A plain function...pretend this is happening outside of the UI...we're doing it here so we can embed it in the book...
+    (dom/button {:onClick #(add-counter (comp/any->app this) {:counter/id 4 :counter/n 22})} "Simulate Data Import")
+    (dom/hr)
+    "Counters:"
+    (ui-counter-panel panel)))

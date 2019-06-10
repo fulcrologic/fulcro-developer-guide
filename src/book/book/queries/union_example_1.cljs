@@ -1,6 +1,6 @@
 (ns book.queries.union-example-1
   (:require
-    [com.fulcrologic.fulcro.dom :as dom :refer [div]]
+    [com.fulcrologic.fulcro.dom :as dom :refer [div table td tr th tbody]]
     [com.fulcrologic.fulcro.routing.union-router :as r :refer [defsc-router]]
     [book.elements :as ele]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
@@ -125,13 +125,13 @@
         showDetail (fn [[kind id]]
                      (comp/transact! this `[(r/route-to {:handler :detail :route-params {:kind ~kind :id ~id}})]))]
     ; devcards, embed in iframe so we can use bootstrap css easily
-    (dom/div {:key "example-frame-key"}
+    (div {:key "example-frame-key"}
       (dom/style ".boxed {border: 1px solid black}")
-      ;(dom/link {:rel "stylesheet" :href "https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css"})
-      (dom/table :.ui.table {}
-        (dom/tr
-          (dom/th "Items")
-          (dom/th "Detail"))
-        (dom/tr
-          (dom/td (ui-item-list (comp/computed item-list {:onSelect showDetail})))
-          (dom/td (ui-item-detail item-detail)))))))
+      (table :.ui.table {}
+        (tbody
+          (tr
+            (th "Items")
+            (th "Detail"))
+          (tr
+            (td (ui-item-list (comp/computed item-list {:onSelect showDetail})))
+            (td (ui-item-detail item-detail))))))))

@@ -1,10 +1,10 @@
 (ns book.ui-routing
-  (:require [com.fulcrologic.fulcro.routing.union-router :as r :refer-macros [defrouter]]
-            [com.fulcrologic.fulcro.dom :as dom]
-            [fulcro.client :as fc]
-            [com.fulcrologic.fulcro.data-fetch :as df]
-            [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-            [com.fulcrologic.fulcro.mutations :as m]))
+  (:require
+    [com.fulcrologic.fulcro.routing.union-router :as r :refer-macros [defsc-router]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.mutations :as m]))
 
 (defsc Main [this {:keys [label]}]
   {:initial-state {:page :main :label "MAIN"}
@@ -36,14 +36,12 @@
   (dom/div {:style {:backgroundColor "orange"}}
     (dom/div (str "Graph " id))))
 
-(defrouter ReportRouter :report-router
-  ; This router expects numerous possible status and graph reports. The :id in the props of the report will determine
-  ; which specific data set is used for the screen (though the UI of the screen will be either StatusReport or GraphingReport
-  ; IMPORTANT: Make sure your components (e.g. StatusReport) query for what ident needs (i.e. in this example
-  ; :page and :id at a minimum)
-  [:page :id]
-  :status-report StatusReport
-  :graphing-report GraphingReport)
+(defsc-router ReportRouter [this props]
+  {:router-id      :report-router
+   :ident          (fn [] [(:page props) (:id props)])
+   :default-route  StatusReport
+   :router-targets {:status-report   StatusReport
+                    :graphing-report GraphingReport}})
 
 (def ui-report-router (comp/factory ReportRouter))
 
@@ -58,12 +56,14 @@
     ; Render the sub-router. You can also def a factory for the router (e.g. ui-report-router)
     (ui-report-router report-router)))
 
-(defrouter TopRouter :top-router
-  (fn [this props] [(:page props) :top])
-  :main Main
-  :login Login
-  :new-user NewUser
-  :report ReportsMain)
+(defsc-router TopRouter [this props]
+  {:router-id      :top-router
+   :default-route  Main
+   :ident          (fn [this props] [(:page props) :top])
+   :router-targets {:main     Main
+                    :login    Login
+                    :new-user NewUser
+                    :report   ReportsMain}})
 
 (def ui-top (comp/factory TopRouter))
 
@@ -89,7 +89,8 @@
   ; r/routing-tree-key implies the alias of com.fulcrologic.fulcro.routing.union-router as r.
   {:initial-state (fn [params] (merge routing-tree
                                  {:top-router (comp/get-initial-state TopRouter {})}))
-   :query         [{:top-router (comp/get-query TopRouter)}]}
+   :query         [r/routing-tree-key
+                   {:top-router (comp/get-query TopRouter)}]}
   (dom/div
     ; Sample nav mutations
     (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :main})])} "Main") " | "

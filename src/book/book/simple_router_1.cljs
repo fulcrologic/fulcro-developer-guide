@@ -1,10 +1,10 @@
 (ns book.simple-router-1
-  (:require [com.fulcrologic.fulcro.routing.union-router :as r :refer-macros [defsc-router]]
-            [com.fulcrologic.fulcro.dom :as dom]
-            [fulcro.client :as fc]
-            [com.fulcrologic.fulcro.data-fetch :as df]
-            [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-            [com.fulcrologic.fulcro.mutations :as m]))
+  (:require
+    [com.fulcrologic.fulcro.routing.union-router :as r :refer-macros [defsc-router]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.mutations :as m]))
 
 (defsc Index [this {:keys [db/id router/page]}]
   {:query         [:db/id :router/page]

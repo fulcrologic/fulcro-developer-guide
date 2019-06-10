@@ -9,7 +9,7 @@
 (defonce theme-color (atom :blue))
 
 (defsc Child [this {:keys [label invisible?]}]
-  {:css           [[:.thing {:color @theme-color}]]
+  {:css           (fn [] [[:.thing {:color @theme-color}]])
    :query         [:id :label :invisible?]
    :initial-state {:id :param/id :invisible? false :label :param/label}
    :ident         [:child/by-id :id]}
@@ -36,8 +36,8 @@
 
 (defn change-color [c]
   (reset! theme-color c)
-  (cssi/upsert-css "demo-css-id" Root))
+  (cssi/upsert-css "demo-css-id" {:component Root}))
 
 ; Push the real CSS to the DOM via a component. One or more of these could be done to, for example,
 ; include CSS from different modules or libraries into different style elements.
-(cssi/upsert-css "demo-css-id" Root)
+(cssi/upsert-css "demo-css-id" {:component Root})
