@@ -29,7 +29,7 @@
            :example-watch (fn []
                             (comp/transact! this `[(update-db-view {:value ~(deref target-app-state)})])))))))
 
-(defsc AppHolder [this _ _ {:keys [app-holder]}]
+(defsc AppHolder [this _]
   {:shouldComponentUpdate (fn [_ _] false)
    :css                   [[:.app-holder {:border  "2px solid grey"
                                           :padding "10px"}]]
@@ -49,12 +49,13 @@
                                      10)
                                    (log/fatal "App holder: Not given an app or root" :app app :root root)))))}
   #?(:clj  (dom/div nil "")
-     :cljs (dom/div {:className app-holder :ref (fn [r] (obj/set this "appdiv" r))}
-             "")))
+     :cljs (let [{:keys [app-holder]} (css/get-classnames AppHolder)]
+             (dom/div {:className app-holder :ref (fn [r] (obj/set this "appdiv" r))}
+               ""))))
 
 (def ui-app-holder (comp/factory AppHolder))
 
-(defsc EDN [this {:ui/keys [open?] :as props} {:keys [edn]} {:keys [toggle-button db-block]}]
+(defsc EDN [this {:ui/keys [open?] :as props} {:keys [edn]}]
   {:initial-state {:ui/open? false}
    :query         [:ui/open?]
    :css           [[:.db-block {:padding "5px"}]
@@ -62,14 +63,15 @@
                                      :margin    "5px"}]]
    :ident         (fn [] [:widgets/by-id :edn-renderer])}
   #?(:cljs
-     (dom/div {:className "example-edn"}
-       (dom/button {:className toggle-button :onClick (fn [] (m/toggle! this :ui/open?))} "Toggle DB View")
-       (dom/div {:className db-block :style {:display (if open? "block" "none")}}
-         (edn/html-edn edn)))))
+     (let [{:keys [toggle-button db-block]} (css/get-classnames EDN)]
+       (dom/div {:className "example-edn"}
+         (dom/button {:className toggle-button :onClick (fn [] (m/toggle! this :ui/open?))} "Toggle DB View")
+         (dom/div {:className db-block :style {:display (if open? "block" "none")}}
+           (edn/html-edn edn))))))
 
 (def ui-edn (comp/factory EDN))
 
-(defsc ExampleRoot [this {:keys [edn-tool watched-state title example-app] :as props} _ {:keys [example-title]}]
+(defsc ExampleRoot [this {:keys [edn-tool watched-state title example-app] :as props}]
   {:query         [{:edn-tool (comp/get-query EDN)}
                    :watched-state
                    :title
@@ -83,7 +85,9 @@
                                      :background-color        "rgb(70, 148, 70)"}]]
    :css-include   [EDN AppHolder]
    :initial-state {:edn-tool {}}}
-  (let [has-title? (not= "" title)]
+  (let [has-title? (not= "" title)
+        {:keys [example-title]} (css/get-classnames ExampleRoot)
+        ]
     (dom/div nil
       (when has-title? (dom/h4 {:className example-title} title))
       (ui-app-holder example-app)
@@ -95,9 +99,9 @@
     (merge/merge-alternate-union-elements root)))
 
 (defn new-example [{:keys [title example-app root-class]}]
-  (app/fulcro-app {:initial-state (merge (initial-tree->db ExampleRoot (comp/get-initial-state ExampleRoot {}))
-                                    {:example-app (with-meta {} {:app example-app :root root-class})
-                                     :title       title})}))
+  (app/fulcro-app {:initial-db (merge (initial-tree->db ExampleRoot (comp/get-initial-state ExampleRoot {}))
+                                 {:example-app (with-meta {} {:app example-app :root root-class})
+                                  :title       title})}))
 
 (defmacro defexample [title root-class id & args]
   (let [app         (with-meta (symbol (str "fulcroapp-" id)) {:extern true})
