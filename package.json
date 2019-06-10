@@ -1,0 +1,21 @@
+{
+  "name": "fulcro-dev-guide",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {},
+  "devDependencies": {
+    "codemirror": "^5.42.2",
+    "d3": "^5.7.0",
+    "react": "16.8.6",
+    "react-dom": "16.8.6",
+    "shadow-cljs": "2.8.39",
+    "victory": "^31.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:fulcrologic/fulcro-developer-guide.git"
+  },
+  "author": "Tony Kay",
+  "license": "MIT"
+}
