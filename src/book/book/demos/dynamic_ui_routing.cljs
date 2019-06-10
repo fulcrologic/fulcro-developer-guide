@@ -1,8 +1,9 @@
 (ns book.demos.dynamic-ui-routing
-  (:require [com.fulcrologic.fulcro.routing.union-router :as r]
-            [com.fulcrologic.fulcro.dom :as dom]
-            [com.fulcrologic.fulcro.components :as prim :refer [defsc InitialAppState initial-state]]
-            [cljs.loader :as loader]))
+  (:require
+    [com.fulcrologic.fulcro.routing.union-router :as r]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [cljs.loader :as loader]))
 
 (defsc Login [this {:keys [label login-prop]}]
   {:initial-state (fn [params] {r/dynamic-route-key :login :label "LOGIN" :login-prop "login data"})
@@ -24,21 +25,21 @@
                                    (r/make-route :main [(r/router-instruction :top-router [:main :singleton])])
                                    (r/make-route :login [(r/router-instruction :top-router [:login :singleton])])
                                    (r/make-route :new-user [(r/router-instruction :top-router [:new-user :singleton])]))
-                                 {:top-router (prim/get-initial-state r/DynamicRouter {:id :top-router})}))
+                                 {:top-router (comp/get-initial-state r/DynamicRouter {:id :top-router})}))
    :query         [:ui/react-key {:top-router (r/get-dynamic-router-query :top-router)}
                    :com.fulcrologic.fulcro.routing.union-router/pending-route]}
   (dom/div nil
     ; Sample nav mutations
-    (dom/a {:onClick #(prim/transact! this `[(r/route-to {:handler :main})])} "Main") " | "
-    (dom/a {:onClick #(prim/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "
-    (dom/a {:onClick #(prim/transact! this `[(r/route-to {:handler :login})])} "Login") " | "
+    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :main})])} "Main") " | "
+    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "
+    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :login})])} "Login") " | "
     (dom/div (if pending-route "Loading" "Done"))
     (r/ui-dynamic-router top-router)))
 
 ; Use this as started-callback. These would happen as a result of module loads:
 (defn application-loaded [{:keys [reconciler]}]
   ; Let the dynamic router know that two of the routes are already loaded.
-  (prim/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
+  (comp/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
                                (r/install-route {:target-kw :login :component ~Login})
                                (r/route-to {:handler :login})])
   (loader/set-loaded! :entry-point))

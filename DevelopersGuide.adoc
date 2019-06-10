@@ -3583,41 +3583,6 @@ correct namespace for the correct langauge:
 ... same as before
 ```
 
-== Complex Graphical UI Demo: An Image Clip Tool
-
-Fulcro has the start of an image clip tool.
-Right now it is mainly for demonstration purposes, and is a good example of a complex UI component where two components
-have to talk to each other and share image data.
-
-You should study the source code (`src/main/fulcro/ui/clip_tool.cljs`) to get the full details,
-but here is an overview of the critical facets:
-
-* ClipTool creates a canvas on which to draw
-** It uses initial state and a query to track the setup (e.g. size, aspect ratio, image to clip)
-** For speed (and because some data is not serializable), it uses component-local state to track current clip region,
-a javascript Image object and the DOM canvas (via React ref) for rendering, and the current active operation (e.g. dragging a handle).
-** The mouse events are essentially handled as updates to the component local state, which causes a local component
-render update.
-* PreviewClip is a React component, but not data-driven (no query). Everything is just passed through props.
-** It technically knows nothing of the clip tool.
-** It expects an :image-object and clip data to be passed in...it just renders it on a canvas.
-** It uses React refs to get the reference to the real DOM canvas for rendering
-** It renders whenever props change
-* A callback on the ClipTool communicates *through* the common parent's component local state. The parent
-will re-render when its state changes, which will in turn force a new set of props to be passed to the preview).
-
-As you can see, the interaction performance is quite good.
-
-++++
-<div class="example" id="clip-tool-example"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.clip-tool-example').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="clip-tool-example source"]
-----
-include::src/book/book/ui/clip_tool_example.cljs[]
-----
-
 == React Higher-Order Components
 
 When using external libraries with Fulcro you'll often run into the higher-order component pattern.

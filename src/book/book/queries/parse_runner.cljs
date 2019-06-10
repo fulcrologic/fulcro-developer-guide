@@ -1,8 +1,8 @@
 (ns book.queries.parse-runner
-  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
             [devcards.util.edn-renderer :refer [html-edn]]
             [cljs.reader :as r]
-            [fulcro.client.mutations :as m :refer [defmutation]]
+            [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
             [com.fulcrologic.fulcro.dom :as dom]))
 
 (defn parse-runner-path
@@ -27,7 +27,7 @@
     (dom/input {:type     "text"
                 :value    query
                 :onChange (fn [evt] (m/set-string! this :ui/query :event evt))})
-    (dom/button {:onClick #(prim/transact! this `[(run-query ~{:query query :database database :parser parser})])} "Run Parser")
+    (dom/button {:onClick #(comp/transact! this `[(run-query ~{:query query :database database :parser parser})])} "Run Parser")
     (when error
       (dom/div (str error)))
     (dom/div
@@ -37,6 +37,6 @@
       (dom/h4 "Database")
       (html-edn database))))
 
-(def ui-parse-runner (prim/factory ParseRunner))
+(def ui-parse-runner (comp/factory ParseRunner))
 
 

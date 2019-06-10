@@ -2,9 +2,9 @@
   (:require [com.fulcrologic.fulcro.routing.union-router :as r :refer-macros [defsc-router]]
             [com.fulcrologic.fulcro.dom :as dom]
             [fulcro.client :as fc]
-            [fulcro.client.data-fetch :as df]
-            [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
-            [fulcro.client.mutations :as m]))
+            [com.fulcrologic.fulcro.data-fetch :as df]
+            [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+            [com.fulcrologic.fulcro.mutations :as m]))
 
 (defsc Index [this {:keys [db/id router/page]}]
   {:query         [:db/id :router/page]
@@ -26,16 +26,16 @@
                     :PAGE/settings Settings}}
   (dom/div "Bad route"))
 
-(def ui-root-router (prim/factory RootRouter))
+(def ui-root-router (comp/factory RootRouter))
 
 (defsc Root [this {:keys [router]}]
-  {:initial-state (fn [p] {:router (prim/get-initial-state RootRouter {})})
-   :query         [{:router (prim/get-query RootRouter)}]}
+  {:initial-state (fn [p] {:router (comp/get-initial-state RootRouter {})})
+   :query         [{:router (comp/get-query RootRouter)}]}
   (dom/div
-    (dom/a {:onClick #(prim/transact! this
+    (dom/a {:onClick #(comp/transact! this
                         `[(r/set-route {:router :root/router
                                         :target [:PAGE/index 1]})])} "Index") " | "
-    (dom/a {:onClick #(prim/transact! this
+    (dom/a {:onClick #(comp/transact! this
                         `[(r/set-route {:router :root/router
                                         :target [:PAGE/settings 1]})])} "Settings")
     (ui-root-router router)))

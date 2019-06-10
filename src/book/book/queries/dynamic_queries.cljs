@@ -2,8 +2,8 @@
   (:require
     [com.fulcrologic.fulcro.dom :as dom]
     [goog.object]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
-    [fulcro.client.mutations :as m]))
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.mutations :as m]))
 
 (declare ui-leaf)
 
@@ -13,8 +13,8 @@
    :query         (fn [] [:x])                              ; avoid error checking so we can destructure both :x and :y in props
    :ident         (fn [] [:LEAF :ID])}                      ; there is only one leaf in app state
   (dom/div
-    (dom/button {:onClick (fn [] (prim/set-query! this ui-leaf {:query [:x]}))} "Set query to :x")
-    (dom/button {:onClick (fn [] (prim/set-query! this ui-leaf {:query [:y]}))} "Set query to :y")
+    (dom/button {:onClick (fn [] (comp/set-query! this ui-leaf {:query [:x]}))} "Set query to :x")
+    (dom/button {:onClick (fn [] (comp/set-query! this ui-leaf {:query [:y]}))} "Set query to :y")
     ; If the query is [:x] then x will be defined, otherwise it will not.
     (dom/button {:onClick (fn [e] (if x
                                     (m/set-value! this :x (inc x))
@@ -22,9 +22,9 @@
       (str "Count: " (or x y)))                             ; only one will be defined at a time
     " Leaf"))
 
-(def ui-leaf (prim/factory Leaf {:qualifier :x}))
+(def ui-leaf (comp/factory Leaf {:qualifier :x}))
 
 (defsc Root [this {:keys [root/leaf] :as props}]
-  {:initial-state (fn [p] {:root/leaf (prim/get-initial-state Leaf {})})
-   :query         (fn [] [{:root/leaf (prim/get-query ui-leaf)}])}
+  {:initial-state (fn [p] {:root/leaf (comp/get-initial-state Leaf {})})
+   :query         (fn [] [{:root/leaf (comp/get-query ui-leaf)}])}
   (dom/div (ui-leaf leaf)))

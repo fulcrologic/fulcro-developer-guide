@@ -1,12 +1,12 @@
 (ns book.main
   (:require
+    [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
     [book.macros :refer [defexample deftool]]
-    ;[book.ui.d3-example :as d3-example]
-    ;[book.ui.focus-example :as focus-example]
-    ;[book.ui.hover-example :as hover-example]
-    ;[book.ui.victory-example :as victory-example]
-    ;[book.ui.clip-tool-example :as clip-tool-example]
-    ;[book.queries.union-example-1 :as union-example-1]
+    [book.ui.d3-example :as d3-example]
+    [book.ui.focus-example :as focus-example]
+    [book.ui.hover-example :as hover-example]
+    [book.ui.victory-example :as victory-example]
+    [book.queries.union-example-1 :as union-example-1]
     ;[book.queries.union-example-2 :as union-example-2]
     ;[book.queries.parsing-trace-example :as trace]
     ;book.queries.parsing-key-trace
@@ -29,7 +29,7 @@
     ;book.forms.forms-demo-3
     ;book.forms.whole-form-logic
     ;book.forms.full-stack-forms-demo
-    ;[book.demos.autocomplete :as autocomplete]
+    [book.demos.autocomplete :as autocomplete]
     ;book.ui-routing
     ;book.simple-router-1
     ;book.simple-router-2
@@ -38,11 +38,10 @@
     ;book.html-converter
     ;book.server.morphing-example
     ;book.demos.cascading-dropdowns
-    ;book.demos.component-localized-css
-    ;book.demos.localized-dom
-    ;book.demos.declarative-mutation-refresh
-    ;book.demos.dynamic-ui-routing
-    ;book.demos.initial-app-state
+    book.demos.component-localized-css
+    book.demos.localized-dom
+    book.demos.dynamic-ui-routing
+    book.demos.initial-app-state
     ;book.demos.legacy-load-indicators
     ;book.demos.loading-data-basics
     ;book.demos.loading-data-targeting-entities
@@ -67,7 +66,7 @@
     ;[book.server.ui-blocking-example :as ui-blocking]
 
     ;[fulcro.server :as server :refer [defquery-root]]
-    ;[fulcro.client.mutations :as m :refer [defmutation]]
+    ;[com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     ;[fulcro.client.network :as fcn]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro-css.css-injection :as css]
@@ -90,7 +89,8 @@
   {:list/title "The List"
    :list/items [{:item/id 1} {:item/id 2} {:item/id 3}]})
 
-(def my-resolvers [list-resolver todo-new-item])
+(def my-resolvers [autocomplete/list-resolver
+                   #_book.demos.cascading-dropdowns/model-resolver])
 
 (def parser
   (p/parallel-parser
@@ -164,8 +164,8 @@
 ;                             :right           (if hidden? "-179px" "-1px")}})
 ;    (dom/div nil "Latency: " (dom/span nil delay))
 ;    (dom/br nil)
-;    (dom/button #js {:onClick #(prim/transact! this `[(set-server-latency {:delay ~(+ delay 500)})])} "Slower")
-;    (dom/button #js {:onClick #(prim/transact! this `[(set-server-latency {:delay ~(- delay 500)})])} "Faster")
+;    (dom/button #js {:onClick #(comp/transact! this `[(set-server-latency {:delay ~(+ delay 500)})])} "Slower")
+;    (dom/button #js {:onClick #(comp/transact! this `[(set-server-latency {:delay ~(- delay 500)})])} "Faster")
 ;    (dom/div #js {:onClick #(m/toggle! this :ui/hidden?)
 ;                  :style   #js {:color           "grey"
 ;                                :backgroundColor "lightgray"
@@ -182,15 +182,15 @@
 ;    (-> ast
 ;      (m/returning state ServerControl))))
 ;
-;(def ui-server-control (prim/factory ServerControl))
+;(def ui-server-control (comp/factory ServerControl))
 ;
 ;(defsc ServerControlRoot [this {:keys [ui/react-key server-control]}]
-;  {:query         [:ui/react-key {:server-control (prim/get-query ServerControl)}]
+;  {:query         [:ui/react-key {:server-control (comp/get-query ServerControl)}]
 ;   :initial-state {:server-control {}}}
 ;  (dom/div #js {:key react-key}
 ;    (ui-server-control server-control)))
 ;
-;#?(:cljs (defonce example-server (map->MockNetwork {})))
+(defonce example-server {:remote (mock-http-server {:parser (fn [req] (parser {} req))})})
 ;
 ;#?(:cljs (deftool ServerControlRoot "server-controls"
 ;           :started-callback (fn [app]
@@ -200,12 +200,11 @@
 (css/upsert-css "example-css" {:component     book.macros/ExampleRoot
                                :auto-include? false})
 (defexample "Sample Example" ex1/Root "example-1")
-;#?(:cljs (defexample "D3" d3-example/Root "ui-d3"))
-;#?(:cljs (defexample "Input Focus and React Refs/Lifecycle" focus-example/Root "focus-example"))
-;#?(:cljs (defexample "Drawing in a Canvas" hover-example/Root "hover-example"))
-;#?(:cljs (defexample "Using External React Libraries" victory-example/Root "victory-example"))
-;#?(:cljs (defexample "Image Clip Tool" clip-tool-example/Root "clip-tool-example"))
-;#?(:cljs (defexample "Unions to Select Type" union-example-1/Root "union-example-1"))
+(defexample "D3" d3-example/Root "ui-d3")
+(defexample "Input Focus and React Refs/Lifecycle" focus-example/Root "focus-example")
+(defexample "Drawing in a Canvas" hover-example/Root "hover-example")
+(defexample "Using External React Libraries" victory-example/Root "victory-example")
+(defexample "Unions to Select Type" union-example-1/Root "union-example-1")
 ;#?(:cljs (defexample "UI Blocking" ui-blocking/Root "ui-blocking-example" :networking book.main/example-server))
 ;
 ;;; Parsing Chapter
@@ -245,44 +244,13 @@
 ;           :started-callback book.forms.full-stack-forms-demo/initialize
 ;           :networking book.main/example-server))
 ;
-;#?(:cljs (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :networking book.main/example-server))
-;#?(:cljs (defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :networking book.main/example-server))
-;#?(:cljs (defexample "Component Localized CSS" book.demos.component-localized-css/Root "component-localized-css" :networking book.main/example-server))
-;#?(:cljs (defexample "Localized DOM" book.demos.localized-dom/Root "localized-dom"))
-;#?(:cljs (defexample "Declarative Mutation Refresh" book.demos.declarative-mutation-refresh/Root "declarative-mutation-refresh" :networking book.main/example-server))
-;#?(:cljs (defexample "dynamicUiRouting" book.demos.dynamic-ui-routing/Root "dynamic-ui-routing"
-;           :started-callback book.demos.dynamic-ui-routing/application-loaded
-;           :networking book.main/example-server))
-;
-;; Bootstrap CSS
-;#?(:cljs (defexample "Alerts" book.bootstrap.alerts/alerts "bootstrap-alerts"))
-;#?(:cljs (defexample "badges" book.bootstrap.badges/badges "bootstrap-badges"))
-;#?(:cljs (defexample "Breadcrumbs" book.bootstrap.breadcrumbs/breadcrumbs "bootstrap-breadcrumbs"))
-;#?(:cljs (defexample "Button Groups" book.bootstrap.button-groups/button-groups "bootstrap-button-groups"))
-;#?(:cljs (defexample "Buttons" book.bootstrap.buttons/buttons "bootstrap-buttons"))
-;#?(:cljs (defexample "Code" book.bootstrap.code/FormattingCode "bootstrap-code"))
-;#?(:cljs (defexample "Form Fields" book.bootstrap.form-fields/form-fields "bootstrap-form-fields"))
-;#?(:cljs (defexample "Grid" book.bootstrap.grid/Grids "bootstrap-grid"))
-;#?(:cljs (defexample "Icons" book.bootstrap.icons/icons "bootstrap-icons"))
-;#?(:cljs (defexample "Images" book.bootstrap.images/images "bootstrap-images"))
-;#?(:cljs (defexample "Jumbotron" book.bootstrap.jumbotron/jumbotron "bootstrap-jumbotron"))
-;#?(:cljs (defexample "Pagination" book.bootstrap.pagination/pagination "bootstrap-pagination"))
-;#?(:cljs (defexample "Panels" book.bootstrap.panels/panels "bootstrap-panels"))
-;#?(:cljs (defexample "Popover" book.bootstrap.popover/Root "bootstrap-popover"))
-;#?(:cljs (defexample "Progress" book.bootstrap.progress/progress-bars "bootstrap-progress"))
-;#?(:cljs (defexample "Tables" book.bootstrap.tables/Tables "bootstrap-tables"))
-;#?(:cljs (defexample "Thumbnails" book.bootstrap.thumbnails/thumbnails-and-captions "bootstrap-thumbnails"))
-;#?(:cljs (defexample "Typography" book.bootstrap.typography/Typography "bootstrap-typography"))
-;#?(:cljs (defexample "Well" book.bootstrap.well/well "bootstrap-well"))
-;
-;; Bootstrap Components
-;#?(:cljs (defexample "Accordian" book.bootstrap.components.accordian/CollapseGroupRoot "bootstrap-accordian"))
-;#?(:cljs (defexample "Collapse" book.bootstrap.components.collapse/CollapseRoot "bootstrap-collapse"))
-;#?(:cljs (defexample "Dropdowns" book.bootstrap.components.dropdowns/DropdownRoot "bootstrap-dropdowns"))
-;#?(:cljs (defexample "Modal Variations" book.bootstrap.components.modal-variations/ModalRoot "bootstrap-modal-variations"))
-;#?(:cljs (defexample "Modals" book.bootstrap.components.modals/ModalRoot "bootstrap-modals"))
-;#?(:cljs (defexample "Nav" book.bootstrap.components.nav/NavRoot "bootstrap-nav"))
-;#?(:cljs (defexample "Nav Routing" book.bootstrap.components.nav-routing/RouterRoot "bootstrap-nav-routing"))
+(defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :remotes book.main/example-server)
+;(defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :remotes book.main/example-server)
+(defexample "Component Localized CSS" book.demos.component-localized-css/Root "component-localized-css" :remotes book.main/example-server)
+(defexample "Localized DOM" book.demos.localized-dom/Root "localized-dom")
+(defexample "dynamicUiRouting" book.demos.dynamic-ui-routing/Root "dynamic-ui-routing"
+  :client-did-mount book.demos.dynamic-ui-routing/application-loaded
+  :remotes book.main/example-server)
 ;
 ;#?(:cljs (defexample "Loading Data Basics" book.demos.loading-data-basics/Root "loading-data-basics" :networking book.main/example-server :started-callback book.demos.loading-data-basics/initialize))
 ;#?(:cljs (defexample "Loading Data and Targeting Entities" book.demos.loading-data-targeting-entities/Root "loading-data-targeting-entities" :networking book.main/example-server))

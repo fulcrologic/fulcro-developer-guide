@@ -1,7 +1,7 @@
 (ns book.ui.focus-example
-  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
             [com.fulcrologic.fulcro.dom :as dom]
-            [fulcro.client.mutations :as m]))
+            [com.fulcrologic.fulcro.mutations :as m]))
 
 (defsc ClickToEditField [this {:keys [value editing?]}]
   {:initial-state      {:value    "ABC"
@@ -9,8 +9,8 @@
                         :editing? false}
    :query              [:db/id :value :editing?]
    :ident              [:field/by-id :db/id]
-   :componentDidUpdate (fn [prev-props _]
-                         (when (and (not (:editing? prev-props)) (:editing? (prim/props this)))
+   :componentDidUpdate (fn [this prev-props _]
+                         (when (and (not (:editing? prev-props)) (:editing? (comp/props this)))
                            (let [input-field        (dom/node this "edit_field")
                                  input-field-length (.. input-field -value -length)]
                              (.focus input-field)
@@ -30,9 +30,9 @@
                               (.setSelectionRange input-field 0 input-field-length)))}
       "Highlight All")))
 
-(def ui-click-to-edit (prim/factory ClickToEditField))
+(def ui-click-to-edit (comp/factory ClickToEditField))
 
 (defsc Root [this {:keys [field] :as props}]
-  {:query         [{:field (prim/get-query ClickToEditField)}]
+  {:query         [{:field (comp/get-query ClickToEditField)}]
    :initial-state {:field {}}}
   (ui-click-to-edit field))

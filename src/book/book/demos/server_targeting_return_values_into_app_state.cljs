@@ -1,11 +1,11 @@
 (ns book.demos.server-targeting-return-values-into-app-state
   (:require
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
-    [fulcro.client.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [fulcro.server :as server]
-    [fulcro.client.data-fetch :as df]))
+    [com.fulcrologic.fulcro.data-fetch :as df]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -61,10 +61,10 @@
    :query [:db/id :entity/label]}
   (dom/div label))
 
-(def ui-entity (prim/factory Entity {:keyfn :db/id}))
+(def ui-entity (comp/factory Entity {:keyfn :db/id}))
 
 (defsc Item [this {:keys [db/id error-message children]}]
-  {:query         [:db/id :error-message {:children (prim/get-query Entity)}]
+  {:query         [:db/id :error-message {:children (comp/get-query Entity)}]
    :initial-state {:db/id :param/id :children []}
    :ident         [:item/by-id :db/id]}
   (dom/div {:style {:float  "left"
@@ -74,17 +74,17 @@
     (dom/h4 (str "Item " id))
     (when error-message
       (dom/div "The generated error was: " (pr-str error-message)))
-    (dom/button {:onClick (fn [evt] (prim/transact! this `[(trigger-error {})]))} "Trigger Error")
+    (dom/button {:onClick (fn [evt] (comp/transact! this `[(trigger-error {})]))} "Trigger Error")
     (dom/h6 "Children")
     (map ui-entity children)
-    (dom/button {:onClick (fn [evt] (prim/transact! this `[(create-entity {:where? :prepend :db/id ~(prim/tempid)})]))} "Prepend one!")
-    (dom/button {:onClick (fn [evt] (prim/transact! this `[(create-entity {:where? :append :db/id ~(prim/tempid)})]))} "Append one!")
-    (dom/button {:onClick (fn [evt] (prim/transact! this `[(create-entity {:where? :replace-first :db/id ~(prim/tempid)})]))} "Replace first one!")))
+    (dom/button {:onClick (fn [evt] (comp/transact! this `[(create-entity {:where? :prepend :db/id ~(comp/tempid)})]))} "Prepend one!")
+    (dom/button {:onClick (fn [evt] (comp/transact! this `[(create-entity {:where? :append :db/id ~(comp/tempid)})]))} "Append one!")
+    (dom/button {:onClick (fn [evt] (comp/transact! this `[(create-entity {:where? :replace-first :db/id ~(comp/tempid)})]))} "Replace first one!")))
 
-(def ui-item (prim/factory Item {:keyfn :db/id}))
+(def ui-item (comp/factory Item {:keyfn :db/id}))
 
 (defsc Root [this {:keys [root/items]}]
-  {:query         [{:root/items (prim/get-query Item)}]
+  {:query         [{:root/items (comp/get-query Item)}]
    :initial-state {:root/items [{:id 1} {:id 2} {:id 3}]}}
   (dom/div
     (mapv ui-item items)

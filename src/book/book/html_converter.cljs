@@ -1,8 +1,8 @@
 (ns book.html-converter
   (:require
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
-    [fulcro.client.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [hickory.core :as hc]
     [clojure.set :as set]
     [clojure.pprint :refer [pprint]]
@@ -56,12 +56,12 @@
                    :value    html})
     (dom/pre {} (with-out-str (pprint (:code cljs))))
     (dom/button :.c-button {:onClick (fn [evt]
-                                       (prim/transact! this `[(convert {})]))} "Convert")))
+                                       (comp/transact! this `[(convert {})]))} "Convert")))
 
-(def ui-html-convert (prim/factory HTMLConverter))
+(def ui-html-convert (comp/factory HTMLConverter))
 
 (defsc Root [this {:keys [converter]}]
   {:initial-state {:converter {}}
-   :query         [{:converter (prim/get-query HTMLConverter)}]}
+   :query         [{:converter (comp/get-query HTMLConverter)}]}
   (ui-html-convert converter))
 

@@ -1,14 +1,14 @@
 (ns book.queries.simple-property-read
-  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
             [book.queries.parse-runner :refer [ParseRunner ui-parse-runner]]
             [com.fulcrologic.fulcro.dom :as dom]))
 
 (defn property-read [{:keys [state]} key params] {:value (get @state key :not-found)})
-(def property-parser (prim/parser {:read property-read}))
+(def property-parser (comp/parser {:read property-read}))
 
 (defsc Root [this {:keys [parse-runner]}]
   {:initial-state {:parse-runner {}}
-   :query         [{:parse-runner (prim/get-query ParseRunner)}]}
+   :query         [{:parse-runner (comp/get-query ParseRunner)}]}
   (dom/div
-    (ui-parse-runner (prim/computed parse-runner {:parser property-parser :database {:a 1 :b 2 :c 99}}))))
+    (ui-parse-runner (comp/computed parse-runner {:parser property-parser :database {:a 1 :b 2 :c 99}}))))
 

@@ -1,11 +1,11 @@
 (ns book.ui.victory-example
-  (:require [cljs.pprint :refer [cl-format]]
+  (:require
+    [cljs.pprint :refer [cl-format]]
     ;; REQUIRES shadow-cljs, with "victory" in package.json
-            ["victory" :refer [VictoryChart VictoryAxis VictoryLine]]
-            [fulcro.client.cards :refer [defcard-fulcro]]
-            [com.fulcrologic.fulcro.dom :as dom]
-            [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
-            [fulcro.util :as util]))
+    ["victory" :refer [VictoryChart VictoryAxis VictoryLine]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.algorithms.misc :as util]))
 
 (defn us-dollars [n]
   (str "$" (cl-format nil "~:d" n)))
@@ -61,7 +61,7 @@
                   :domain        #js [min-value max-value]})
       (vline #js {:data points}))))
 
-(def yearly-value-chart (prim/factory YearlyValueChart))
+(def yearly-value-chart (comp/factory YearlyValueChart))
 
 (defsc Root [this props]
   {:initial-state {:label     "Yearly Value"
@@ -84,8 +84,7 @@
                                {:year 1998 :value 170}
                                {:year 1999 :value 180}
                                {:year 2000 :value 180}
-                               {:year 2001 :value 200}
-                               ]}}
+                               {:year 2001 :value 200}]}}
   (dom/div
     (yearly-value-chart props)))
 

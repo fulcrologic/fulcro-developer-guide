@@ -1,22 +1,24 @@
 (ns book.demos.component-localized-css
   (:require
-    [fulcro-css.css :as css]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc InitialAppState initial-state]]
+    [com.fulcrologic.fulcro-css.css :as css]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
-    [fulcro.client.localized-dom :as ldom]))
+    [com.fulcrologic.fulcro-css.localized-dom :as ldom]
+    [com.fulcrologic.fulcro-css.css-injection :as cssi]))
 
 (defonce theme-color (atom :blue))
 
-(defsc Child [this {:keys [label]} _ {:keys [thing]}]       ;; css destructuring on 4th argument, or use css/get-classnames
+(defsc Child [this {:keys [label]}]
   {; define local rules via garden. Defined names will be auto-localized
    :css [[:.thing {:color @theme-color}]]}
-  (dom/div
-    (dom/h4 "Using css destructured value of CSS name")
-    (dom/div {:className thing} label)
-    (dom/h4 "Using automatically localized DOM in fulcro.client.localized-dom")
-    (ldom/div :.thing label)))
+  (let [{:keys [thing]} (css/get-classnames Child)]
+    (dom/div
+      (dom/h4 "Using css destructured value of CSS name")
+      (dom/div {:className thing} label)
+      (dom/h4 "Using automatically localized DOM in fulcro.client.localized-dom")
+      (ldom/div :.thing label))))
 
-(def ui-child (prim/factory Child))
+(def ui-child (comp/factory Child))
 
 (declare change-color)
 
@@ -36,8 +38,8 @@
 
 (defn change-color [c]
   (reset! theme-color c)
-  (css/upsert-css "demo-css-id" Root))
+  (cssi/upsert-css "demo-css-id" {:component Root}))
 
 ; Push the real CSS to the DOM via a component. One or more of these could be done to, for example,
 ; include CSS from different modules or libraries into different style elements.
-(css/upsert-css "demo-css-id" Root)
+(cssi/upsert-css "demo-css-id" {:component Root})

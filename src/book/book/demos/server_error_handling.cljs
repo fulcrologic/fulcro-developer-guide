@@ -1,10 +1,10 @@
 (ns book.demos.server-error-handling
   (:require
     [fulcro.client :as fc]
-    [fulcro.client.data-fetch :as df]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [fulcro.logging :as log]
-    [fulcro.client.mutations :as m :refer [defmutation]]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [fulcro.server :as server]
     [com.fulcrologic.fulcro.dom :as dom]))
 
@@ -29,7 +29,7 @@
   (remote [env] true))
 
 ;; an :error key is injected into the fallback mutation's params argument
-(defmutation disable-button [{:keys [error ::prim/ref] :as params}]
+(defmutation disable-button [{:keys [error ::comp/ref] :as params}]
   (action [{:keys [state]}]
     (log/warn "Mutation specific fallback -- disabling button due to error from mutation invoked at " ref)
     (swap! state assoc-in [:error.child/by-id :singleton :ui/button-disabled] true)))
@@ -47,17 +47,17 @@
     ;; if the mutation fails, the fallback will be called
     (dom/button {:onClick #(df/load this :data nil {:fallback `log-read-error})}
       "Click me to try a read with a fallback (logs to console)")
-    (dom/button {:onClick  #(prim/transact! this `[(error-mutation {}) (df/fallback {:action disable-button})])
+    (dom/button {:onClick  #(comp/transact! this `[(error-mutation {}) (df/fallback {:action disable-button})])
                  :disabled button-disabled}
       "Click me for error (disables on error)!")
     (dom/button {:onClick #(df/load-field this :fulcro/read-error)}
       "Click me for other error!")
     (dom/div "Server error (root level): " (str server-error))))
 
-(def ui-child (prim/factory Child))
+(def ui-child (comp/factory Child))
 
 (defsc Root [this {:keys [child]}]
-  {:initial-state (fn [params] {:child (prim/get-initial-state Child {})})
-   :query         [{:child (prim/get-query Child)}]}
+  {:initial-state (fn [params] {:child (comp/get-initial-state Child {})})
+   :query         [{:child (comp/get-query Child)}]}
   (dom/div (ui-child child)))
 

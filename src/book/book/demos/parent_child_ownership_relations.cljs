@@ -1,9 +1,9 @@
 (ns book.demos.parent-child-ownership-relations
   (:require
     [com.fulcrologic.fulcro.dom :as dom]
-    [fulcro.client.mutations :as m]
+    [com.fulcrologic.fulcro.mutations :as m]
     [fulcro.client :as fc]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]))
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
 
 ; Not using an atom, so use a tree for app state (will auto-normalize via ident functions)
 (def initial-state {:ui/react-key "abc"
@@ -32,27 +32,27 @@
    :ident         [:items :item/id]}
   (dom/li label (dom/button {:onClick #(on-delete id)} "X")))
 
-(def ui-list-item (prim/factory Item {:keyfn :item/id}))
+(def ui-list-item (comp/factory Item {:keyfn :item/id}))
 
 (defsc ItemList [this {:keys [list/name list/items]}]
   {:initial-state (fn [p] {:list/id    1
                            :list/name  "List 1"
-                           :list/items [(prim/get-initial-state Item {:id 1 :label "A"})
-                                        (prim/get-initial-state Item {:id 2 :label "B"})]})
-   :query         [:list/id :list/name {:list/items (prim/get-query Item)}]
+                           :list/items [(comp/get-initial-state Item {:id 1 :label "A"})
+                                        (comp/get-initial-state Item {:id 2 :label "B"})]})
+   :query         [:list/id :list/name {:list/items (comp/get-query Item)}]
    :ident         [:lists :list/id]}
   (let [; pass the operation through computed so that it is executed in the context of the parent.
-        item-props (fn [i] (prim/computed i {:on-delete #(prim/transact! this `[(delete-item {:id ~(:item/id i)})])}))]
+        item-props (fn [i] (comp/computed i {:on-delete #(comp/transact! this `[(delete-item {:id ~(:item/id i)})])}))]
     (dom/div
       (dom/h4 name)
       (dom/ul
         (map #(ui-list-item (item-props %)) items)))))
 
-(def ui-list (prim/factory ItemList))
+(def ui-list (comp/factory ItemList))
 
 (defsc Root [this {:keys [main-list]}]
-  {:initial-state (fn [p] {:main-list (prim/get-initial-state ItemList {})})
-   :query         [{:main-list (prim/get-query ItemList)}]}
+  {:initial-state (fn [p] {:main-list (comp/get-initial-state ItemList {})})
+   :query         [{:main-list (comp/get-query ItemList)}]}
   (dom/div (ui-list main-list)))
 
 

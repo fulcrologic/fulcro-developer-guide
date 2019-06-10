@@ -1,11 +1,11 @@
 (ns book.demos.loading-data-targeting-entities
   (:require
-    [fulcro.client.mutations :as m]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
     [fulcro.server :as server]
-    [fulcro.client.data-fetch :as df]
-    [com.fulcrologic.fulcro.components :as prim]))
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.components :as comp]))
 
 ;; SERVER
 
@@ -20,10 +20,10 @@
    :ident [::person-by-id :db/id]}
   (dom/div (str "Hi, I'm " name)))
 
-(def ui-person (prim/factory Person {:keyfn :db/id}))
+(def ui-person (comp/factory Person {:keyfn :db/id}))
 
 (defsc Pane [this {:keys [db/id pane/person] :as props}]
-  {:query         [:db/id {:pane/person (prim/get-query Person)}]
+  {:query         [:db/id {:pane/person (comp/get-query Person)}]
    :initial-state (fn [{:keys [id]}] {:db/id id :pane/person nil})
    :ident         [:pane/by-id :db/id]}
 
@@ -33,19 +33,19 @@
       (ui-person person)
       (dom/div "No person loaded..."))))
 
-(def ui-pane (prim/factory Pane {:keyfn :db/id}))
+(def ui-pane (comp/factory Pane {:keyfn :db/id}))
 
 (defsc Panel [this {:keys [panel/left-pane panel/right-pane]}]
-  {:query         [{:panel/left-pane (prim/get-query Pane)}
-                   {:panel/right-pane (prim/get-query Pane)}]
-   :initial-state (fn [params] {:panel/left-pane  (prim/get-initial-state Pane {:id :left})
-                                :panel/right-pane (prim/get-initial-state Pane {:id :right})})
+  {:query         [{:panel/left-pane (comp/get-query Pane)}
+                   {:panel/right-pane (comp/get-query Pane)}]
+   :initial-state (fn [params] {:panel/left-pane  (comp/get-initial-state Pane {:id :left})
+                                :panel/right-pane (comp/get-initial-state Pane {:id :right})})
    :ident         (fn [] [:PANEL :only-one])}
   (dom/div
     (ui-pane left-pane)
     (ui-pane right-pane)))
 
-(def ui-panel (prim/factory Panel {:keyfn :db/id}))
+(def ui-panel (comp/factory Panel {:keyfn :db/id}))
 
 (defn load-random-person [component where]
   (let [load-target  (case where
@@ -58,8 +58,8 @@
     (df/load component person-ident Person {:target load-target :marker false})))
 
 (defsc Root [this {:keys [root/panel] :as props}]
-  {:query         [{:root/panel (prim/get-query Panel)}]
-   :initial-state (fn [params] {:root/panel (prim/get-initial-state Panel {})})}
+  {:query         [{:root/panel (comp/get-query Panel)}]
+   :initial-state (fn [params] {:root/panel (comp/get-initial-state Panel {})})}
   (dom/div
     (ui-panel panel)
     (dom/button {:onClick #(load-random-person this :left)} "Load into Left")

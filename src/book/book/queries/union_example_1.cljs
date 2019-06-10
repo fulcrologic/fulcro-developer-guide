@@ -1,11 +1,9 @@
 (ns book.queries.union-example-1
-  (:require [com.fulcrologic.fulcro.dom :as dom]
-            [com.fulcrologic.fulcro.routing.union-router :as r :refer [defsc-router]]
-            [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
-            [fulcro.client :as fc]
-            [fulcro.ui.bootstrap3 :as b]
-            [fulcro.ui.elements :as ele]
-            [fulcro.client.cards :refer [defcard-fulcro]]))
+  (:require
+    [com.fulcrologic.fulcro.dom :as dom :refer [div]]
+    [com.fulcrologic.fulcro.routing.union-router :as r :refer [defsc-router]]
+    [book.elements :as ele]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
 
 (defn item-ident
   "Generate an ident from a person, place, or thing."
@@ -55,25 +53,25 @@
   {:ident (fn [] (item-ident props))
    :query [:kind :db/id :person/name]}
   (dom/li {:onClick #(onSelect (item-ident props))}
-    (dom/a {:href "javascript:void(0)"} (str "Person " id " " name))))
+    (dom/a {} (str "Person " id " " name))))
 
-(def ui-person (prim/factory PersonListItem {:keyfn item-key}))
+(def ui-person (comp/factory PersonListItem {:keyfn item-key}))
 
 (defsc PlaceListItem [this {:keys [db/id place/name] :as props} {:keys [onSelect] :as computed}]
   {:ident (fn [] (item-ident props))
    :query [:kind :db/id :place/name]}
   (dom/li {:onClick #(onSelect (item-ident props))}
-    (dom/a {:href "javascript:void(0)"} (str "Place " id " : " name))))
+    (dom/a {} (str "Place " id " : " name))))
 
-(def ui-place (prim/factory PlaceListItem {:keyfn item-key}))
+(def ui-place (comp/factory PlaceListItem {:keyfn item-key}))
 
 (defsc ThingListItem [this {:keys [db/id thing/label] :as props} {:keys [onSelect] :as computed}]
   {:ident (fn [] (item-ident props))
    :query [:kind :db/id :thing/label]}
   (dom/li {:onClick #(onSelect (item-ident props))}
-    (dom/a {:href "javascript:void(0)"} (str "Thing " id " : " label))))
+    (dom/a {} (str "Thing " id " : " label))))
 
-(def ui-thing (prim/factory ThingListItem item-key))
+(def ui-thing (comp/factory ThingListItem item-key))
 
 (defsc-router ItemDetail [this props]
   {:router-id      :detail-router
@@ -84,19 +82,19 @@
                     :thing/by-id  ThingDetail}}
   (dom/div "No route"))
 
-(def ui-item-detail (prim/factory ItemDetail))
+(def ui-item-detail (comp/factory ItemDetail))
 
 (defsc ItemUnion [this {:keys [kind] :as props}]
   {:ident (fn [] (item-ident props))
-   :query (fn [] {:person/by-id (prim/get-query PersonListItem)
-                  :place/by-id  (prim/get-query PlaceListItem)
-                  :thing/by-id  (prim/get-query ThingListItem)})}
+   :query (fn [] {:person/by-id (comp/get-query PersonListItem)
+                  :place/by-id  (comp/get-query PlaceListItem)
+                  :thing/by-id  (comp/get-query ThingListItem)})}
   (case kind
     :person/by-id (ui-person props)
     :place/by-id (ui-place props)
     :thing/by-id (ui-thing props)))
 
-(def ui-item-union (prim/factory ItemUnion {:keyfn item-key}))
+(def ui-item-union (comp/factory ItemUnion {:keyfn item-key}))
 
 (defsc ItemList [this {:keys [items]} {:keys [onSelect]}]
   {
@@ -109,32 +107,31 @@
                              (make-thing 5 "Pillow")
                              (make-place 6 "Canada")]})
    :ident         (fn [] [:lists/by-id :singleton])
-   :query         [{:items (prim/get-query ItemUnion)}]}
-  (dom/ul
-    (map (fn [i] (ui-item-union (prim/computed i {:onSelect onSelect}))) items)))
+   :query         [{:items (comp/get-query ItemUnion)}]}
+  (dom/ul :.ui.list
+    (map (fn [i] (ui-item-union (comp/computed i {:onSelect onSelect}))) items)))
 
-(def ui-item-list (prim/factory ItemList))
+(def ui-item-list (comp/factory ItemList))
 
 (defsc Root [this {:keys [item-list item-detail]}]
-  {:query         [{:item-list (prim/get-query ItemList)}
-                   {:item-detail (prim/get-query ItemDetail)}]
+  {:query         [{:item-list (comp/get-query ItemList)}
+                   {:item-detail (comp/get-query ItemDetail)}]
    :initial-state (fn [p] (merge
                             (r/routing-tree
                               (r/make-route :detail [(r/router-instruction :detail-router [:param/kind :param/id])]))
-                            {:item-list   (prim/get-initial-state ItemList nil)
-                             :item-detail (prim/get-initial-state ItemDetail nil)}))}
+                            {:item-list   (comp/get-initial-state ItemList nil)
+                             :item-detail (comp/get-initial-state ItemDetail nil)}))}
   (let [; This is the only thing to do: Route the to the detail screen with the given route params!
         showDetail (fn [[kind id]]
-                     (prim/transact! this `[(r/route-to {:handler :detail :route-params {:kind ~kind :id ~id}})]))]
+                     (comp/transact! this `[(r/route-to {:handler :detail :route-params {:kind ~kind :id ~id}})]))]
     ; devcards, embed in iframe so we can use bootstrap css easily
-    (ele/ui-iframe {:frameBorder 0 :height "300px" :width "100%"}
-      (dom/div {:key "example-frame-key"}
-        (dom/style ".boxed {border: 1px solid black}")
-        (dom/link {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
-        (b/container-fluid {}
-          (b/row {}
-            (b/col {:xs 6} "Items")
-            (b/col {:xs 6} "Detail"))
-          (b/row {}
-            (b/col {:xs 6} (ui-item-list (prim/computed item-list {:onSelect showDetail})))
-            (b/col {:xs 6} (ui-item-detail item-detail))))))))
+    (dom/div {:key "example-frame-key"}
+      (dom/style ".boxed {border: 1px solid black}")
+      ;(dom/link {:rel "stylesheet" :href "https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css"})
+      (dom/table :.ui.table {}
+        (dom/tr
+          (dom/th "Items")
+          (dom/th "Detail"))
+        (dom/tr
+          (dom/td (ui-item-list (comp/computed item-list {:onSelect showDetail})))
+          (dom/td (ui-item-detail item-detail)))))))

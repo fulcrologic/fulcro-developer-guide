@@ -1,10 +1,11 @@
 (ns book.ui.d3-example
-  (:require [com.fulcrologic.fulcro.dom :as dom]
+  (:require
+    [com.fulcrologic.fulcro.dom :as dom]
     ;; REQUIRES shadow-cljs, with "d3" in package.json
-            ["d3" :as d3]
-            [goog.object :as gobj]
-            [fulcro.client.mutations :as m :refer [defmutation]]
-            [com.fulcrologic.fulcro.components :as prim :refer [defsc]]))
+    ["d3" :as d3]
+    [goog.object :as gobj]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
 
 (defn render-squares [dom-node props]
   (let [svg       (-> d3 (.select dom-node))
@@ -31,10 +32,10 @@
     false))
 
 (defsc D3Thing [this props]
-  {:componentDidMount     (fn []
+  {:componentDidMount     (fn [this]
                             (when-let [dom-node (gobj/get this "svg")]
-                              (render-squares dom-node (prim/props this))))
-   :shouldComponentUpdate (fn [next-props next-state]
+                              (render-squares dom-node (comp/props this))))
+   :shouldComponentUpdate (fn [this next-props next-state]
                             (when-let [dom-node (gobj/get this "svg")]
                               (render-squares dom-node next-props))
                             false)}
@@ -43,7 +44,7 @@
             :ref     (fn [r] (gobj/set this "svg" r))
             :viewBox "0 0 1000 1000"}))
 
-(def d3-thing (prim/factory D3Thing))
+(def d3-thing (comp/factory D3Thing))
 
 (defn random-square []
   {
@@ -70,9 +71,9 @@
   {:query         [:squares]
    :initial-state {:squares []}}
   (dom/div
-    (dom/button {:onClick #(prim/transact! this
+    (dom/button {:onClick #(comp/transact! this
                              `[(add-square {})])} "Add Random Square")
-    (dom/button {:onClick #(prim/transact! this
+    (dom/button {:onClick #(comp/transact! this
                              `[(clear-squares {})])} "Clear")
     (dom/br)
     (dom/br)

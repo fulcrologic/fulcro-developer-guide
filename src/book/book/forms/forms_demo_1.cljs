@@ -1,7 +1,7 @@
 (ns book.forms.forms-demo-1
   (:require
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [fulcro.ui.forms :as f]))
 
 (defn field-with-label
@@ -26,12 +26,12 @@
     (field-with-label this form :phone/type "Phone type:")  ; Use your own helpers to render out the fields
     (field-with-label this form :phone/number "Number:")))
 
-(def ui-phone-form (prim/factory PhoneForm {:keyfn :db/id}))
+(def ui-phone-form (comp/factory PhoneForm {:keyfn :db/id}))
 
 (defsc Root [this {:keys [phone]}]
-  {:query         [{:phone (prim/get-query PhoneForm)}]
+  {:query         [{:phone (comp/get-query PhoneForm)}]
    :initial-state (fn [params]
                     (let [phone-number {:db/id 1 :phone/type :home :phone/number "555-1212"}]
-                      {:phone (prim/get-initial-state PhoneForm phone-number)}))}
+                      {:phone (comp/get-initial-state PhoneForm phone-number)}))}
   (dom/div
     (ui-phone-form phone)))

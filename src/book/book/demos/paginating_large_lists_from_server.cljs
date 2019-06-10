@@ -1,12 +1,12 @@
 (ns book.demos.paginating-large-lists-from-server
   (:require
-    [fulcro.client.mutations :as m]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
     [fulcro.server :as server]
-    [fulcro.client.data-fetch :as df]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [fulcro.client :as fc]
-    [com.fulcrologic.fulcro.components :as prim]))
+    [com.fulcrologic.fulcro.components :as comp]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -86,36 +86,36 @@
    :ident [:items/by-id :item/id]}
   (dom/li (str "Item " id)))
 
-(def ui-list-item (prim/factory ListItem {:keyfn :item/id}))
+(def ui-list-item (comp/factory ListItem {:keyfn :item/id}))
 
 (defsc ListPage [this {:keys [page/number page/items]}]
   {:initial-state {:page/number 1 :page/items []}
-   :query         [:page/number {:page/items (prim/get-query ListItem)}]
+   :query         [:page/number {:page/items (comp/get-query ListItem)}]
    :ident         [:page/by-number :page/number]}
   (dom/div
     (dom/p "Page number " number)
     (df/lazily-loaded #(dom/ul nil (mapv ui-list-item %)) items)))
 
-(def ui-list-page (prim/factory ListPage {:keyfn :page/number}))
+(def ui-list-page (comp/factory ListPage {:keyfn :page/number}))
 
 (defsc LargeList [this {:keys [list/current-page]}]
-  {:initial-state (fn [params] {:list/current-page (prim/get-initial-state ListPage {})})
-   :query         [{:list/current-page (prim/get-query ListPage)}]
+  {:initial-state (fn [params] {:list/current-page (comp/get-initial-state ListPage {})})
+   :query         [{:list/current-page (comp/get-query ListPage)}]
    :ident         (fn [] [:list/by-id 1])}
   (let [{:keys [page/number]} current-page]
     (dom/div
-      (dom/button {:disabled (= 1 number) :onClick #(prim/transact! this `[(goto-page {:page-number ~(dec number)})])} "Prior Page")
-      (dom/button {:onClick #(prim/transact! this `[(goto-page {:page-number ~(inc number)})])} "Next Page")
+      (dom/button {:disabled (= 1 number) :onClick #(comp/transact! this `[(goto-page {:page-number ~(dec number)})])} "Prior Page")
+      (dom/button {:onClick #(comp/transact! this `[(goto-page {:page-number ~(inc number)})])} "Next Page")
       (ui-list-page current-page))))
 
-(def ui-list (prim/factory LargeList))
+(def ui-list (comp/factory LargeList))
 
 (defsc Root [this {:keys [pagination/list]}]
-  {:initial-state (fn [params] {:pagination/list (prim/get-initial-state LargeList {})})
-   :query         [{:pagination/list (prim/get-query LargeList)}]}
+  {:initial-state (fn [params] {:pagination/list (comp/get-initial-state LargeList {})})
+   :query         [{:pagination/list (comp/get-query LargeList)}]}
   (dom/div (ui-list list)))
 
 (defn initialize
   "To be used as started-callback. Load the first page."
   [{:keys [reconciler]}]
-  (prim/transact! reconciler `[(goto-page {:page-number 1})]))
+  (comp/transact! reconciler `[(goto-page {:page-number 1})]))

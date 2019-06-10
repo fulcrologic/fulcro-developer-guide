@@ -1,6 +1,6 @@
 (ns book.queries.recursive-demo-bullets
-  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
-            [fulcro.client.mutations :as m :refer [defmutation]]
+  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+            [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
             [com.fulcrologic.fulcro.dom :as dom]
             [clojure.string :as str]))
 
@@ -18,15 +18,15 @@
       (dom/ul
         (map ui-item subitems)))))
 
-(def ui-item (prim/factory Item {:keyfn :db/id}))
+(def ui-item (comp/factory Item {:keyfn :db/id}))
 
 (defsc ItemList [this {:keys [db/id list/items] :as props}]
-  {:query [:db/id {:list/items (prim/get-query Item)}]
+  {:query [:db/id {:list/items (comp/get-query Item)}]
    :ident [:list/by-id :db/id]}
   (dom/ul
     (map ui-item items)))
 
-(def ui-item-list (prim/factory ItemList {:keyfn :db/id}))
+(def ui-item-list (comp/factory ItemList {:keyfn :db/id}))
 
 (defsc Root [this {:keys [list]}]
   {:initial-state (fn [p]
@@ -50,6 +50,6 @@
                                           :item/label    "D"
                                           ; just for fun..nest a dupe under D
                                           :item/subitems [{:db/id 6 :item/label "B.1"}]}]}})
-   :query         [{:list (prim/get-query ItemList)}]}
+   :query         [{:list (comp/get-query ItemList)}]}
   (dom/div
     (ui-item-list list)))

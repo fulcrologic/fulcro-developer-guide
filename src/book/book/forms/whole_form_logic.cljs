@@ -1,12 +1,12 @@
 (ns book.forms.whole-form-logic
   (:require
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [fulcro.server :refer [defquery-root]]
-    [fulcro.client.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [fulcro.ui.icons :as i]
     [fulcro.ui.forms :as f]
-    [fulcro.client.data-fetch :as df]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [fulcro.ui.bootstrap3 :as b]))
 
 ;; SERVER
@@ -64,10 +64,10 @@
       (dom/button :.btn.btn-default {:disabled (not (f/dirty? props)) :onClick #(f/commit-to-entity! this :remote true)}
         "Save!"))))
 
-(def ui-person (prim/factory Person {:keyfn :db/id}))
+(def ui-person (comp/factory Person {:keyfn :db/id}))
 
 (defsc Root [this {:keys [person]}]
-  {:initial-state (fn [_] {:person (prim/get-initial-state Person {:db/id 1})})
-   :query         [{:person (prim/get-query Person)}]}
+  {:initial-state (fn [_] {:person (comp/get-initial-state Person {:db/id 1})})
+   :query         [{:person (comp/get-query Person)}]}
   (dom/div
     (ui-person person)))

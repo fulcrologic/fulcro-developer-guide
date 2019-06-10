@@ -1,5 +1,5 @@
 (ns book.queries.recursive-demo-1
-  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
             [com.fulcrologic.fulcro.dom :as dom]))
 
 (defn make-person
@@ -11,7 +11,7 @@
 (declare ui-person)
 
 ; The ... in the query means there will be children of the same type, of arbitrary depth
-; it is equivalent to (prim/get-query Person), but calling get query on yourself would
+; it is equivalent to (comp/get-query Person), but calling get query on yourself would
 ; lead to infinite compiler recursion.
 (defsc Person [this {:keys [:person/name :person/children]}]
   {:query         (fn [] [:db/id :person/name {:person/children '...}])
@@ -32,10 +32,10 @@
                  (ui-person p))
             children))))))
 
-(def ui-person (prim/factory Person {:keyfn :db/id}))
+(def ui-person (comp/factory Person {:keyfn :db/id}))
 
 (defsc Root [this {:keys [person-of-interest]}]
   {:initial-state {:person-of-interest {}}
-   :query         [{:person-of-interest (prim/get-query Person)}]}
+   :query         [{:person-of-interest (comp/get-query Person)}]}
   (dom/div
     (ui-person person-of-interest)))

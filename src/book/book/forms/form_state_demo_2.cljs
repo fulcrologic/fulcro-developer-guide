@@ -2,14 +2,14 @@
   (:require [devcards.core]
             [fulcro.ui.elements :as ele]
             [fulcro.server :as server]
-            [fulcro.client.mutations :as m :refer [defmutation]]
+            [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
             [fulcro.ui.bootstrap3 :as bs]
-            [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+            [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
             [com.fulcrologic.fulcro.dom :as dom]
             [fulcro.ui.form-state :as fs]
             [clojure.string :as str]
             [cljs.spec.alpha :as s]
-            [fulcro.client.data-fetch :as df]))
+            [com.fulcrologic.fulcro.data-fetch :as df]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Server Code
@@ -33,7 +33,7 @@
     (js/console.log "Server received form submission with content: ")
     (cljs.pprint/pprint params)
     (let [ids    (map (fn [[k v]] (second k)) (:diff params))
-          remaps (into {} (keep (fn [v] (when (prim/tempid? v) [v (next-id)])) ids))]
+          remaps (into {} (keep (fn [v] (when (comp/tempid? v) [v (next-id)])) ids))]
       {:tempids remaps})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -44,8 +44,8 @@
 (s/def ::person-age #(s/int-in-range? 1 120 %))
 
 (defn render-field [component field renderer]
-  (let [form         (prim/props component)
-        entity-ident (prim/get-ident component form)
+  (let [form         (comp/props component)
+        entity-ident (comp/get-ident component form)
         id           (str (first entity-ident) "-" (second entity-ident))
         is-dirty?    (fs/dirty? form field)
         clean?       (not is-dirty?)
@@ -78,7 +78,7 @@
                           :id       id
                           :error    (when invalid? validation-string)
                           :warning  (when dirty? "(unsaved)")
-                          :onBlur   #(prim/transact! component `[(fs/mark-complete! {:entity-ident ~ident
+                          :onBlur   #(comp/transact! component `[(fs/mark-complete! {:entity-ident ~ident
                                                                                      :field        ~field})
                                                                  :root/person])
                           :onChange (if (integer-fields field)
@@ -89,7 +89,7 @@
 
 (defsc PhoneForm [this {:keys [::phone-type ui/dropdown] :as props}]
   {:query       [:db/id ::phone-number ::phone-type
-                 {:ui/dropdown (prim/get-query bs/Dropdown)}
+                 {:ui/dropdown (comp/get-query bs/Dropdown)}
                  fs/form-config-join]
    :form-fields #{::phone-number ::phone-type}
    :ident       [:phone/by-id :db/id]}
@@ -101,10 +101,10 @@
           :value phone-type
           :onSelect (fn [v]
                       (m/set-value! this ::phone-type v)
-                      (prim/transact! this `[(fs/mark-complete! {:field ::phone-type})
+                      (comp/transact! this `[(fs/mark-complete! {:field ::phone-type})
                                              :root/person])))))))
 
-(def ui-phone-form (prim/factory PhoneForm {:keyfn :db/id}))
+(def ui-phone-form (comp/factory PhoneForm {:keyfn :db/id}))
 
 (defn add-phone-dropdown*
   "Add a phone type dropdown to a phone entity"
@@ -112,7 +112,7 @@
   (let [dropdown-id (random-uuid)
         dropdown    (bs/dropdown dropdown-id "Type" [(bs/dropdown-item :work "Work") (bs/dropdown-item :home "Home")])]
     (-> state-map
-      (prim/merge-component bs/Dropdown dropdown)           ; we're being a bit wasteful here and adding a new dropdown to state every time
+      (comp/merge-component bs/Dropdown dropdown)           ; we're being a bit wasteful here and adding a new dropdown to state every time
       (bs/set-dropdown-item-active* dropdown-id default-type)
       (assoc-in [:phone/by-id phone-id :ui/dropdown] (bs/dropdown-ident dropdown-id)))))
 
@@ -130,7 +130,7 @@
   "Mutation: Add a phone number to a person, and initialize it as a working form."
   [{:keys [person-id]}]
   (action [{:keys [state]}]
-    (let [phone-id (prim/tempid)]
+    (let [phone-id (comp/tempid)]
       (swap! state (fn [s]
                      (-> s
                        (add-phone* phone-id person-id :home "")
@@ -138,7 +138,7 @@
 
 (defsc PersonForm [this {:keys [:db/id ::phone-numbers]}]
   {:query       [:db/id ::person-name ::person-age
-                 {::phone-numbers (prim/get-query PhoneForm)}
+                 {::phone-numbers (comp/get-query PhoneForm)}
                  fs/form-config-join]
    :form-fields #{::person-name ::person-age ::phone-numbers} ; ::phone-numbers here becomes a subform because it is a join in the query.
    :ident       [:person/by-id :db/id]}
@@ -148,9 +148,9 @@
     (dom/h4 "Phone numbers:")
     (when (seq phone-numbers)
       (map ui-phone-form phone-numbers))
-    (bs/button {:onClick #(prim/transact! this `[(add-phone {:person-id ~id})])} (bs/glyphicon {} :plus))))
+    (bs/button {:onClick #(comp/transact! this `[(add-phone {:person-id ~id})])} (bs/glyphicon {} :plus))))
 
-(def ui-person-form (prim/factory PersonForm {:keyfn :db/id}))
+(def ui-person-form (comp/factory PersonForm {:keyfn :db/id}))
 
 (defn add-person*
   "Add a person with the given details to the state database."
@@ -161,9 +161,9 @@
 
 (defmutation edit-new-person [_]
   (action [{:keys [state]}]
-    (let [person-id    (prim/tempid)
+    (let [person-id    (comp/tempid)
           person-ident [:person/by-id person-id]
-          phone-id     (prim/tempid)]
+          phone-id     (comp/tempid)]
       (swap! state
         (fn [s] (-> s
                   (add-person* person-id "" 0)
@@ -198,7 +198,7 @@
   (remote [env] true))
 
 (defsc Root [this {:keys [root/person]}]
-  {:query         [{:root/person (prim/get-query PersonForm)}]
+  {:query         [{:root/person (comp/get-query PersonForm)}]
    :initial-state (fn [params] {})}
   (ele/ui-iframe {:frameBorder 0 :width 800 :height 700}
     (dom/div
@@ -208,13 +208,13 @@
                                                                          :post-mutation        `edit-existing-person
                                                                          :post-mutation-params {:person-id 21}})}
         "Simulate Edit (existing) Person from Server")
-      (bs/button {:onClick #(prim/transact! this `[(edit-new-person {})])} "Simulate New Person Creation")
+      (bs/button {:onClick #(comp/transact! this `[(edit-new-person {})])} "Simulate New Person Creation")
       (when (::person-name person)
         (ui-person-form person))
       (dom/div
-        (bs/button {:onClick  #(prim/transact! this `[(fs/reset-form! {:form-ident [:person/by-id ~(:db/id person)]})])
+        (bs/button {:onClick  #(comp/transact! this `[(fs/reset-form! {:form-ident [:person/by-id ~(:db/id person)]})])
                     :disabled (not (fs/dirty? person))} "Reset")
-        (bs/button {:onClick  #(prim/transact! this `[(submit-person {:id ~(:db/id person) :diff ~(fs/dirty-fields person false)})])
+        (bs/button {:onClick  #(comp/transact! this `[(submit-person {:id ~(:db/id person) :diff ~(fs/dirty-fields person false)})])
                     :disabled (or
                                 (fs/invalid-spec? person)
                                 (not (fs/dirty? person)))} "Submit")))))

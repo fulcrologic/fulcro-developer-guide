@@ -1,5 +1,5 @@
 (ns book.queries.parsing-parameters
-  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
             [book.queries.parse-runner :refer [ParseRunner ui-parse-runner]]
             [com.fulcrologic.fulcro.dom :as dom]))
 
@@ -18,11 +18,11 @@
     :load/start-time {:value (convert (get @state key) (or (:units params) :ms))}
     nil))
 
-(def parser (prim/parser {:read read}))
+(def parser (comp/parser {:read read}))
 
 
 (defsc Root [this {:keys [parse-runner]}]
-  {:initial-state (fn [params] {:parse-runner (prim/get-initial-state ParseRunner {:query "[(:load/start-time {:units :seconds})]"})})
-   :query         [{:parse-runner (prim/get-query ParseRunner)}]}
+  {:initial-state (fn [params] {:parse-runner (comp/get-initial-state ParseRunner {:query "[(:load/start-time {:units :seconds})]"})})
+   :query         [{:parse-runner (comp/get-query ParseRunner)}]}
   (dom/div
-    (ui-parse-runner (prim/computed parse-runner {:parser parser :database database}))))
+    (ui-parse-runner (comp/computed parse-runner {:parser parser :database database}))))

@@ -1,5 +1,5 @@
 (ns book.queries.parsing-recursion-one
-  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
             [book.queries.parse-runner :refer [ParseRunner ui-parse-runner]]
             [com.fulcrologic.fulcro.dom :as dom]))
 
@@ -20,11 +20,11 @@
                {:value friends})
     nil))
 
-(def parser (prim/parser {:read read}))
+(def parser (comp/parser {:read read}))
 (def query "[:window/size {:friends [:name :married]}]")
 
 (defsc Root [this {:keys [parse-runner]}]
-  {:initial-state (fn [params] {:parse-runner (prim/get-initial-state ParseRunner {:query query})})
-   :query         [{:parse-runner (prim/get-query ParseRunner)}]}
+  {:initial-state (fn [params] {:parse-runner (comp/get-initial-state ParseRunner {:query query})})
+   :query         [{:parse-runner (comp/get-query ParseRunner)}]}
   (dom/div
-    (ui-parse-runner (prim/computed parse-runner {:parser parser :database database}))))
+    (ui-parse-runner (comp/computed parse-runner {:parser parser :database database}))))

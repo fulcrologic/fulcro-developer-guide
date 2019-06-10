@@ -1,8 +1,7 @@
 (ns book.ui.hover-example
   (:require
-    [fulcro.client.cards :refer [defcard-fulcro]]
-    [fulcro.client.mutations :refer [defmutation]]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc InitialAppState initial-state]]
+    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc initial-state]]
     [goog.object :as gobj]
     [com.fulcrologic.fulcro.dom :as dom]))
 
@@ -78,7 +77,7 @@
   "Update the marker in app state. Derives normalized coordinates, and updates the marker in application state."
   [child evt]
   (let [canvas (gobj/get child "canvas")]
-    (prim/transact! child `[(update-marker
+    (comp/transact! child `[(update-marker
                               {:coords ~(event->normalized-coords evt canvas)})])))
 
 (defn hover-marker
@@ -88,19 +87,19 @@
   [child evt]
   (let [canvas         (gobj/get child "canvas")
         updated-coords (event->dom-coords evt canvas)]
-    (prim/set-state! child {:coords updated-coords})
-    (render-hover-and-marker canvas (prim/props child) updated-coords)))
+    (comp/set-state! child {:coords updated-coords})
+    (render-hover-and-marker canvas (comp/props child) updated-coords)))
 
 (defsc Child [this {:keys [id size] :as props}]
   {:query          [:id :size :marker]
    :initial-state  (fn [_] {:id 0 :size 50 :marker [0.5 0.5]})
    :ident          (fn [] [:child/by-id id])
-   :initLocalState (fn [] {:coords [-50 -50]})}
+   :initLocalState (fn [this] {:coords [-50 -50]})}
   ; Remember that this "render" just renders the DOM (e.g. the canvas DOM element). The graphical
   ; rendering within the canvas is done during event handling.
   ; size comes from props. Transactions on size will cause the canvas to resize in the DOM
   (when-let [canvas (gobj/get this "canvas")]
-    (render-hover-and-marker canvas props (prim/get-state this :coords)))
+    (render-hover-and-marker canvas props (comp/get-state this :coords)))
   (dom/canvas {:width       (str size "px")
                :height      (str size "px")
                :onMouseDown (fn [evt] (place-marker this evt))
@@ -111,17 +110,17 @@
                :ref         (fn [r]
                               (when r
                                 (gobj/set this "canvas" r)
-                                (render-hover-and-marker r props (prim/get-state this :coords))))
+                                (render-hover-and-marker r props (comp/get-state this :coords))))
                :style       {:border "1px solid black"}}))
 
-(def ui-child (prim/factory Child))
+(def ui-child (comp/factory Child))
 
 (defsc Root [this {:keys [child]}]
-  {:query         [{:child (prim/get-query Child)}]
-   :initial-state (fn [params] {:ui/react-key "K" :child (initial-state Child nil)})}
+  {:query         [{:child (comp/get-query Child)}]
+   :initial-state (fn [params] {:ui/react-key "K" :child (comp/get-initial-state Child nil)})}
   (dom/div
-    (dom/button {:onClick #(prim/transact! this `[(make-bigger {})])} "Bigger!")
-    (dom/button {:onClick #(prim/transact! this `[(make-smaller {})])} "Smaller!")
+    (dom/button {:onClick #(comp/transact! this `[(make-bigger {})])} "Bigger!")
+    (dom/button {:onClick #(comp/transact! this `[(make-smaller {})])} "Smaller!")
     (dom/br)
     (dom/br)
     (ui-child child)))

@@ -1,8 +1,8 @@
 (ns book.queries.parsing-key-trace
-  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
             [devcards.util.edn-renderer :refer [html-edn]]
             [cljs.reader :as r]
-            [fulcro.client.mutations :as m :refer [defmutation]]
+            [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
             [com.fulcrologic.fulcro.dom :as dom]))
 
 (defn tracer-path
@@ -19,7 +19,7 @@
   "Mutation: Run and record the trace of a query."
   [{:keys [query]}]
   (action [{:keys [state]}]
-    (let [parser (prim/parser {:read (tracing-reader state)})] ; make a parser that records calls to read
+    (let [parser (comp/parser {:read (tracing-reader state)})] ; make a parser that records calls to read
       (try
         (swap! state assoc-in (tracer-path :trace) [])      ; clear the last trace
         (swap! state assoc-in (tracer-path :error) nil)     ; clear the last error
@@ -36,13 +36,13 @@
     (dom/input {:type     "text"
                 :value    query
                 :onChange #(m/set-string! this :query :event %)})
-    (dom/button {:onClick #(prim/transact! this `[(record-parsing-trace ~{:query query})])} "Run Parser")
+    (dom/button {:onClick #(comp/transact! this `[(record-parsing-trace ~{:query query})])} "Run Parser")
     (dom/h4 "Parsing Trace")
     (html-edn trace)))
 
-(def ui-tracer (prim/factory ParsingTracer))
+(def ui-tracer (comp/factory ParsingTracer))
 
 (defsc Root [this {:keys [ui/tracer]}]
-  {:query         [{:ui/tracer (prim/get-query ParsingTracer)}]
+  {:query         [{:ui/tracer (comp/get-query ParsingTracer)}]
    :initial-state {:ui/tracer {}}}
   (ui-tracer tracer))

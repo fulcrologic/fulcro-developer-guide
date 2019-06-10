@@ -2,8 +2,8 @@
   (:require
     [com.fulcrologic.fulcro.dom :as dom]
     [fulcro.server :as server]
-    [fulcro.client.mutations :as m]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]))
+    [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -33,11 +33,11 @@
    :ident         [:child/by-id :id]}
   (dom/div
     (dom/p "Current volume: " volume)
-    (dom/button {:onClick #(prim/transact! this `[(crank-it-up ~{:value volume})])} "+")))
+    (dom/button {:onClick #(comp/transact! this `[(crank-it-up ~{:value volume})])} "+")))
 
-(def ui-child (prim/factory Child))
+(def ui-child (comp/factory Child))
 
 (defsc Root [this {:keys [child]}]
-  {:initial-state (fn [params] {:child (prim/get-initial-state Child {})})
-   :query         [{:child (prim/get-query Child)}]}
+  {:initial-state (fn [params] {:child (comp/get-initial-state Child {})})
+   :query         [{:child (comp/get-query Child)}]}
   (dom/div (ui-child child)))

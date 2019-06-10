@@ -2,9 +2,9 @@
   (:require [com.fulcrologic.fulcro.routing.union-router :as r :refer-macros [defrouter]]
             [com.fulcrologic.fulcro.dom :as dom]
             [fulcro.client :as fc]
-            [fulcro.client.data-fetch :as df]
-            [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
-            [fulcro.client.mutations :as m]))
+            [com.fulcrologic.fulcro.data-fetch :as df]
+            [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+            [com.fulcrologic.fulcro.mutations :as m]))
 
 (defsc Main [this {:keys [label]}]
   {:initial-state {:page :main :label "MAIN"}
@@ -45,13 +45,13 @@
   :status-report StatusReport
   :graphing-report GraphingReport)
 
-(def ui-report-router (prim/factory ReportRouter))
+(def ui-report-router (comp/factory ReportRouter))
 
 ; BIG GOTCHA: Make sure you query for the prop (in this case :page) that the union needs in order to decide. It won't pull it itself!
 (defsc ReportsMain [this {:keys [report-router]}]
   ; nest the router under any arbitrary key, just be consistent in your query and props extraction.
-  {:initial-state (fn [params] {:page :report :report-router (prim/get-initial-state ReportRouter {})})
-   :query         [:page {:report-router (prim/get-query ReportRouter)}]}
+  {:initial-state (fn [params] {:page :report :report-router (comp/get-initial-state ReportRouter {})})
+   :query         [:page {:report-router (comp/get-query ReportRouter)}]}
   (dom/div {:style {:backgroundColor "grey"}}
     ; Screen-specific content to be shown "around" or "above" the subscreen
     "REPORT MAIN SCREEN"
@@ -65,7 +65,7 @@
   :new-user NewUser
   :report ReportsMain)
 
-(def ui-top (prim/factory TopRouter))
+(def ui-top (comp/factory TopRouter))
 
 (def routing-tree
   "A map of route handling instructions. The top key is the handler name of the route which can be
@@ -88,15 +88,15 @@
 (defsc Root [this {:keys [top-router]}]
   ; r/routing-tree-key implies the alias of com.fulcrologic.fulcro.routing.union-router as r.
   {:initial-state (fn [params] (merge routing-tree
-                                 {:top-router (prim/get-initial-state TopRouter {})}))
-   :query         [{:top-router (prim/get-query TopRouter)}]}
+                                 {:top-router (comp/get-initial-state TopRouter {})}))
+   :query         [{:top-router (comp/get-query TopRouter)}]}
   (dom/div
     ; Sample nav mutations
-    (dom/a {:onClick #(prim/transact! this `[(r/route-to {:handler :main})])} "Main") " | "
-    (dom/a {:onClick #(prim/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "
-    (dom/a {:onClick #(prim/transact! this `[(r/route-to {:handler :login})])} "Login") " | "
-    (dom/a {:onClick #(prim/transact! this `[(r/route-to {:handler :status :route-params {:report-id :a}})])} "Status A") " | "
-    (dom/a {:onClick #(prim/transact! this `[(r/route-to {:handler :graph :route-params {:report-id :a}})])} "Graph A")
+    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :main})])} "Main") " | "
+    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "
+    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :login})])} "Login") " | "
+    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :status :route-params {:report-id :a}})])} "Status A") " | "
+    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :graph :route-params {:report-id :a}})])} "Graph A")
     (ui-top top-router)))
 
 

@@ -1,9 +1,9 @@
 (ns book.forms.form-state-demo-1
   (:require [fulcro.ui.elements :as ele]
-            [fulcro.client.mutations :as m :refer [defmutation]]
+            [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
             [fulcro.ui.form-state :as fs]
             [fulcro.ui.bootstrap3 :as bs]
-            [com.fulcrologic.fulcro.components :as prim :refer [defui defsc]]
+            [com.fulcrologic.fulcro.components :as comp :refer [defui defsc]]
             [com.fulcrologic.fulcro.dom :as dom]
             [clojure.spec.alpha :as s]
             [garden.core :as g]))
@@ -13,8 +13,8 @@
 (defn render-field
   "A helper function for rendering just the fields."
   [component field renderer]
-  (let [form         (prim/props component)
-        entity-ident (prim/get-ident component form)
+  (let [form         (comp/props component)
+        entity-ident (comp/get-ident component form)
         id           (str (first entity-ident) "-" (second entity-ident))
         is-dirty?    (fs/dirty? form field)
         clean?       (not is-dirty?)
@@ -45,7 +45,7 @@
                           :id       id
                           :error    (when invalid? validation-string)
                           :warning  (when dirty? "(unsaved)")
-                          :onBlur   #(prim/transact! component `[(fs/mark-complete! {:entity-ident ~ident
+                          :onBlur   #(comp/transact! component `[(fs/mark-complete! {:entity-ident ~ident
                                                                                      :field        ~field})])
                           :onChange #(m/set-string! component field :event %)} field-label)))))
 
@@ -75,7 +75,7 @@
 
 (defsc PhoneForm [this {:keys [:db/id ::phone-type root/dropdown] :as props}]
   {:query       [:db/id ::phone-type ::phone-number
-                 {[:root/dropdown '_] (prim/get-query bs/Dropdown)} ;reusable dropdown
+                 {[:root/dropdown '_] (comp/get-query bs/Dropdown)} ;reusable dropdown
                  fs/form-config-join]
    :form-fields #{::phone-number ::phone-type}
    :ident       [:phone/by-id :db/id]}
@@ -87,11 +87,11 @@
           :value phone-type
           :onSelect (fn [v]
                       (m/set-value! this ::phone-type v)))))
-    (bs/button {:onClick #(prim/transact! this `[(abort-phone-edit {:id ~id})])} "Cancel")
+    (bs/button {:onClick #(comp/transact! this `[(abort-phone-edit {:id ~id})])} "Cancel")
     (bs/button {:disabled (or (not (fs/checked? props)) (fs/invalid-spec? props))
-                :onClick  #(prim/transact! this `[(submit-phone {:id ~id :delta ~(fs/dirty-fields props true)})])} "Commit!")))
+                :onClick  #(comp/transact! this `[(submit-phone {:id ~id :delta ~(fs/dirty-fields props true)})])} "Commit!")))
 
-(def ui-phone-form (prim/factory PhoneForm {:keyfn :db/id}))
+(def ui-phone-form (comp/factory PhoneForm {:keyfn :db/id}))
 
 (defsc PhoneNumber [this {:keys [:db/id ::phone-type ::phone-number]} {:keys [onSelect]}]
   {:query         [:db/id ::phone-number ::phone-type]
@@ -101,10 +101,10 @@
     (dom/a {:onClick (fn [] (onSelect id))}
       (str phone-number " (" (phone-type {:home "Home" :work "Work" nil "Unknown"}) ")"))))
 
-(def ui-phone-number (prim/factory PhoneNumber {:keyfn :db/id}))
+(def ui-phone-number (comp/factory PhoneNumber {:keyfn :db/id}))
 
 (defsc PhoneBook [this {:keys [:db/id ::phone-numbers]} {:keys [onSelect]}]
-  {:query         [:db/id {::phone-numbers (prim/get-query PhoneNumber)}]
+  {:query         [:db/id {::phone-numbers (comp/get-query PhoneNumber)}]
    :initial-state {:db/id          :main-phone-book
                    ::phone-numbers [{:id 1 :number "541-555-1212" :type :home}
                                     {:id 2 :number "541-555-5533" :type :work}]}
@@ -112,9 +112,9 @@
   (dom/div
     (dom/h4 "Phone Book (click a number to edit)")
     (dom/ul
-      (map (fn [n] (ui-phone-number (prim/computed n {:onSelect onSelect}))) phone-numbers))))
+      (map (fn [n] (ui-phone-number (comp/computed n {:onSelect onSelect}))) phone-numbers))))
 
-(def ui-phone-book (prim/factory PhoneBook {:keyfn :db/id}))
+(def ui-phone-book (comp/factory PhoneBook {:keyfn :db/id}))
 
 (defmutation edit-phone-number [{:keys [id]}]
   (action [{:keys [state]}]
@@ -130,16 +130,16 @@
                        (assoc :root/phone [:phone/by-id id])))))))
 
 (defsc Root [this {:keys [:root/phone :root/phonebook]}]
-  {:query         [{:root/dropdown (prim/get-query bs/Dropdown)}
-                   {:root/phonebook (prim/get-query PhoneBook)}
-                   {:root/phone (prim/get-query PhoneForm)}]
+  {:query         [{:root/dropdown (comp/get-query bs/Dropdown)}
+                   {:root/phonebook (comp/get-query PhoneBook)}
+                   {:root/phone (comp/get-query PhoneForm)}]
    :initial-state (fn [params]
                     {:root/dropdown  (bs/dropdown :phone-type "Type" [(bs/dropdown-item :work "Work")
                                                                       (bs/dropdown-item :home "Home")])
-                     :root/phonebook (prim/get-initial-state PhoneBook {})})}
+                     :root/phonebook (comp/get-initial-state PhoneBook {})})}
   (ele/ui-iframe {:frameBorder 0 :width 500 :height 200}
     (dom/div
       (dom/link {:rel "stylesheet" :href "bootstrap-3.3.7/css/bootstrap.min.css"})
       (if (contains? phone ::phone-number)
         (ui-phone-form phone)
-        (ui-phone-book (prim/computed phonebook {:onSelect (fn [id] (prim/transact! this `[(edit-phone-number {:id ~id})]))}))))))
+        (ui-phone-book (comp/computed phonebook {:onSelect (fn [id] (comp/transact! this `[(edit-phone-number {:id ~id})]))}))))))

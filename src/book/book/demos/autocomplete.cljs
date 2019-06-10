@@ -1,15 +1,14 @@
 (ns book.demos.autocomplete
   (:require
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
-    [fulcro.client :as fc]
-    [fulcro.client.mutations :as m]
-    [fulcro.server :as s]
-    [fulcro.client.data-fetch :as df]
+    [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [book.demos.airports :refer [airports]]
     [clojure.string :as str]
-    [devcards.core :as dc :include-macros true]
-    [goog.functions :as gf]))
+    [goog.functions :as gf]
+    [com.wsscode.pathom.connect :as pc]
+    ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -20,9 +19,10 @@
     (take 10)
     vec))
 
-(s/defquery-root :autocomplete/airports
-  (value [env {:keys [search]}]
-    (airport-search search)))
+(pc/defresolver list-resolver [env params]
+  {::pc/output [:autocomplete/airports]}
+  (let [search (get-in env [:ast :params :search])]
+    {:autocomplete/airports (airport-search search)}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLIENT:
@@ -41,7 +41,7 @@
            (dom/li {:key v}
              (dom/a {:href "javascript:void(0)" :onClick #(onValueSelect v)} v))) values)))
 
-(def ui-completion-list (prim/factory CompletionList))
+(def ui-completion-list (comp/factory CompletionList))
 
 (m/defmutation populate-loaded-suggestions
   "Mutation: Autocomplete suggestions are loaded in a non-visible property to prevent flicker. This is
@@ -97,11 +97,11 @@
       (when (and (vector? suggestions) (seq suggestions) (not exact-match?))
         (ui-completion-list {:values filtered-suggestions :onValueSelect onSelect})))))
 
-(def ui-autocomplete (prim/factory Autocomplete))
+(def ui-autocomplete (comp/factory Autocomplete))
 
 (defsc AutocompleteRoot [this {:keys [airport-input]}]
-  {:initial-state (fn [p] {:airport-input (prim/get-initial-state Autocomplete {:id :airports})})
-   :query         [{:airport-input (prim/get-query Autocomplete)}]}
+  {:initial-state (fn [p] {:airport-input (comp/get-initial-state Autocomplete {:id :airports})})
+   :query         [{:airport-input (comp/get-query Autocomplete)}]}
   (dom/div
     (dom/h4 "Airport Autocomplete")
     (ui-autocomplete airport-input)))

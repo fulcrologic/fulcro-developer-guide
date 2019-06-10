@@ -1,5 +1,5 @@
 (ns book.queries.parsing-simple-join
-  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
             [book.queries.parse-runner :refer [ParseRunner ui-parse-runner]]
             [com.fulcrologic.fulcro.dom :as dom]))
 
@@ -10,10 +10,10 @@
     {:value (parser env query)}                             ; recursive call. query is now [:user/name]
     {:value (get @state key)}))                             ; gets called for :user/name :a and :c
 
-(def my-parser (prim/parser {:read flat-state-read}))
+(def my-parser (comp/parser {:read flat-state-read}))
 
 (defsc Root [this {:keys [parse-runner]}]
-  {:initial-state (fn [params] {:parse-runner (prim/get-initial-state ParseRunner {:query "[:a {:user [:user/name]} :c]"})})
-   :query         [{:parse-runner (prim/get-query ParseRunner)}]}
+  {:initial-state (fn [params] {:parse-runner (comp/get-initial-state ParseRunner {:query "[:a {:user [:user/name]} :c]"})})
+   :query         [{:parse-runner (comp/get-query ParseRunner)}]}
   (dom/div
-    (ui-parse-runner (prim/computed parse-runner {:parser my-parser :database flat-app-state}))))
+    (ui-parse-runner (comp/computed parse-runner {:parser my-parser :database flat-app-state}))))

@@ -1,12 +1,12 @@
 (ns book.demos.loading-data-basics
   (:require
     [fulcro.client :as fc]
-    [fulcro.client.data-fetch :as df]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [book.demos.util :refer [now]]
-    [fulcro.client.mutations :as m]
+    [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc InitialAppState initial-state]]
-    [fulcro.client.data-fetch :as df]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc InitialAppState initial-state]]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [fulcro.server :as server]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -45,25 +45,25 @@
                             ; Load relative to an ident (of this component).
                             ; This will refresh the entity in the db. The helper function
                             ; (df/refresh! this) is identical to this, but shorter to write.
-                            (df/load this (prim/ident this props) Person))} "Update")))
+                            (df/load this (comp/ident this props) Person))} "Update")))
 
-(def ui-person (prim/factory Person {:keyfn :db/id}))
+(def ui-person (comp/factory Person {:keyfn :db/id}))
 
 (defsc People [this {:keys [people]}]
   {:initial-state (fn [{:keys [kind]}] {:people/kind kind})
-   :query         [:people/kind {:people (prim/get-query Person)}]
+   :query         [:people/kind {:people (comp/get-query Person)}]
    :ident         [:lists/by-type :people/kind]}
   (dom/ul
     ; we're loading a whole list. To sense/show a loading marker the :ui/fetch-state has to be queried in Person.
     ; Note the whole list is what we're loading, so the render lambda is a map over all of the incoming people.
     (df/lazily-loaded #(map ui-person %) people)))
 
-(def ui-people (prim/factory People {:keyfn :people/kind}))
+(def ui-people (comp/factory People {:keyfn :people/kind}))
 
 (defsc Root [this {:keys [friends enemies]}]
-  {:initial-state (fn [{:keys [kind]}] {:friends (prim/get-initial-state People {:kind :friends})
-                                        :enemies (prim/get-initial-state People {:kind :enemies})})
-   :query         [{:enemies (prim/get-query People)} {:friends (prim/get-query People)}]}
+  {:initial-state (fn [{:keys [kind]}] {:friends (comp/get-initial-state People {:kind :friends})
+                                        :enemies (comp/get-initial-state People {:kind :enemies})})
+   :query         [{:enemies (comp/get-query People)} {:friends (comp/get-query People)}]}
   (dom/div
     (dom/h4 "Friends")
     (ui-people friends)

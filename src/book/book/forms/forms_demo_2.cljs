@@ -2,9 +2,9 @@
   (:require
     [clojure.string :as str]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [fulcro.client :as fc]
-    [fulcro.client.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [fulcro.ui.forms :as f :refer [defvalidator]]))
 
 (declare ValidatedPhoneForm)
@@ -41,12 +41,12 @@
     ;; One more parameter to give the validation error message:
     (field-with-label this form :phone/number "Number:" "Please format as (###) ###-####")))
 
-(def ui-vphone-form (prim/factory ValidatedPhoneForm))
+(def ui-vphone-form (comp/factory ValidatedPhoneForm))
 
 (defsc Root [this {:keys [phone]}]
-  {:query         [f/form-key {:phone (prim/get-query ValidatedPhoneForm)}]
+  {:query         [f/form-key {:phone (comp/get-query ValidatedPhoneForm)}]
    :initial-state (fn [params]
                     (let [phone-number {:db/id 1 :phone/type :home :phone/number "555-1212"}]
-                      {:phone (prim/get-initial-state ValidatedPhoneForm phone-number)}))}
+                      {:phone (comp/get-initial-state ValidatedPhoneForm phone-number)}))}
   (dom/div
     (ui-vphone-form phone)))

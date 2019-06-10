@@ -1,12 +1,12 @@
 (ns book.forms.full-stack-forms-demo
   (:require
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.routing.union-router :as r :refer [defrouter]]
-    [fulcro.client.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [fulcro.logging :as log]
     [fulcro.ui.forms :as f]
-    [fulcro.client.data-fetch :as df]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [cljs.reader :refer [read-string]]
     [fulcro.ui.bootstrap3 :as b]
     [fulcro.server :as server :refer [defquery-entity defquery-root]]
@@ -78,7 +78,7 @@
     (field-with-label this form :phone/type "Phone type:")
     (field-with-label this form :phone/number "Number:")))
 
-(def ui-phone-form (prim/factory PhoneForm))
+(def ui-phone-form (comp/factory PhoneForm))
 
 (defn- set-number-to-edit [state-map phone-id]
   (assoc-in state-map [:screen/phone-editor :tab :number-to-edit] (phone-ident phone-id)))
@@ -102,10 +102,10 @@
 (defsc PhoneDisplayRow [this {:keys [db/id phone/type phone/number]}]
   {:query [:ui/fetch-state :db/id :phone/type :phone/number]
    :ident (fn [] (phone-ident id))}
-  (b/row {:onClick #(prim/transact! this `[(edit-phone {:id ~id})])}
+  (b/row {:onClick #(comp/transact! this `[(edit-phone {:id ~id})])}
     (b/col {:xs 2} (name type)) (b/col {:xs 2} number)))
 
-(def ui-phone-row (prim/factory PhoneDisplayRow {:keyfn :db/id}))
+(def ui-phone-row (comp/factory PhoneDisplayRow {:keyfn :db/id}))
 
 (defsc PhoneEditor [this {:keys [number-to-edit]}]
   {; make sure to include the :screen-type so the router can get the ident of this component
@@ -113,7 +113,7 @@
    :ident         (fn [] [:screen/phone-editor :tab])
    ; NOTE: the query is asking for :number-to-edit.
    ; The edit mutation will fill this in before routing here.
-   :query         [f/form-root-key :screen-type {:number-to-edit (prim/get-query PhoneForm)}]}
+   :query         [f/form-root-key :screen-type {:number-to-edit (comp/get-query PhoneForm)}]}
   (let [; dirty check is recursive and always up-to-date
         not-dirty?  (not (f/dirty? number-to-edit))
         ; validation is tri-state. Most fields are unchecked. Use pure functions to
@@ -122,13 +122,13 @@
         not-valid?  (not valid?)
         save        (fn [evt]
                       (when valid?
-                        (prim/transact! this
+                        (comp/transact! this
                           `[(f/commit-to-entity {:form ~number-to-edit :remote true})
                             (r/route-to {:handler :route/phone-list})
                             ; ROUTING HAPPENS ELSEWHERE, make sure the UI for that router updates
                             :main-ui-router])))
         cancel-edit (fn [evt]
-                      (prim/transact! this
+                      (comp/transact! this
                         `[(f/reset-from-entity {:form-id ~(phone-ident (:db/id number-to-edit))})
                           (r/route-to {:handler :route/phone-list})
                           ; ROUTING HAPPENS ELSEWHERE, make sure the UI for that router updates
@@ -143,7 +143,7 @@
                    :onClick  save} "Save")))))
 
 (defsc PhoneList [this {:keys [phone-numbers]}]
-  {:query         [:screen-type {:phone-numbers (prim/get-query PhoneDisplayRow)}]
+  {:query         [:screen-type {:phone-numbers (comp/get-query PhoneDisplayRow)}]
    :ident         (fn [] [:screen/phone-list :tab])
    ; make sure to include the :screen-type so the router can get the ident of this component
    :initial-state {:screen-type   :screen/phone-list
@@ -162,14 +162,14 @@
   :screen/phone-list PhoneList
   :screen/phone-editor PhoneEditor)
 
-(def ui-top-router (prim/factory TopLevelRouter))
+(def ui-top-router (comp/factory TopLevelRouter))
 
 (defsc Root [this {:keys [main-ui-router]}]
-  {:query         [{:main-ui-router (prim/get-query TopLevelRouter)}]
+  {:query         [{:main-ui-router (comp/get-query TopLevelRouter)}]
    :initial-state (fn [params]
                     ; merge the routing tree into the app state
                     (merge
-                      {:main-ui-router (prim/get-initial-state TopLevelRouter {})}
+                      {:main-ui-router (comp/get-initial-state TopLevelRouter {})}
                       (r/routing-tree
                         (r/make-route :route/phone-list
                           [(r/router-instruction :top-router [:screen/phone-list :tab])])

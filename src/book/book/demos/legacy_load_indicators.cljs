@@ -1,7 +1,7 @@
 (ns book.demos.legacy-load-indicators
   (:require
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
-    [fulcro.client.data-fetch :as df]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [fulcro.logging :as log]
     [fulcro.server :refer [defquery-entity]]
     [com.fulcrologic.fulcro.dom :as dom]))
@@ -38,11 +38,11 @@
       ; using the component itself.
       (dom/button {:onClick #(df/refresh! this)} "Refresh"))))
 
-(def ui-item (prim/factory Item {:keyfn :db/id}))
+(def ui-item (comp/factory Item {:keyfn :db/id}))
 
 (defsc Child [this {:keys [child/label items] :as props}]
   ;; The :ui/fetch-state is queried so the parent (Panel) lazy load renderer knows what state the load is in
-  {:query [:ui/fetch-state :child/label {:items (prim/get-query Item)}]
+  {:query [:ui/fetch-state :child/label {:items (comp/get-query Item)}]
    :ident (fn [] [:lazy-load/ui :child])}
   (let [; NOTE: Demostration of two ways of showing an item is refreshing...
         render-item (fn [idx i] (if (= idx 0)
@@ -56,11 +56,11 @@
       (df/lazily-loaded render-list items
         :not-present-render (fn [items] (dom/button {:onClick #(df/load-field this :items)} "Load Items"))))))
 
-(def ui-child (prim/factory Child {:keyfn :child/label}))
+(def ui-child (comp/factory Child {:keyfn :child/label}))
 
 (defsc Panel [this {:keys [ui/loading-data child] :as props}]
   {:initial-state (fn [params] {:child nil})
-   :query         (fn [] [[:ui/loading-data '_] {:child (prim/get-query Child)}])
+   :query         (fn [] [[:ui/loading-data '_] {:child (comp/get-query Child)}])
    :ident         (fn [] [:lazy-load/ui :panel])}
   (dom/div
     (dom/div {:style {:float "right" :display (if loading-data "block" "none")}} "GLOBAL LOADING")
@@ -68,13 +68,13 @@
     (df/lazily-loaded ui-child child
       :not-present-render (fn [_] (dom/button {:onClick #(df/load-field this :child)} "Load Child")))))
 
-(def ui-panel (prim/factory Panel))
+(def ui-panel (comp/factory Panel))
 
 ; Note: Kinda hard to do idents/lazy loading right on root...so generally just have root render a div
 ; and then render a child that has the rest.
 (defsc Root [this {:keys [panel] :as props}]
-  {:initial-state (fn [params] {:panel (prim/get-initial-state Panel nil)})
-   :query         [:ui/loading-data {:panel (prim/get-query Panel)}]}
+  {:initial-state (fn [params] {:panel (comp/get-initial-state Panel nil)})
+   :query         [:ui/loading-data {:panel (comp/get-query Panel)}]}
   (dom/div (ui-panel panel)))
 
 

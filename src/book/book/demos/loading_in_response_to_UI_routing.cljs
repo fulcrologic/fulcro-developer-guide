@@ -1,10 +1,10 @@
 (ns book.demos.loading-in-response-to-UI-routing
   (:require
     [com.fulcrologic.fulcro.routing.union-router :as r]
-    [fulcro.client.mutations :as m]
+    [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc InitialAppState initial-state]]
-    [fulcro.client.data-fetch :as df]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc InitialAppState initial-state]]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [fulcro.server :as server]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -27,7 +27,7 @@
    :ident [:setting/by-id :id]}
   (dom/p nil "Setting " id " from server has value: " value))
 
-(def ui-setting (prim/factory SomeSetting {:keyfn :id}))
+(def ui-setting (comp/factory SomeSetting {:keyfn :id}))
 
 (defsc SettingsTab [this {:keys [settings-content settings]}]
   {:initial-state {:kind             :settings
@@ -36,7 +36,7 @@
    ; This query uses a "link"...a special ident with '_ as the ID. This indicates the item is at the database
    ; root, not inside of the "settings" database object. This is not needed as a matter of course...it is only used
    ; for convenience (since it is trivial to load something into the root of the database)
-   :query         [:kind :settings-content {:settings (prim/get-query SomeSetting)}]}
+   :query         [:kind :settings-content {:settings (comp/get-query SomeSetting)}]}
   (dom/div nil
     settings-content
     (df/lazily-loaded (fn [] (map ui-setting settings)) settings)))
@@ -51,7 +51,7 @@
   :main MainTab
   :settings SettingsTab)
 
-(def ui-tabs (prim/factory UITabs))
+(def ui-tabs (comp/factory UITabs))
 
 (m/defmutation choose-tab [{:keys [tab]}]
   (action [{:keys [state]}] (swap! state r/set-route :ui-router [tab :tab])))
@@ -85,13 +85,13 @@
 (defsc Root [this {:keys [current-tab] :as props}]
   ; Construction MUST compose to root, just like the query. The resulting tree will automatically be normalized into the
   ; app state graph database.
-  {:initial-state (fn [params] {:current-tab (prim/get-initial-state UITabs nil)})
-   :query         [{:current-tab (prim/get-query UITabs)}]}
+  {:initial-state (fn [params] {:current-tab (comp/get-initial-state UITabs nil)})
+   :query         [{:current-tab (comp/get-query UITabs)}]}
   (dom/div
     ; The selection of tabs can be rendered in a child, but the transact! must be done from the parent (to
-    ; ensure proper re-render of the tab body). See prim/computed for passing callbacks.
-    (dom/button {:onClick #(prim/transact! this `[(choose-tab {:tab :main})])} "Main")
-    (dom/button {:onClick #(prim/transact! this `[(choose-tab {:tab :settings})
+    ; ensure proper re-render of the tab body). See comp/computed for passing callbacks.
+    (dom/button {:onClick #(comp/transact! this `[(choose-tab {:tab :main})])} "Main")
+    (dom/button {:onClick #(comp/transact! this `[(choose-tab {:tab :settings})
                                                   ; extra mutation: sample of what you would do to lazy load the tab content
                                                   (lazy-load-tab {:tab :settings})])} "Settings")
     (ui-tabs current-tab)))

@@ -1,14 +1,14 @@
 (ns book.demos.server-query-security
   (:require
-    [fulcro.client.data-fetch :as df]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
-    [fulcro.client.mutations :refer [defmutation]]
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
     [clojure.set :as set]
     [clojure.walk :as walk]
     [com.fulcrologic.fulcro.dom :as dom]
     [fulcro.server :as server]
     [com.stuartsierra.component :as c]
-    [fulcro.client.data-fetch :as df]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [fulcro.logging :as log]
     [fulcro.client :as fc]))
 
@@ -94,20 +94,20 @@
       (dom/li (str "address: " address))
       (dom/li (str "cc-number: " cc-number)))))
 
-(def ui-person (prim/factory Person))
+(def ui-person (comp/factory Person))
 
 (defmutation clear-error [params] (action [{:keys [state]}] (swap! state dissoc :fulcro/server-error)))
 
 (defsc Root [this {:keys [person fulcro/server-error] :as props}]
-  {:query [{:person (prim/get-query Person)} :fulcro/server-error]}
+  {:query [{:person (comp/get-query Person)} :fulcro/server-error]}
   (dom/div
     (when server-error
       (dom/p (pr-str "SERVER ERROR: " server-error)))
     (dom/button {:onClick (fn []
-                            (prim/transact! this `[(clear-error {})])
+                            (comp/transact! this `[(clear-error {})])
                             (df/load this :person Person {:refresh [:person]}))} "Query for person with credit card")
     (dom/button {:onClick (fn []
-                            (prim/transact! this `[(clear-error {})])
+                            (comp/transact! this `[(clear-error {})])
                             (df/load this :person Person {:refresh [:person] :without #{:cc-number}}))} "Query for person WITHOUT credit card")
     (df/lazily-loaded ui-person person)))
 

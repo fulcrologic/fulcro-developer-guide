@@ -1,8 +1,8 @@
 (ns book.tree-to-db
-  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
             [com.fulcrologic.fulcro.dom :as dom]
             [devcards.util.edn-renderer :refer [html-edn]]
-            [fulcro.client.mutations :as m :refer [defmutation]]))
+            [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]))
 
 (defsc SubQuery [t p]
   {:ident [:sub/by-id :id]
@@ -10,11 +10,11 @@
 
 (defsc TopQuery [t p]
   {:ident [:top/by-id :id]
-   :query [:id {:subs (prim/get-query SubQuery)}]})
+   :query [:id {:subs (comp/get-query SubQuery)}]})
 
 (defmutation normalize-from-to-result [ignored-params]
   (action [{:keys [state]}]
-    (let [result (prim/tree->db TopQuery (:from @state) true)]
+    (let [result (comp/tree->db TopQuery (:from @state) true)]
       (swap! state assoc :result result))))
 
 (defmutation reset [ignored-params] (action [{:keys [state]}] (swap! state dissoc :result)))
@@ -32,7 +32,7 @@
       (dom/h4 "Normalized Result (click below to normalize)")
       (when result
         (html-edn result)))
-    (dom/button {:onClick (fn [] (prim/transact! this `[(normalize-from-to-result {})]))} "Normalized (Run tree->db)")
-    (dom/button {:onClick (fn [] (prim/transact! this `[(reset {})]))} "Clear Result")))
+    (dom/button {:onClick (fn [] (comp/transact! this `[(normalize-from-to-result {})]))} "Normalized (Run tree->db)")
+    (dom/button {:onClick (fn [] (comp/transact! this `[(reset {})]))} "Clear Result")))
 
 

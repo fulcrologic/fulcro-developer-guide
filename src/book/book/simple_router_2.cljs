@@ -2,8 +2,8 @@
   (:require [com.fulcrologic.fulcro.routing.union-router :as r :refer-macros [defsc-router]]
             [com.fulcrologic.fulcro.dom :as dom]
             [fulcro.client :as fc]
-            [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
-            [fulcro.client.mutations :as m]))
+            [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+            [com.fulcrologic.fulcro.mutations :as m]))
 
 (defsc Index [this {:keys [router/page db/id]}]
   {:query         [:db/id :router/page]
@@ -31,23 +31,23 @@
    :default-route  EmailSettings}
   (dom/div "Bad route"))
 
-(def ui-settings-router (prim/factory SettingsRouter))
+(def ui-settings-router (comp/factory SettingsRouter))
 
 (defsc Settings [this {:keys [router/page db/id subpage]}]
-  {:query         [:db/id :router/page {:subpage (prim/get-query SettingsRouter)}]
+  {:query         [:db/id :router/page {:subpage (comp/get-query SettingsRouter)}]
    :ident         (fn [] [page id])
    :initial-state (fn [p]
                     {:db/id       1
                      :router/page :PAGE/settings
-                     :subpage     (prim/get-initial-state SettingsRouter {})})}
+                     :subpage     (comp/get-initial-state SettingsRouter {})})}
   (dom/div
-    (dom/a {:onClick #(prim/transact! this
+    (dom/a {:onClick #(comp/transact! this
                         `[(r/set-route {:router :settings/router
                                         :target [:PAGE/email 1]})])} "Email") " | "
-    (dom/a {:onClick #(prim/transact! this
+    (dom/a {:onClick #(comp/transact! this
                         `[(r/set-route {:router :settings/router
                                         :target [:PAGE/color 1]})])} "Colors")
-    (js/console.log :p (prim/props this))
+    (js/console.log :p (comp/props this))
     (ui-settings-router subpage)))
 
 (defsc-router RootRouter [this {:keys [router/page db/id]}]
@@ -58,16 +58,16 @@
                     :PAGE/settings Settings}}
   (dom/div "Bad route"))
 
-(def ui-root-router (prim/factory RootRouter))
+(def ui-root-router (comp/factory RootRouter))
 
 (defsc Root [this {:keys [router]}]
-  {:initial-state (fn [p] {:router (prim/get-initial-state RootRouter {})})
-   :query         [{:router (prim/get-query RootRouter)}]}
+  {:initial-state (fn [p] {:router (comp/get-initial-state RootRouter {})})
+   :query         [{:router (comp/get-query RootRouter)}]}
   (dom/div
-    (dom/a {:onClick #(prim/transact! this
+    (dom/a {:onClick #(comp/transact! this
                         `[(r/set-route {:router :root/router
                                         :target [:PAGE/index 1]})])} "Index") " | "
-    (dom/a {:onClick #(prim/transact! this
+    (dom/a {:onClick #(comp/transact! this
                         `[(r/set-route {:router :root/router
                                         :target [:PAGE/settings 1]})])} "Settings")
     (ui-root-router router)))

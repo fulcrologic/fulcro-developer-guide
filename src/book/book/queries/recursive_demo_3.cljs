@@ -1,6 +1,6 @@
 (ns book.queries.recursive-demo-3
-  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
-            [fulcro.client.mutations :refer [defmutation]]
+  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+            [com.fulcrologic.fulcro.mutations :refer [defmutation]]
             [com.fulcrologic.fulcro.dom :as dom]))
 
 (declare ui-person)
@@ -25,18 +25,18 @@
     (dom/div "Name:" name)
     (dom/div "Age:" age
       (dom/button {:onClick
-                   #(prim/transact! this `[(make-older {:id ~id})])} "Make Older"))
+                   #(comp/transact! this `[(make-older {:id ~id})])} "Make Older"))
     (when (and (= 0 render-depth) spouse)
       (dom/ul
         (dom/div "Spouse:"
           ; recursively render, but increase the render depth so we can know when a
           ; targeted UI refresh would accidentally push the UI deeper.
-          (ui-person (prim/computed spouse {:render-depth (inc render-depth)})))))))
+          (ui-person (comp/computed spouse {:render-depth (inc render-depth)})))))))
 
-(def ui-person (prim/factory Person {:keyfn :db/id}))
+(def ui-person (comp/factory Person {:keyfn :db/id}))
 
 (defsc Root [this {:keys [person-of-interest]}]
   {:initial-state {:person-of-interest {}}
-   :query         [{:person-of-interest (prim/get-query Person)}]}
+   :query         [{:person-of-interest (comp/get-query Person)}]}
   (dom/div
     (ui-person person-of-interest)))

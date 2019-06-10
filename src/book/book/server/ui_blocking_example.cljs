@@ -1,10 +1,10 @@
 (ns book.server.ui-blocking-example
-  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
             [com.fulcrologic.fulcro.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro]]
-            [fulcro.client.mutations :as m]
+            [com.fulcrologic.fulcro.mutations :as m]
             [fulcro.server :as server]
-            [fulcro.client.mutations :as m :refer [defmutation]]
+            [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
             [book.macros :refer [defexample]]))
 
 ;; SERVER
@@ -33,7 +33,7 @@
                                :color     "white"
                                :textAlign "center"}}) message)))
 
-(def ui-overlay (prim/factory BlockingOverlay))
+(def ui-overlay (comp/factory BlockingOverlay))
 
 (defn set-overlay-visible* [state tf] (assoc-in state [:overlay :ui/active?] tf))
 (defn set-overlay-message* [state message] (assoc-in state [:overlay :ui/message] message))
@@ -58,15 +58,15 @@
                        (set-overlay-visible* false))))
       (do
         (swap! state set-overlay-message* (str (-> state deref :remote-mutation :status :message) " (Retrying...)"))
-        (prim/ptransact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})]))))
+        (comp/ptransact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})]))))
   (refresh [env] [:overlay]))                               ; we need this because the mutation runs outside of the context of a component
 
 (defsc Root [this {:keys [ui/name overlay]}]
-  {:query         [:ui/name {:overlay (prim/get-query BlockingOverlay)}]
+  {:query         [:ui/name {:overlay (comp/get-query BlockingOverlay)}]
    :initial-state {:overlay {} :ui/name "Alicia"}}
   (dom/div {:style {:width "400px" :height "100px"}}
     (ui-overlay overlay)
     (dom/p "Name: " (dom/input {:value name}))
-    (dom/button {:onClick #(prim/ptransact! this `[(submit-form {}) (retry-or-hide-overlay {})])}
+    (dom/button {:onClick #(comp/ptransact! this `[(submit-form {}) (retry-or-hide-overlay {})])}
       "Submit")))
 

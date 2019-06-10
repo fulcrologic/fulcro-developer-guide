@@ -1,12 +1,12 @@
 (ns book.demos.pre-merge.post-mutation-countdown
   (:require
     [fulcro.client :as fc]
-    [fulcro.client.data-fetch :as df]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [book.demos.util :refer [now]]
-    [fulcro.client.mutations :as m]
+    [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc InitialAppState initial-state]]
-    [fulcro.client.data-fetch :as df]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc InitialAppState initial-state]]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [fulcro.server :as server]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -39,11 +39,11 @@
                    :onClick  #(m/set-value! this :ui/count (dec count))}
         (if done? "Done!" (str count))))))
 
-(def ui-countdown (prim/factory Countdown {:keyfn ::counter-id}))
+(def ui-countdown (comp/factory Countdown {:keyfn ::counter-id}))
 
 (defsc Root [this {:keys [counter]}]
   {:initial-state (fn [_] {})
-   :query         [{:counter (prim/get-query Countdown)}]}
+   :query         [{:counter (comp/get-query Countdown)}]}
   (dom/div
     (dom/h3 "Counters")
     (if (seq counter)

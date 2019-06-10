@@ -1,13 +1,13 @@
 (ns book.demos.server-return-values-as-data-driven-mutation-joins
   (:require
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
-    [fulcro.client.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [fulcro.client :as fc]
     [fulcro.server :as server]
-    [fulcro.util :as util]
-    [fulcro.client.data-fetch :as df]))
+    [com.fulcrologic.fulcro.algorithms.misc :as util]
+    [com.fulcrologic.fulcro.data-fetch :as df]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -32,7 +32,7 @@
   (action [env]
     (let [new-id (swap! ids inc)]
       (merge
-        {::prim/tempids {id new-id}}
+        {::comp/tempids {id new-id}}
         {:db/id id :item/value value}))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -65,26 +65,26 @@
   {:query [:db/id :item/value]
    :ident [:item/by-id :db/id]}
   (dom/li {:onClick (fn [evt]
-                      (prim/transact! this `[(change-label {:db/id ~id})]))} value))
+                      (comp/transact! this `[(change-label {:db/id ~id})]))} value))
 
-(def ui-item (prim/factory Item {:keyfn :db/id}))
+(def ui-item (comp/factory Item {:keyfn :db/id}))
 
 (def example-height "400px")
 
 (defsc ItemList [this {:keys [db/id list/title list/items] :as props}]
-  {:query         [:db/id :list/title {:list/items (prim/get-query Item)}]
+  {:query         [:db/id :list/title {:list/items (comp/get-query Item)}]
    :initial-state {}
    :ident         [:list/by-id :db/id]}
   (dom/div {:style {:width "600px" :height example-height}}
     (dom/h3 title)
     (dom/ul (map ui-item items))
-    (dom/button {:onClick #(prim/ptransact! this `[(add-item {:list-id ~id
-                                                              :id      ~(prim/tempid)
+    (dom/button {:onClick #(comp/ptransact! this `[(add-item {:list-id ~id
+                                                              :id      ~(comp/tempid)
                                                               :value   "A New Value"})
                                                    (set-overlay {:visible? false})
                                                    :overlay])} "Add item")))
 
-(def ui-list (prim/factory ItemList {:keyfn :db/id}))
+(def ui-list (comp/factory ItemList {:keyfn :db/id}))
 
 (defsc Overlay [this {:keys [:visible?] :as props}]
   {:query         [:db/id :visible?]
@@ -98,10 +98,10 @@
                       :width           "600px"
                       :height          example-height}} ""))
 
-(def ui-overlay (prim/factory Overlay {:keyfn :db/id}))
+(def ui-overlay (comp/factory Overlay {:keyfn :db/id}))
 
 (defsc Root [this {:keys [overlay mutation-join-list]}]
-  {:query         [{:overlay (prim/get-query Overlay)} {:mutation-join-list (prim/get-query ItemList)}]
+  {:query         [{:overlay (comp/get-query Overlay)} {:mutation-join-list (comp/get-query ItemList)}]
    :initial-state {:overlay {} :mutation-join-list {}}}
   (dom/div {:style {:position "relative"}}
     (ui-overlay overlay)

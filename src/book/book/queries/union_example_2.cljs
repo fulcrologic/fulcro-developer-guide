@@ -1,10 +1,10 @@
 (ns book.queries.union-example-2
   (:require [com.fulcrologic.fulcro.dom :as dom]
-            [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+            [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client :as fc]
             [com.fulcrologic.fulcro.routing.union-router :as r :refer [defrouter]]
-            [fulcro.client.mutations :refer [defmutation]]
+            [com.fulcrologic.fulcro.mutations :refer [defmutation]]
             [book.macros :refer [defexample]]
             [fulcro.ui.bootstrap3 :as b]
             [fulcro.ui.elements :as ele]
@@ -69,23 +69,23 @@
                       :input-generator (fn [_]
                                          (dom/div
                                            ; the follow-on read of :root/router ensures re-render from the router level
-                                           (b/button {:onClick #(prim/transact! this `[(cancel-edit {}) :root/router])} "Cancel")
-                                           (b/button {:onClick #(prim/transact! this `[(submit-person {:form form-props}) :root/router])} "Save")))} "")))
+                                           (b/button {:onClick #(comp/transact! this `[(cancel-edit {}) :root/router])} "Cancel")
+                                           (b/button {:onClick #(comp/transact! this `[(submit-person {:form form-props}) :root/router])} "Save")))} "")))
 
 (defsc PersonListItem [this {:keys [db/id person/name] :as props}]
   {:ident (fn [] (person-ident props))
    :query [:db/id :person/name]}
   ; the follow-on read of :root/router ensures re-render from the router level
-  (dom/li {:onClick #(prim/transact! this `[(edit-person {:id ~id}) :root/router])}
+  (dom/li {:onClick #(comp/transact! this `[(edit-person {:id ~id}) :root/router])}
     (dom/a {:href "javascript:void(0)"} name)))
 
-(def ui-person (prim/factory PersonListItem {:keyfn :db/id}))
+(def ui-person (comp/factory PersonListItem {:keyfn :db/id}))
 
 (def person-list-ident [:person-list/table :singleton])
 
 (defsc PersonList [this {:keys [people]}]
   {:initial-state (fn [p] {:people []})
-   :query         [{:people (prim/get-query PersonListItem)}]
+   :query         [{:people (comp/get-query PersonListItem)}]
    :ident         (fn [] person-list-ident)}
   (dom/div
     (dom/h4 "People")
@@ -102,10 +102,10 @@
   ; if the router points to a person entity, render with PersonForm
   :person/by-id PersonForm)
 
-(def ui-person-list-or-form (prim/factory PersonListOrForm))
+(def ui-person-list-or-form (comp/factory PersonListOrForm))
 
 (defsc Root [this {:keys [ui/react-key root/router] :as props}]
-  {:query         [:ui/react-key {:root/router (prim/get-query PersonListOrForm)}]
+  {:query         [:ui/react-key {:root/router (comp/get-query PersonListOrForm)}]
    :initial-state (fn [p] (merge
                             ; This data is used by the `update-routing-links` functions to switch routes (union idents on the router's current route)
                             (r/routing-tree
@@ -113,7 +113,7 @@
                               (r/make-route :people [(r/router-instruction :listform-router person-list-ident)])
                               ; switch to the given person (id is passed to update-routing-links and become :param/id)
                               (r/make-route :editor [(r/router-instruction :listform-router (person-ident :param/id))]))
-                            {:root/router (prim/get-initial-state PersonListOrForm nil)}))}
+                            {:root/router (comp/get-initial-state PersonListOrForm nil)}))}
   ; embed in iframe so we can use bootstrap css easily
   (ele/ui-iframe {:frameBorder 0 :height "300px" :width "100%"}
     (dom/div {:key react-key}
@@ -125,7 +125,7 @@
 (defexample "Unions as View/Edit Routers" Root "union-example-2"
   :started-callback (fn [{:keys [reconciler]}]
                       ; simulate a load of people via a simple integration of some tree data
-                      (prim/merge-component! reconciler PersonList {:people [(make-person 1 "Tony")
+                      (comp/merge-component! reconciler PersonList {:people [(make-person 1 "Tony")
                                                                              (make-person 2 "Sally")
                                                                              (make-person 3 "Allen")
                                                                              (make-person 4 "Luna")]})))

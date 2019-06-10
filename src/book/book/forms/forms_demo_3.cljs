@@ -2,8 +2,8 @@
   (:require
     [clojure.string :as str]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
-    [fulcro.client.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [fulcro.ui.forms :as f :refer [defvalidator]]))
 
 (declare ValidatedPhoneForm)
@@ -39,7 +39,7 @@
   (action [{:keys [state]}]
     (let [new-phone    (f/build-form ValidatedPhoneForm {:db/id id :phone/type :home :phone/number ""})
           person-ident [:people/by-id person]
-          phone-ident  (prim/ident ValidatedPhoneForm new-phone)]
+          phone-ident  (comp/ident ValidatedPhoneForm new-phone)]
       (swap! state (fn [s]
                      (-> s
                          (assoc-in phone-ident new-phone)
@@ -57,7 +57,7 @@
     ;; One more parameter to give the validation error message:
     (field-with-label this form :phone/number "Number:" "Please format as (###) ###-####")))
 
-(def ui-vphone-form (prim/factory ValidatedPhoneForm {:keyfn :db/id}))
+(def ui-vphone-form (comp/factory ValidatedPhoneForm {:keyfn :db/id}))
 
 (defsc PersonForm [this {:keys [person/phone-numbers] :as props}]
   {:initial-state (fn [params] (f/build-form this (or params {})))
@@ -71,7 +71,7 @@
    :query         [f/form-root-key f/form-key
                    :db/id :person/name :person/age
                    :person/registered-to-vote?
-                   {:person/phone-numbers (prim/get-query ValidatedPhoneForm)}]
+                   {:person/phone-numbers (comp/get-query ValidatedPhoneForm)}]
    :ident         [:people/by-id :db/id]}
   (dom/div :.form-horizontal
     (field-with-label this props :person/name "Full Name:" "Please enter your first and last name.")
@@ -84,8 +84,8 @@
     (when (f/valid? props)
       (dom/div "All fields have had been validated, and are valid"))
     (dom/div :.button-group
-      (dom/button :.btn.btn-primary {:onClick #(prim/transact! this
-                                                 `[(add-phone ~{:id     (prim/tempid)
+      (dom/button :.btn.btn-primary {:onClick #(comp/transact! this
+                                                 `[(add-phone ~{:id     (comp/tempid)
                                                                 :person (:db/id props)})])}
         "Add Phone")
       (dom/button :.btn.btn-default {:disabled (f/valid? props) :onClick #(f/validate-entire-form! this props)}
@@ -95,25 +95,25 @@
       (dom/button :.btn.btn-default {:disabled (not (f/dirty? props)) :onClick #(f/commit-to-entity! this)}
         "Submit"))))
 
-(def ui-person-form (prim/factory PersonForm))
+(def ui-person-form (comp/factory PersonForm))
 
 (defsc Root [this {:keys [person]}]
   {:initial-state (fn [params]
                     {:ui/person-id 1
-                     :person       (prim/get-initial-state PersonForm
+                     :person       (comp/get-initial-state PersonForm
                                      {:db/id                      1
                                       :person/name                "Tony Kay"
                                       :person/age                 23
                                       :person/registered-to-vote? false
-                                      :person/phone-numbers       [(prim/get-initial-state ValidatedPhoneForm
+                                      :person/phone-numbers       [(comp/get-initial-state ValidatedPhoneForm
                                                                      {:db/id        22
                                                                       :phone/type   :work
                                                                       :phone/number "(123) 412-1212"})
-                                                                   (prim/get-initial-state ValidatedPhoneForm
+                                                                   (comp/get-initial-state ValidatedPhoneForm
                                                                      {:db/id        23
                                                                       :phone/type   :home
                                                                       :phone/number "(541) 555-1212"})]})})
-   :query         [:ui/person-id {:person (prim/get-query PersonForm)}]}
+   :query         [:ui/person-id {:person (comp/get-query PersonForm)}]}
   (dom/div
     (when person
       (ui-person-form person))))
