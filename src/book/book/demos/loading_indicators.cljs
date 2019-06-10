@@ -1,11 +1,11 @@
 (ns book.demos.loading-indicators
   (:require
-    [fulcro.client.dom :as dom]
+    [com.fulcrologic.fulcro.dom :as dom]
     [fulcro.client.data-fetch :as df]
     [fulcro.logging :as log]
     [fulcro.client :as fc]
     [fulcro.server :as server]
-    [fulcro.client.primitives :as prim :refer [defsc]]))
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:

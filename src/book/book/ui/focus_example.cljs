@@ -1,6 +1,6 @@
 (ns book.ui.focus-example
-  (:require [fulcro.client.primitives :as prim :refer [defsc]]
-            [fulcro.client.dom :as dom]
+  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+            [com.fulcrologic.fulcro.dom :as dom]
             [fulcro.client.mutations :as m]))
 
 (defsc ClickToEditField [this {:keys [value editing?]}]

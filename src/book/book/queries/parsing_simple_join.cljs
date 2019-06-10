@@ -1,7 +1,7 @@
 (ns book.queries.parsing-simple-join
-  (:require [fulcro.client.primitives :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
             [book.queries.parse-runner :refer [ParseRunner ui-parse-runner]]
-            [fulcro.client.dom :as dom]))
+            [com.fulcrologic.fulcro.dom :as dom]))
 
 (def flat-app-state {:a 1 :user/name "Sam" :c 99})
 

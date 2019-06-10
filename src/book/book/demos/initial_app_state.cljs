@@ -1,9 +1,9 @@
 (ns book.demos.initial-app-state
   (:require
-    [fulcro.client.dom :as dom]
+    [com.fulcrologic.fulcro.dom :as dom]
     [fulcro.client :as fc]
     [fulcro.client.mutations :as m]
-    [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]))
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc InitialAppState initial-state]]))
 
 (defonce app (atom (fc/make-fulcro-client {})))
 

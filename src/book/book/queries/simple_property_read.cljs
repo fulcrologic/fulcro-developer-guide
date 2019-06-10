@@ -1,7 +1,7 @@
 (ns book.queries.simple-property-read
-  (:require [fulcro.client.primitives :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
             [book.queries.parse-runner :refer [ParseRunner ui-parse-runner]]
-            [fulcro.client.dom :as dom]))
+            [com.fulcrologic.fulcro.dom :as dom]))
 
 (defn property-read [{:keys [state]} key params] {:value (get @state key :not-found)})
 (def property-parser (prim/parser {:read property-read}))

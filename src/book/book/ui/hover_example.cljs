@@ -2,9 +2,9 @@
   (:require
     [fulcro.client.cards :refer [defcard-fulcro]]
     [fulcro.client.mutations :refer [defmutation]]
-    [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc InitialAppState initial-state]]
     [goog.object :as gobj]
-    [fulcro.client.dom :as dom]))
+    [com.fulcrologic.fulcro.dom :as dom]))
 
 (defn change-size*
   "Change the size of the canvas by some (pos or neg) amount.."

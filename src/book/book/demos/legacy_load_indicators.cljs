@@ -1,10 +1,10 @@
 (ns book.demos.legacy-load-indicators
   (:require
-    [fulcro.client.primitives :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
     [fulcro.client.data-fetch :as df]
     [fulcro.logging :as log]
     [fulcro.server :refer [defquery-entity]]
-    [fulcro.client.dom :as dom]))
+    [com.fulcrologic.fulcro.dom :as dom]))
 
 ;; SERVER
 

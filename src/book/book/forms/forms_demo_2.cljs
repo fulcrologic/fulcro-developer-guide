@@ -1,8 +1,8 @@
 (ns book.forms.forms-demo-2
   (:require
     [clojure.string :as str]
-    [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
     [fulcro.client :as fc]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.ui.forms :as f :refer [defvalidator]]))

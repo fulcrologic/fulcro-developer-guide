@@ -8,7 +8,7 @@
   (action [{:keys [state]}]
     (swap! state update :ui/number inc)))
 
-(defsc Root [this {:keys [ui/number]}]
+(defsc Root [this {:ui/keys [number]}]
   {:query         [:ui/number]
    :initial-state {:ui/number 0}}
   (dom/div

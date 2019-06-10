@@ -1,9 +1,9 @@
 (ns book.demos.parent-child-ownership-relations
   (:require
-    [fulcro.client.dom :as dom]
+    [com.fulcrologic.fulcro.dom :as dom]
     [fulcro.client.mutations :as m]
     [fulcro.client :as fc]
-    [fulcro.client.primitives :as prim :refer [defsc]]))
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]))
 
 ; Not using an atom, so use a tree for app state (will auto-normalize via ident functions)
 (def initial-state {:ui/react-key "abc"

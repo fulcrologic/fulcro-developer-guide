@@ -3,8 +3,8 @@
     ;; REQUIRES shadow-cljs, with "victory" in package.json
             ["victory" :refer [VictoryChart VictoryAxis VictoryLine]]
             [fulcro.client.cards :refer [defcard-fulcro]]
-            [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defsc]]
+            [com.fulcrologic.fulcro.dom :as dom]
+            [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
             [fulcro.util :as util]))
 
 (defn us-dollars [n]

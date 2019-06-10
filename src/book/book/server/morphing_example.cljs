@@ -1,6 +1,6 @@
 (ns book.server.morphing-example
-  (:require [fulcro.client.primitives :as prim :refer [defsc]]
-            [fulcro.client.dom :as dom]
+  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+            [com.fulcrologic.fulcro.dom :as dom]
             [book.macros :refer [defexample]]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.mutations :refer [defmutation]]

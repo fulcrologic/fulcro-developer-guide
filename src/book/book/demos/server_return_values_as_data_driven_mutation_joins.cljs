@@ -1,8 +1,8 @@
 (ns book.demos.server-return-values-as-data-driven-mutation-joins
   (:require
-    [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defsc]]
-    [fulcro.client.dom :as dom]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.client :as fc]
     [fulcro.server :as server]

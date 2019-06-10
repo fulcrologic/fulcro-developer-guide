@@ -1,7 +1,7 @@
 (ns book.queries.parsing-recursion-one
-  (:require [fulcro.client.primitives :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
             [book.queries.parse-runner :refer [ParseRunner ui-parse-runner]]
-            [fulcro.client.dom :as dom]))
+            [com.fulcrologic.fulcro.dom :as dom]))
 
 (def database {:window/size  [1920 1200]
                :friends      #{[:people/by-id 1] [:people/by-id 3]}

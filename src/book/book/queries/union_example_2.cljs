@@ -1,9 +1,9 @@
 (ns book.queries.union-example-2
-  (:require [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.dom :as dom]
+            [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client :as fc]
-            [fulcro.client.routing :as r :refer [defrouter]]
+            [com.fulcrologic.fulcro.routing.union-router :as r :refer [defrouter]]
             [fulcro.client.mutations :refer [defmutation]]
             [book.macros :refer [defexample]]
             [fulcro.ui.bootstrap3 :as b]

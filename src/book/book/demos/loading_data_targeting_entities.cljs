@@ -1,11 +1,11 @@
 (ns book.demos.loading-data-targeting-entities
   (:require
     [fulcro.client.mutations :as m]
-    [fulcro.client.primitives :as prim :refer [defsc]]
-    [fulcro.client.dom :as dom]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
     [fulcro.server :as server]
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.primitives :as prim]))
+    [com.fulcrologic.fulcro.components :as prim]))
 
 ;; SERVER
 

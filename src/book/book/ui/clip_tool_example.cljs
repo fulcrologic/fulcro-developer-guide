@@ -3,8 +3,8 @@
             [fulcro.ui.clip-tool :as ct]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.mutations :as m :refer [defmutation]]
-            [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defsc]]))
+            [com.fulcrologic.fulcro.dom :as dom]
+            [com.fulcrologic.fulcro.components :as prim :refer [defsc]]))
 
 (def minion-image "https://s-media-cache-ak0.pinimg.com/736x/34/c2/f5/34c2f59284fcdff709217e14df2250a0--film-minions-minions-images.jpg")
 

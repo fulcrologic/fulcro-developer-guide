@@ -1,9 +1,9 @@
 (ns book.demos.server-return-values-manually-merging
   (:require
-    [fulcro.client.dom :as dom]
+    [com.fulcrologic.fulcro.dom :as dom]
     [fulcro.server :as server]
     [fulcro.client.mutations :as m]
-    [fulcro.client.primitives :as prim :refer [defsc]]))
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:

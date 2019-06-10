@@ -59,7 +59,7 @@ look like this:
 
 [source,clojure,role="example-1 source"]
 ----
-include::src/book/book/example_1.cljc[]
+include::src/book/book/example_1.cljs[]
 ----
 
 All of the full stack examples use a mock server embedded in the browser to

@@ -1,7 +1,7 @@
 (ns book.demos.autocomplete
   (:require
-    [fulcro.client.primitives :as prim :refer [defsc]]
-    [fulcro.client.dom :as dom]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
     [fulcro.client :as fc]
     [fulcro.client.mutations :as m]
     [fulcro.server :as s]

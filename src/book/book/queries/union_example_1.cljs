@@ -1,7 +1,7 @@
 (ns book.queries.union-example-1
-  (:require [fulcro.client.dom :as dom]
-            [fulcro.client.routing :as r :refer [defsc-router]]
-            [fulcro.client.primitives :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.dom :as dom]
+            [com.fulcrologic.fulcro.routing.union-router :as r :refer [defsc-router]]
+            [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
             [fulcro.client :as fc]
             [fulcro.ui.bootstrap3 :as b]
             [fulcro.ui.elements :as ele]

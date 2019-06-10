@@ -3,8 +3,8 @@
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.ui.form-state :as fs]
             [fulcro.ui.bootstrap3 :as bs]
-            [fulcro.client.primitives :as prim :refer [defui defsc]]
-            [fulcro.client.dom :as dom]
+            [com.fulcrologic.fulcro.components :as prim :refer [defui defsc]]
+            [com.fulcrologic.fulcro.dom :as dom]
             [clojure.spec.alpha :as s]
             [garden.core :as g]))
 

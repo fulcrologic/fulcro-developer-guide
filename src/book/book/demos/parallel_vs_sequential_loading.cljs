@@ -2,8 +2,8 @@
   (:require
     [fulcro.server :refer [defquery-root defquery-entity defmutation]]
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defsc]]))
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:

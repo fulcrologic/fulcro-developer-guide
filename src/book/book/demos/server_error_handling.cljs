@@ -4,9 +4,9 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.logging :as log]
     [fulcro.client.mutations :as m :refer [defmutation]]
-    [fulcro.client.primitives :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
     [fulcro.server :as server]
-    [fulcro.client.dom :as dom]))
+    [com.fulcrologic.fulcro.dom :as dom]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -14,7 +14,7 @@
 
 (server/defmutation error-mutation [params]
   ;; Throw a mutation error for the client to handle
-  (action [env] (throw (ex-info "Server error" {:type :fulcro.client.primitives/abort :status 401 :body "Unauthorized User"}))))
+  (action [env] (throw (ex-info "Server error" {:type :com.fulcrologic.fulcro.components/abort :status 401 :body "Unauthorized User"}))))
 
 (server/defquery-entity :error.child/by-id
   (value [env id params]

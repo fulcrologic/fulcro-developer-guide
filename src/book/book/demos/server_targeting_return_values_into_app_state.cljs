@@ -1,8 +1,8 @@
 (ns book.demos.server-targeting-return-values-into-app-state
   (:require
-    [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defsc]]
-    [fulcro.client.dom :as dom]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.server :as server]
     [fulcro.client.data-fetch :as df]))

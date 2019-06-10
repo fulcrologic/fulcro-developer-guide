@@ -1,8 +1,8 @@
 (ns book.demos.component-localized-css
   (:require
     [fulcro-css.css :as css]
-    [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
-    [fulcro.client.dom :as dom]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc InitialAppState initial-state]]
+    [com.fulcrologic.fulcro.dom :as dom]
     [fulcro.client.localized-dom :as ldom]))
 
 (defonce theme-color (atom :blue))

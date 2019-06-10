@@ -1,7 +1,7 @@
 (ns book.queries.recursive-demo-2
-  (:require [fulcro.client.primitives :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
             [fulcro.client.mutations :refer [defmutation]]
-            [fulcro.client.dom :as dom]))
+            [com.fulcrologic.fulcro.dom :as dom]))
 
 (declare ui-person)
 

@@ -5,8 +5,8 @@
     [fulcro.client.data-fetch :as df]
     [fulcro.ui.bootstrap3 :as bs]
     [fulcro.client.mutations :refer [defmutation]]
-    [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
     [fulcro.server :as server]
     [fulcro.ui.elements :as ele]))
 

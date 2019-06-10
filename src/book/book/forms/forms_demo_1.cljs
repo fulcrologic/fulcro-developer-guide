@@ -1,7 +1,7 @@
 (ns book.forms.forms-demo-1
   (:require
-    [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
     [fulcro.ui.forms :as f]))
 
 (defn field-with-label

@@ -1,7 +1,7 @@
 (ns book.demos.dynamic-ui-routing
-  (:require [fulcro.client.routing :as r]
-            [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
+  (:require [com.fulcrologic.fulcro.routing.union-router :as r]
+            [com.fulcrologic.fulcro.dom :as dom]
+            [com.fulcrologic.fulcro.components :as prim :refer [defsc InitialAppState initial-state]]
             [cljs.loader :as loader]))
 
 (defsc Login [this {:keys [label login-prop]}]
@@ -18,7 +18,7 @@
   (dom/div {:style {:backgroundColor "skyblue"}}
     (str label " " new-user-prop)))
 
-(defsc Root [this {:keys [top-router :fulcro.client.routing/pending-route]}]
+(defsc Root [this {:keys [top-router :com.fulcrologic.fulcro.routing.union-router/pending-route]}]
   {:initial-state (fn [params] (merge
                                  (r/routing-tree
                                    (r/make-route :main [(r/router-instruction :top-router [:main :singleton])])
@@ -26,7 +26,7 @@
                                    (r/make-route :new-user [(r/router-instruction :top-router [:new-user :singleton])]))
                                  {:top-router (prim/get-initial-state r/DynamicRouter {:id :top-router})}))
    :query         [:ui/react-key {:top-router (r/get-dynamic-router-query :top-router)}
-                   :fulcro.client.routing/pending-route]}
+                   :com.fulcrologic.fulcro.routing.union-router/pending-route]}
   (dom/div nil
     ; Sample nav mutations
     (dom/a {:onClick #(prim/transact! this `[(r/route-to {:handler :main})])} "Main") " | "

@@ -1,8 +1,8 @@
 (ns book.forms.full-stack-forms-demo
   (:require
-    [fulcro.client.primitives :as prim :refer [defsc]]
-    [fulcro.client.dom :as dom]
-    [fulcro.client.routing :as r :refer [defrouter]]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.routing.union-router :as r :refer [defrouter]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [fulcro.logging :as log]
     [fulcro.ui.forms :as f]

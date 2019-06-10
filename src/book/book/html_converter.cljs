@@ -1,7 +1,7 @@
 (ns book.html-converter
   (:require
-    [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
     [fulcro.client.mutations :as m :refer [defmutation]]
     [hickory.core :as hc]
     [clojure.set :as set]

@@ -4,8 +4,8 @@
     [fulcro.client.data-fetch :as df]
     [book.demos.util :refer [now]]
     [fulcro.client.mutations :as m]
-    [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defsc InitialAppState initial-state]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc InitialAppState initial-state]]
     [fulcro.client.data-fetch :as df]
     [fulcro.server :as server]))
 

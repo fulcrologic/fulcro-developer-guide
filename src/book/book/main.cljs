@@ -1,85 +1,81 @@
 (ns book.main
   (:require
     [book.macros :refer [defexample deftool]]
-    #?@(:cljs [
-               ;[book.ui.d3-example :as d3-example]
-               ;[book.ui.focus-example :as focus-example]
-               ;[book.ui.hover-example :as hover-example]
-               ;[book.ui.victory-example :as victory-example]
-               ;[book.ui.clip-tool-example :as clip-tool-example]
-               ;[book.queries.union-example-1 :as union-example-1]
-               ;[book.queries.union-example-2 :as union-example-2]
-               ;[book.queries.parsing-trace-example :as trace]
-               ;book.queries.parsing-key-trace
-               ;book.queries.naive-read
-               ;book.queries.simple-property-read
-               ;book.queries.parsing-simple-join
-               ;book.queries.parsing-recursion-one
-               ;book.queries.parsing-recursion-two
-               ;book.queries.parsing-parameters
-               ;book.queries.dynamic-queries
-               ;book.queries.dynamic-query-parameters
-               ;book.queries.recursive-demo-1
-               ;book.queries.recursive-demo-2
-               ;book.queries.recursive-demo-3
-               ;book.queries.recursive-demo-bullets
-               ;book.forms.form-state-demo-1
-               ;book.forms.form-state-demo-2
-               ;book.forms.forms-demo-1
-               ;book.forms.forms-demo-2
-               ;book.forms.forms-demo-3
-               ;book.forms.whole-form-logic
-               ;book.forms.full-stack-forms-demo
-               ;[book.demos.autocomplete :as autocomplete]
-               ;book.ui-routing
-               ;book.simple-router-1
-               ;book.simple-router-2
-               ;book.tree-to-db
-               ;book.merge-component
-               ;book.html-converter
-               ;book.server.morphing-example
-               ;book.demos.cascading-dropdowns
-               ;book.demos.component-localized-css
-               ;book.demos.localized-dom
-               ;book.demos.declarative-mutation-refresh
-               ;book.demos.dynamic-ui-routing
-               ;book.demos.initial-app-state
-               ;book.demos.legacy-load-indicators
-               ;book.demos.loading-data-basics
-               ;book.demos.loading-data-targeting-entities
-               ;book.demos.loading-in-response-to-UI-routing
-               ;book.demos.loading-indicators
-               ;book.demos.paginating-large-lists-from-server
-               ;book.demos.parallel-vs-sequential-loading
-               ;book.demos.parent-child-ownership-relations
-               ;book.demos.pre-merge.post-mutation-countdown
-               ;book.demos.pre-merge.post-mutation-countdown-many
-               ;book.demos.pre-merge.countdown
-               ;book.demos.pre-merge.countdown-many
-               ;book.demos.pre-merge.countdown-with-initial
-               ;book.demos.pre-merge.countdown-initial-state
-               ;book.demos.pre-merge.countdown-extracted
-               ;book.demos.pre-merge.countdown-mutation
-               ;book.demos.server-error-handling
-               ;book.demos.server-query-security
-               ;book.demos.server-return-values-as-data-driven-mutation-joins
-               ;book.demos.server-targeting-return-values-into-app-state
-               ;book.demos.server-return-values-manually-merging
-               ;[book.server.ui-blocking-example :as ui-blocking]
-               ;[fulcro-css.css :as css]
-               ])
+    ;[book.ui.d3-example :as d3-example]
+    ;[book.ui.focus-example :as focus-example]
+    ;[book.ui.hover-example :as hover-example]
+    ;[book.ui.victory-example :as victory-example]
+    ;[book.ui.clip-tool-example :as clip-tool-example]
+    ;[book.queries.union-example-1 :as union-example-1]
+    ;[book.queries.union-example-2 :as union-example-2]
+    ;[book.queries.parsing-trace-example :as trace]
+    ;book.queries.parsing-key-trace
+    ;book.queries.naive-read
+    ;book.queries.simple-property-read
+    ;book.queries.parsing-simple-join
+    ;book.queries.parsing-recursion-one
+    ;book.queries.parsing-recursion-two
+    ;book.queries.parsing-parameters
+    ;book.queries.dynamic-queries
+    ;book.queries.dynamic-query-parameters
+    ;book.queries.recursive-demo-1
+    ;book.queries.recursive-demo-2
+    ;book.queries.recursive-demo-3
+    ;book.queries.recursive-demo-bullets
+    ;book.forms.form-state-demo-1
+    ;book.forms.form-state-demo-2
+    ;book.forms.forms-demo-1
+    ;book.forms.forms-demo-2
+    ;book.forms.forms-demo-3
+    ;book.forms.whole-form-logic
+    ;book.forms.full-stack-forms-demo
+    ;[book.demos.autocomplete :as autocomplete]
+    ;book.ui-routing
+    ;book.simple-router-1
+    ;book.simple-router-2
+    ;book.tree-to-db
+    ;book.merge-component
+    ;book.html-converter
+    ;book.server.morphing-example
+    ;book.demos.cascading-dropdowns
+    ;book.demos.component-localized-css
+    ;book.demos.localized-dom
+    ;book.demos.declarative-mutation-refresh
+    ;book.demos.dynamic-ui-routing
+    ;book.demos.initial-app-state
+    ;book.demos.legacy-load-indicators
+    ;book.demos.loading-data-basics
+    ;book.demos.loading-data-targeting-entities
+    ;book.demos.loading-in-response-to-UI-routing
+    ;book.demos.loading-indicators
+    ;book.demos.paginating-large-lists-from-server
+    ;book.demos.parallel-vs-sequential-loading
+    ;book.demos.parent-child-ownership-relations
+    ;book.demos.pre-merge.post-mutation-countdown
+    ;book.demos.pre-merge.post-mutation-countdown-many
+    ;book.demos.pre-merge.countdown
+    ;book.demos.pre-merge.countdown-many
+    ;book.demos.pre-merge.countdown-with-initial
+    ;book.demos.pre-merge.countdown-initial-state
+    ;book.demos.pre-merge.countdown-extracted
+    ;book.demos.pre-merge.countdown-mutation
+    ;book.demos.server-error-handling
+    ;book.demos.server-query-security
+    ;book.demos.server-return-values-as-data-driven-mutation-joins
+    ;book.demos.server-targeting-return-values-into-app-state
+    ;book.demos.server-return-values-manually-merging
+    ;[book.server.ui-blocking-example :as ui-blocking]
+
     ;[fulcro.server :as server :refer [defquery-root]]
     ;[fulcro.client.mutations :as m :refer [defmutation]]
     ;[fulcro.client.network :as fcn]
     [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro-css.css-injection :as css]
     [com.wsscode.pathom.connect :as pc]
     [com.wsscode.pathom.core :as p]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
-       :clj  [com.fulcrologic.fulcro.dom-server :as dom])
+    [com.fulcrologic.fulcro.dom :as dom]
     [book.example-1 :as ex1]))
-
-#?(:clj (def clj->js identity))
 
 (pc/defmutation todo-new-item [env {:keys [id list-id text]}]
   {::pc/sym    `fulcro-todomvc.api/todo-new-item
@@ -131,7 +127,7 @@
 ;  (value [env params]
 ;    {:server-control/delay @latency}))
 ;
-;#?(:cljs
+;?(:cljs
 ;   (defrecord MockNetwork []
 ;     fcn/FulcroNetwork
 ;     (send [this edn ok error]
@@ -201,8 +197,9 @@
 ;                               (df/load app :server-control ServerControl {:marker false}))
 ;           :networking {:remote example-server}))
 ;
-;#?(:cljs (css/upsert-css "example-css" book.macros/ExampleRoot))
-#?(:cljs (defexample "Sample Example" ex1/Root "example-1"))
+(css/upsert-css "example-css" {:component     book.macros/ExampleRoot
+                               :auto-include? false})
+(defexample "Sample Example" ex1/Root "example-1")
 ;#?(:cljs (defexample "D3" d3-example/Root "ui-d3"))
 ;#?(:cljs (defexample "Input Focus and React Refs/Lifecycle" focus-example/Root "focus-example"))
 ;#?(:cljs (defexample "Drawing in a Canvas" hover-example/Root "hover-example"))
@@ -320,4 +317,3 @@
 ;           :mutation-merge book.demos.server-return-values-manually-merging/merge-return-value
 ;           :networking book.main/example-server))
 ;#?(:cljs (defexample "Targeting Mutation Return Values" book.demos.server-targeting-return-values-into-app-state/Root "server-targeting-return-values-into-app-state" :networking book.main/example-server))
-

@@ -1,9 +1,9 @@
 (ns book.queries.parsing-key-trace
-  (:require [fulcro.client.primitives :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
             [devcards.util.edn-renderer :refer [html-edn]]
             [cljs.reader :as r]
             [fulcro.client.mutations :as m :refer [defmutation]]
-            [fulcro.client.dom :as dom]))
+            [com.fulcrologic.fulcro.dom :as dom]))
 
 (defn tracer-path
   "The assoc-in path of a field on the ParsingTracer in app state."

@@ -1,10 +1,10 @@
 (ns book.ui.d3-example
-  (:require [fulcro.client.dom :as dom]
+  (:require [com.fulcrologic.fulcro.dom :as dom]
     ;; REQUIRES shadow-cljs, with "d3" in package.json
             ["d3" :as d3]
             [goog.object :as gobj]
             [fulcro.client.mutations :as m :refer [defmutation]]
-            [fulcro.client.primitives :as prim :refer [defsc]]))
+            [com.fulcrologic.fulcro.components :as prim :refer [defsc]]))
 
 (defn render-squares [dom-node props]
   (let [svg       (-> d3 (.select dom-node))

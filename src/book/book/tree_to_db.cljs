@@ -1,6 +1,6 @@
 (ns book.tree-to-db
-  (:require [fulcro.client.primitives :as prim :refer [defsc]]
-            [fulcro.client.dom :as dom]
+  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+            [com.fulcrologic.fulcro.dom :as dom]
             [devcards.util.edn-renderer :refer [html-edn]]
             [fulcro.client.mutations :as m :refer [defmutation]]))
 

@@ -1,11 +1,11 @@
 (ns book.demos.server-query-security
   (:require
     [fulcro.client.data-fetch :as df]
-    [fulcro.client.primitives :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
     [fulcro.client.mutations :refer [defmutation]]
     [clojure.set :as set]
     [clojure.walk :as walk]
-    [fulcro.client.dom :as dom]
+    [com.fulcrologic.fulcro.dom :as dom]
     [fulcro.server :as server]
     [com.stuartsierra.component :as c]
     [fulcro.client.data-fetch :as df]

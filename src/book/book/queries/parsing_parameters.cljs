@@ -1,7 +1,7 @@
 (ns book.queries.parsing-parameters
-  (:require [fulcro.client.primitives :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
             [book.queries.parse-runner :refer [ParseRunner ui-parse-runner]]
-            [fulcro.client.dom :as dom]))
+            [com.fulcrologic.fulcro.dom :as dom]))
 
 (def database {
                :load/start-time 40000.0                     ;stored in ms

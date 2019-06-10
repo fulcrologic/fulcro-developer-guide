@@ -1,6 +1,6 @@
 (ns book.server.ui-blocking-example
-  (:require [fulcro.client.primitives :as prim :refer [defsc]]
-            [fulcro.client.dom :as dom]
+  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+            [com.fulcrologic.fulcro.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.mutations :as m]
             [fulcro.server :as server]

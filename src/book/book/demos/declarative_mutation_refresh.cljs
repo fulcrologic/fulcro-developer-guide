@@ -1,7 +1,7 @@
 (ns book.demos.declarative-mutation-refresh
-  (:require [fulcro.client.dom :as dom]
-            [fulcro.client.primitives :as prim :refer [defsc]]
-            [fulcro.client.dom :as dom]
+  (:require [com.fulcrologic.fulcro.dom :as dom]
+            [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+            [com.fulcrologic.fulcro.dom :as dom]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.data-fetch :as df]
             [fulcro.server :as server]

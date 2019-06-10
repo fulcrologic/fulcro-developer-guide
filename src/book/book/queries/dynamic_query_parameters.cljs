@@ -1,8 +1,8 @@
 (ns book.queries.dynamic-query-parameters
   (:require
-    [fulcro.client.dom :as dom]
+    [com.fulcrologic.fulcro.dom :as dom]
     [goog.object]
-    [fulcro.client.primitives :as prim :refer [defsc]]))
+    [com.fulcrologic.fulcro.components :as prim :refer [defsc]]))
 
 ; This component has a query parameter that can be set to whatever we want dynamically
 (defsc Leaf [this {:keys [x y] :as props}]

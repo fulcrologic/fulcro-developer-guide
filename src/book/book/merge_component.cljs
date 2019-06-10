@@ -1,6 +1,6 @@
 (ns book.merge-component
-  (:require [fulcro.client.primitives :as prim :refer [defsc]]
-            [fulcro.client.dom :as dom]
+  (:require [com.fulcrologic.fulcro.components :as prim :refer [defsc]]
+            [com.fulcrologic.fulcro.dom :as dom]
             [fulcro.client.cards :refer [defcard-fulcro]]
             [fulcro.client.mutations :as m :refer [defmutation]]
             [fulcro.client.data-fetch :as df]))
