@@ -6,32 +6,37 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.mutations :as m]))
 
-(defsc Main [this {:keys [label]}]
+(defsc Main [this {:keys [label] :as props}]
   {:initial-state {:page :main :label "MAIN"}
+   :ident         (fn [] [(:page props) :top])
    :query         [:page :label]}
   (dom/div {:style {:backgroundColor "red"}}
     label))
 
-(defsc Login [this {:keys [label]}]
+(defsc Login [this {:keys [label] :as props}]
   {:initial-state {:page :login :label "LOGIN"}
+   :ident         (fn [] [(:page props) :top])
    :query         [:page :label]}
   (dom/div {:style {:backgroundColor "green"}}
     label))
 
-(defsc NewUser [this {:keys [label]}]
+(defsc NewUser [this {:keys [label] :as props}]
   {:initial-state {:page :new-user :label "New User"}
+   :ident         (fn [] [(:page props) :top])
    :query         [:page :label]}
   (dom/div {:style {:backgroundColor "skyblue"}}
     label))
 
-(defsc StatusReport [this {:keys [id]}]
+(defsc StatusReport [this {:keys [id page]}]
   {:initial-state {:id :a :page :status-report}
+   :ident         (fn [] [page id])
    :query         [:id :page :label]}
   (dom/div {:style {:backgroundColor "yellow"}}
     (dom/div (str "Status " id))))
 
-(defsc GraphingReport [this {:keys [id]}]
+(defsc GraphingReport [this {:keys [id page]}]
   {:initial-state {:id :a :page :graphing-report}
+   :ident         (fn [] [page id])
    :query         [:id :page :label]}                       ; make sure you query for everything need by the router's ident function!
   (dom/div {:style {:backgroundColor "orange"}}
     (dom/div (str "Graph " id))))
@@ -46,9 +51,10 @@
 (def ui-report-router (comp/factory ReportRouter))
 
 ; BIG GOTCHA: Make sure you query for the prop (in this case :page) that the union needs in order to decide. It won't pull it itself!
-(defsc ReportsMain [this {:keys [report-router]}]
+(defsc ReportsMain [this {:keys [page report-router]}]
   ; nest the router under any arbitrary key, just be consistent in your query and props extraction.
   {:initial-state (fn [params] {:page :report :report-router (comp/get-initial-state ReportRouter {})})
+   :ident         (fn [] [page :top])
    :query         [:page {:report-router (comp/get-query ReportRouter)}]}
   (dom/div {:style {:backgroundColor "grey"}}
     ; Screen-specific content to be shown "around" or "above" the subscreen
@@ -59,7 +65,7 @@
 (defsc-router TopRouter [this props]
   {:router-id      :top-router
    :default-route  Main
-   :ident          (fn [this props] [(:page props) :top])
+   :ident          (fn [] [(:page props) :top])
    :router-targets {:main     Main
                     :login    Login
                     :new-user NewUser

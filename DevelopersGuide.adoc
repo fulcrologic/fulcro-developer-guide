@@ -82,13 +82,11 @@ code. This book adopts the following general set of requires and aliases:
 [source,clojure]
 ----
 (ns your-ns
-  (:require [fulcro.client.primitives :as prim :refer [defsc defui]]
-            [fulcro.client.dom :as dom]
-            [fulcro.util :as util]
-            [fulcro.client.util :as cutil]
-            [fulcro.client.mutations :as m :refer [defmutation]]
-            [fulcro.server :as server :refer [defquery-root defquery-entity]]
-            [fulcro.client :as fc]])
+  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc defui]]
+            [com.fulcrologic.fulcro.dom :as dom]
+            [com.fulcrologic.fulcro.algorithms.misc :as util]
+            [com.fulcrologic.fulcro.algorithms.misc :as cutil]
+            [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]))
 ----
 
 others will be identified as they are used.
@@ -231,8 +229,8 @@ you need a UI. The file `src/main/ui/root.cljc` contains some simple UI.
 ```
 (ns app.ui.root
   (:require
-    [fulcro.client.dom :as dom :refer [div]]
-    [fulcro.client.primitives :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom :refer [div]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [app.ui.components :as comp]))
 
 (defsc Root [this {:keys [root/message]}]
@@ -324,7 +322,7 @@ like your transaction log) if you've included the proper dependencies and preloa
 Fulcro supplies `defsc` to build React components. This macro emits React components that work as 100% raw React
 components (i.e. once you compile them to Javascript they could be used from other native React code).
 
-There are also factory functions for generating all standard HTML5 DOM elements in React in the `fulcro.client.dom` namespace.
+There are also factory functions for generating all standard HTML5 DOM elements in React in the `com.fulcrologic.fulcro.dom` namespace.
 
 === The `defsc` Macro
 
@@ -352,7 +350,7 @@ of course you can also `:refer` the common tags in your namespace declaration:
 
 ```
 (ns ui
-  (:require [fulcro.client.dom :as dom :refer [div p]]))
+  (:require [com.fulcrologic.fulcro.dom :as dom :refer [div p]]))
 ```
 
 and make this even tighter:
@@ -372,7 +370,7 @@ The body of `defsc` is the render for the component and can do whatever work you
 a react element (see https://facebook.github.io/react/blog/2015/12/18/react-components-elements-and-instances.html[React Components, Elements, and Instances]).
 As of React 16 you can return a sequence of elements as well (though each must have a unique `:key`).
 
-There are factory methods for all of HTML5 in `fulcro.client.dom`. These functions can take an optional keyword that
+There are factory methods for all of HTML5 in `com.fulcrologic.fulcro.dom`. These functions can take an optional keyword that
 specifies classes and an ID, followed by an optional map or additional props. If the tag allows children then
 they are simply placed after these two optional things:
 
@@ -393,7 +391,7 @@ reader to pull in the proper server DOM functions for Clojure:
 
 ```
 (ns app.ui
-  (:require #?(:clj [fulcro.client.dom-server :as dom] :cljs [fulcro.client.dom :as dom]))
+  (:require #?(:clj [com.fulcrologic.fulcro.dom-server :as dom] :cljs [fulcro.client.dom :as dom]))
 
 ... the actual code is the same as before
 ```
@@ -408,7 +406,7 @@ required.
 React components receive their data through props and state (which is local mutable state on the component).
 In Fulcro we highly recommend using props for most things. This
 ensures that various other features work well. The data passed to a component can be accessed (as a cljs map) by
-calling `prim/props` on `this`, or by destructuring in the second argument of `defsc`.
+calling `comp/props` on `this`, or by destructuring in the second argument of `defsc`.
 
 So, let's define a `Person` component to display details about
 a person. We'll assume that we're going to pass in name and age as properties:
@@ -425,7 +423,7 @@ us use the component within our React UI tree. Name confusion can become an
 issue (Person the component vs. person the factory?) we recommend prefixing the factory with `ui-`:
 
 ```
-(def ui-person (prim/factory Person))
+(def ui-person (comp/factory Person))
 ```
 
 Now we can compose people into our root:
@@ -455,7 +453,7 @@ Replace your content with this:
   (dom/li
     (dom/h5 (str name " (age: " age ")"))))
 
-(def ui-person (prim/factory Person {:keyfn :person/name}))
+(def ui-person (comp/factory Person {:keyfn :person/name}))
 
 (defsc PersonList [this {:keys [person-list/label person-list/people]}]
   (dom/div
@@ -463,7 +461,7 @@ Replace your content with this:
     (dom/ul
       (map ui-person people))))
 
-(def ui-person-list (prim/factory PersonList))
+(def ui-person-list (comp/factory PersonList))
 
 (defsc Root [this {:keys [ui/react-key]}]
   (let [ui-data {:friends {:person-list/label "Friends" :person-list/people
@@ -528,11 +526,11 @@ application will appear in a global component registry.  You can look up such co
 that matches the fully namespace-qualified name of the component:
 
 ```
-(prim/classname->class `app.ui/Root)
+(comp/classname->class `app.ui/Root)
 
 ;; OR
 
-(prim/classname->class :app.ui/Root)
+(comp/classname->class :app.ui/Root)
 ```
 
 This comes in handy for things like code splitting (where the dynamically loaded code will appear in the registry),
@@ -574,43 +572,43 @@ you to compose the state tree in exactly the same way as the UI tree.
 
 The `defsc` macro makes short work of this with the `initial-state` option. Simply give it a
 lambda that gets parameters (optionally from the parent) and returns a map representing the state of the component.
-You can retrieve this data using `(prim/get-initial-state Component)`.
+You can retrieve this data using `(comp/get-initial-state Component)`.
 
 It looks like this:
 
 ```
 (ns app.ui.root
   (:require
-    #?(:clj [fulcro.client.dom-server :as dom] :cljs [fulcro.client.dom :as dom])
-    [fulcro.client.primitives :as prim :refer [defsc]]))
+    #?(:clj [com.fulcrologic.fulcro.dom-server :as dom] :cljs [fulcro.client.dom :as dom])
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
 
 (defsc Person [this {:keys [person/name person/age]}]
   { :initial-state (fn [{:keys [name age] :as params}] {:person/name name :person/age age}) }
   (dom/li
     (dom/h5 (str name "(age: " age ")"))))
 
-(def ui-person (prim/factory Person {:keyfn :person/name}))
+(def ui-person (comp/factory Person {:keyfn :person/name}))
 
 (defsc PersonList [this {:keys [person-list/label person-list/people]}]
   {:initial-state
    (fn [{:keys [label]}]
      {:person-list/label  label
       :person-list/people (if (= label "Friends")
-                            [(prim/get-initial-state Person {:name "Sally" :age 32})
-                             (prim/get-initial-state Person {:name "Joe" :age 22})]
-                            [(prim/get-initial-state Person {:name "Fred" :age 11})
-                             (prim/get-initial-state Person {:name "Bobby" :age 55})])})}
+                            [(comp/get-initial-state Person {:name "Sally" :age 32})
+                             (comp/get-initial-state Person {:name "Joe" :age 22})]
+                            [(comp/get-initial-state Person {:name "Fred" :age 11})
+                             (comp/get-initial-state Person {:name "Bobby" :age 55})])})}
    (dom/div
      (dom/h4 label)
      (dom/ul
        (map ui-person people))))
 
-(def ui-person-list (prim/factory PersonList))
+(def ui-person-list (comp/factory PersonList))
 
 ; Root's initial state becomes the entire app's initial state!
 (defsc Root [this {:keys [friends enemies]}]
-  {:initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:label "Friends"})
-                                :enemies (prim/get-initial-state PersonList {:label "Enemies"})}) }
+  {:initial-state (fn [params] {:friends (comp/get-initial-state PersonList {:label "Friends"})
+                                :enemies (comp/get-initial-state PersonList {:label "Enemies"})}) }
   (dom/div
     (ui-person-list friends)
     (ui-person-list enemies)))
@@ -636,7 +634,7 @@ parent and add it to a different one.
 You can see that there is no magic if you just pull the initial tree at the REPL:
 
 ----
-dev:cljs.user=> (fulcro.client.primitives/get-initial-state app.ui.root/Root {})
+dev:cljs.user=> (com.fulcrologic.fulcro.components/get-initial-state app.ui.root/Root {})
 {:friends
  {:person-list/label "Friends",
   :person-list/people
@@ -663,7 +661,7 @@ your mounted application:
 
 [source]
 ----
-dev:cljs.user=> @(fulcro.client.primitives/app-state (get @app.client/app :reconciler))
+dev:cljs.user=> @(com.fulcrologic.fulcro.components/app-state (get @app.client/app :reconciler))
 ----
 
 Let's see how we program our UI to access the data in the application state!
@@ -728,7 +726,7 @@ against it:
 
 [source]
 ----
-dev:cljs.user=> (fulcro.client.primitives/db->tree [{:friends [:person-list/label]}] (fulcro.client.primitives/get-initial-state app.ui.root/Root {}) {})
+dev:cljs.user=> (com.fulcrologic.fulcro.components/db->tree [{:friends [:person-list/label]}] (fulcro.client.primitives/get-initial-state app.ui.root/Root {}) {})
 {:friends {:person-list/label "Friends"}}
 ----
 
@@ -761,15 +759,15 @@ are mirrored):
 
 ```
 (defsc PersonList [this {:keys [person-list/label person-list/people]}]
-  {:query [:person-list/label {:person-list/people (prim/get-query Person)}]
+  {:query [:person-list/label {:person-list/people (comp/get-query Person)}]
    :initial-state
           (fn [{:keys [label]}]
             {:person-list/label  label
              :person-list/people (if (= label "Friends")
-                                   [(prim/get-initial-state Person {:name "Sally" :age 32})
-                                    (prim/get-initial-state Person {:name "Joe" :age 22})]
-                                   [(prim/get-initial-state Person {:name "Fred" :age 11})
-                                    (prim/get-initial-state Person {:name "Bobby" :age 55})])})}
+                                   [(comp/get-initial-state Person {:name "Sally" :age 32})
+                                    (comp/get-initial-state Person {:name "Joe" :age 22})]
+                                   [(comp/get-initial-state Person {:name "Fred" :age 11})
+                                    (comp/get-initial-state Person {:name "Bobby" :age 55})])})}
   (dom/div
     (dom/h4 label)
     (dom/ul
@@ -784,10 +782,10 @@ Finally, we compose to `Root`:
 
 ```
 (defsc Root [this {:keys [friends enemies]}]
-  {:query         [{:friends (prim/get-query PersonList)}
-                   {:enemies (prim/get-query PersonList)}]
-   :initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:label "Friends"})
-                                :enemies (prim/get-initial-state PersonList {:label "Enemies"})})}
+  {:query         [{:friends (comp/get-query PersonList)}
+                   {:enemies (comp/get-query PersonList)}]
+   :initial-state (fn [params] {:friends (comp/get-initial-state PersonList {:label "Friends"})
+                                :enemies (comp/get-initial-state PersonList {:label "Enemies"})})}
   (dom/div
     (ui-person-list friends)
     (ui-person-list enemies)))
@@ -838,18 +836,18 @@ the parent will need to pass in a function that the child can call to affect the
   (dom/li
     (dom/h5 (str name " (age: " age ")") (dom/button {:onClick #(onDelete name)} "X")))) ; <4>
 
-(def ui-person (prim/factory Person {:keyfn :person/name}))
+(def ui-person (comp/factory Person {:keyfn :person/name}))
 
 (defsc PersonList [this {:keys [person-list/label person-list/people]}]
-  {:query [:person-list/label {:person-list/people (prim/get-query Person)}]
+  {:query [:person-list/label {:person-list/people (comp/get-query Person)}]
    :initial-state
           (fn [{:keys [label]}]
             {:person-list/label  label
              :person-list/people (if (= label "Friends")
-                                   [(prim/get-initial-state Person {:name "Sally" :age 32})
-                                    (prim/get-initial-state Person {:name "Joe" :age 22})]
-                                   [(prim/get-initial-state Person {:name "Fred" :age 11})
-                                    (prim/get-initial-state Person {:name "Bobby" :age 55})])})}
+                                   [(comp/get-initial-state Person {:name "Sally" :age 32})
+                                    (comp/get-initial-state Person {:name "Joe" :age 22})]
+                                   [(comp/get-initial-state Person {:name "Fred" :age 11})
+                                    (comp/get-initial-state Person {:name "Bobby" :age 55})])})}
   (let [delete-person (fn [name] (println label "asked to delete" name))]  ; <1>
     (dom/div
       (dom/h4 label)
@@ -880,28 +878,28 @@ that you can use to deconstruct them:
   (dom/li
     (dom/h5 (str name " (age: " age ")") (dom/button {:onClick #(onDelete name)} "X")))) ; <4>
 
-(def ui-person (prim/factory Person {:keyfn :person/name}))
+(def ui-person (comp/factory Person {:keyfn :person/name}))
 
 (defsc PersonList [this {:keys [person-list/label person-list/people]}] ;
-  {:query [:person-list/label {:person-list/people (prim/get-query Person)}]
+  {:query [:person-list/label {:person-list/people (comp/get-query Person)}]
    :initial-state
           (fn [{:keys [label]}]
             {:person-list/label  label
              :person-list/people (if (= label "Friends")
-                                   [(prim/get-initial-state Person {:name "Sally" :age 32})
-                                    (prim/get-initial-state Person {:name "Joe" :age 22})]
-                                   [(prim/get-initial-state Person {:name "Fred" :age 11})
-                                    (prim/get-initial-state Person {:name "Bobby" :age 55})])})}
+                                   [(comp/get-initial-state Person {:name "Sally" :age 32})
+                                    (comp/get-initial-state Person {:name "Joe" :age 22})]
+                                   [(comp/get-initial-state Person {:name "Fred" :age 11})
+                                    (comp/get-initial-state Person {:name "Bobby" :age 55})])})}
   (let [delete-person (fn [name] (println label "asked to delete" name))] ; <1>
     (dom/div
       (dom/h4 label)
       (dom/ul
-        (map (fn [p] (ui-person (prim/computed p {:onDelete delete-person}))) people))))) ; <1>
+        (map (fn [p] (ui-person (comp/computed p {:onDelete delete-person}))) people))))) ; <1>
 ```
 
-<1> The `prim/computed` function is used to add the computed data to the props being passed.
+<1> The `comp/computed` function is used to add the computed data to the props being passed.
 <2> The child adds an additional parameter, and pulls the computed data from there. You can also
-use `(prim/get-computed this)` to pull all of the computed props in the body.
+use `(comp/get-computed this)` to pull all of the computed props in the body.
 
 Now you can be sure that your callbacks (or other parent-computed data) won't be lost to render optimizations.
 
@@ -941,14 +939,14 @@ You essentially just "make up" names for the operations you'd like to do to your
 function names. Namespacing is encouraged, and of course syntax quoting honors namespace aliases.
 
 ```
-(prim/transact! this `[(ops/delete-person {:list-name "Friends" :person "Fred"})])
+(comp/transact! this `[(ops/delete-person {:list-name "Friends" :person "Fred"})])
 ```
 
 is asking the underlying system to run the mutation `ops/delete-person` (where ops can be an alias established
 in the `ns`). Of course, you'll typically use unquote to embed data from local variables:
 
 ```
-(prim/transact! this `[(ops/delete-person {:list-name ~name :person ~person})])
+(comp/transact! this `[(ops/delete-person {:list-name ~name :person ~person})])
 ```
 
 === Handling Mutations
@@ -976,7 +974,7 @@ that we're deleting:
 
 ```
 (ns app.api.mutations
-  (:require [fulcro.client.mutations :as m :refer [defmutation]]))
+  (:require [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]))
 
 (defmutation delete-person
   "Mutation: Delete the person with name from the list with list-name"
@@ -1001,16 +999,16 @@ Then all that remains is to change `ui.root` in the following ways:
 ```
 (ns app.ui.root
   (:require [fulcro.client :as fc]
-            [fulcro.client.dom :as dom]
+            [com.fulcrologic.fulcro.dom :as dom]
             ; ADD THIS:
             [app.api.mutations :as api] ; <1>
-            [fulcro.client.primitives :as prim :refer [defui defsc]]))
+            [com.fulcrologic.fulcro.components :as comp :refer [defui defsc]]))
 
 ...
 
 (defsc PersonList [this {:keys [person-list/label person-list/people]}]
   ...
-  (let [delete-person (fn [name] (prim/transact! this `[(api/delete-person {:list-name ~label :name ~name})]))] ; <2>
+  (let [delete-person (fn [name] (comp/transact! this `[(api/delete-person {:list-name ~label :name ~name})]))] ; <2>
   ...
 ```
 
@@ -1122,9 +1120,9 @@ The program will now look like this:
 (ns app.ui.root
   (:require
     translations.es
-    [fulcro.client.dom :as dom]
+    [com.fulcrologic.fulcro.dom :as dom]
     [app.api.mutations :as api]
-    [fulcro.client.primitives :as prim :refer [defsc]]))
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
 
 (defsc Person [this {:keys [db/id person/name person/age]} {:keys [onDelete]}]
   {:query         [:db/id :person/name :person/age] ; <2>
@@ -1133,33 +1131,33 @@ The program will now look like this:
   (dom/li
     (dom/h5 (str name " (age: " age ")") (dom/button {:onClick #(onDelete id)} "X")))) ; <4>
 
-(def ui-person (prim/factory Person {:keyfn :person/name}))
+(def ui-person (comp/factory Person {:keyfn :person/name}))
 
 (defsc PersonList [this {:keys [db/id person-list/label person-list/people]}]
-  {:query [:db/id :person-list/label {:person-list/people (prim/get-query Person)}]
+  {:query [:db/id :person-list/label {:person-list/people (comp/get-query Person)}]
    :ident [:person-list/by-id :db/id] ; <5>
    :initial-state
           (fn [{:keys [id label]}]
             {:db/id              id
              :person-list/label  label
              :person-list/people (if (= label "Friends")
-                                   [(prim/get-initial-state Person {:id 1 :name "Sally" :age 32})
-                                    (prim/get-initial-state Person {:id 2 :name "Joe" :age 22})]
-                                   [(prim/get-initial-state Person {:id 3 :name "Fred" :age 11})
-                                    (prim/get-initial-state Person {:id 4 :name "Bobby" :age 55})])})}
-  (let [delete-person (fn [person-id] (prim/transact! this `[(api/delete-person {:list-id ~id :person-id ~person-id})]))] ; <4>
+                                   [(comp/get-initial-state Person {:id 1 :name "Sally" :age 32})
+                                    (comp/get-initial-state Person {:id 2 :name "Joe" :age 22})]
+                                   [(comp/get-initial-state Person {:id 3 :name "Fred" :age 11})
+                                    (comp/get-initial-state Person {:id 4 :name "Bobby" :age 55})])})}
+  (let [delete-person (fn [person-id] (comp/transact! this `[(api/delete-person {:list-id ~id :person-id ~person-id})]))] ; <4>
     (dom/div
       (dom/h4 label)
       (dom/ul
-        (map (fn [p] (ui-person (prim/computed p {:onDelete delete-person}))) people)))))
+        (map (fn [p] (ui-person (comp/computed p {:onDelete delete-person}))) people)))))
 
-(def ui-person-list (prim/factory PersonList))
+(def ui-person-list (comp/factory PersonList))
 
 (defsc Root [this {:keys [ui/react-key friends enemies]}]
-  {:query         [:ui/react-key {:friends (prim/get-query PersonList)}
-                   {:enemies (prim/get-query PersonList)}]
-   :initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"})
-                                :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
+  {:query         [:ui/react-key {:friends (comp/get-query PersonList)}
+                   {:enemies (comp/get-query PersonList)}]
+   :initial-state (fn [params] {:friends (comp/get-initial-state PersonList {:id :friends :label "Friends"})
+                                :enemies (comp/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
   (dom/div
     (ui-person-list friends)
     (ui-person-list enemies)))
@@ -1176,7 +1174,7 @@ If you reload the web page (needed to reinitialize the database state), then you
 database at the REPL (*NOTE: It is much easier to look at this using Fulcro Inspect in your developer tools tab*):
 
 ----
-dev:cljs.user=> @(fulcro.client.primitives/app-state (-> app.client/app deref :reconciler))
+dev:cljs.user=> @(com.fulcrologic.fulcro.components/app-state (-> app.client/app deref :reconciler))
 {:friends [:person-list/by-id :friends],
  :enemies [:person-list/by-id :enemies],
  :person/by-id
@@ -1201,10 +1199,10 @@ database. In Fulcro these are the same. So, try this at the REPL:
 
 [source]
 ----
-dev:cljs.user=> (def current-db @(fulcro.client.primitives/app-state (-> app.client/app deref :reconciler)))
-dev:cljs.user=> (def root-query (fulcro.client.primitives/get-query app.ui.root/Root))
+dev:cljs.user=> (def current-db @(com.fulcrologic.fulcro.components/app-state (-> app.client/app deref :reconciler)))
+dev:cljs.user=> (def root-query (com.fulcrologic.fulcro.components/get-query app.ui.root/Root))
 #'cljs.user/current-db
-dev:cljs.user=> (fulcro.client.primitives/db->tree root-query current-db current-db)
+dev:cljs.user=> (com.fulcrologic.fulcro.components/db->tree root-query current-db current-db)
 {:friends
  {:db/id :friends,
   :person-list/label "Friends",
@@ -1228,7 +1226,7 @@ This is not only much easier to code, but it is completely independent of the sh
 
 ```
 (ns app.api.mutations
-  (:require [fulcro.client.mutations :as m :refer [defmutation]]))
+  (:require [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]))
 
 (defmutation delete-person
   "Mutation: Delete the person with name from the list with list-name"
@@ -1254,13 +1252,13 @@ database.
 It is good to know how an arbitrary tree of data (the one in InitialAppState) can be converted to the normalized form.
 Understanding how this is accomplished can help you avoid some mistakes later.
 
-When you compose your query (via `prim/get-query`), the `get-query` function adds metadata to the query fragment that
+When you compose your query (via `comp/get-query`), the `get-query` function adds metadata to the query fragment that
 names which component that query fragment came from.
 
 For example, try this at the REPL:
 
 ----
-dev:cljs.user=> (meta (fulcro.client.primitives/get-query app.ui.root/PersonList))
+dev:cljs.user=> (meta (com.fulcrologic.fulcro.components/get-query app.ui.root/PersonList))
 {:component app.ui.root/PersonList}
 ----
 
@@ -1417,7 +1415,7 @@ so far is quite unrealistic: the people we're showing should be coming from a se
 should not be embedded in the code of the client. Let's remedy that.
 
 Fulcro provides a few mechanisms for loading data, but every possible load scenario can be done using
-the `fulcro.client.data-fetch/load` function.
+the `com.fulcrologic.fulcro.data-fetch/load` function.
 
 It is very important to remember that our application database is completely normalized, so anything we'd want to put
 in that application state will be *at most* 3 levels deep (the table name, the ID of the thing in the table, and the
@@ -1439,7 +1437,7 @@ First, let's correct our application's initial state so that no people are there
 
 ```
 (defsc PersonList [this {:keys [db/id person-list/label person-list/people]}]
-  {:query [:db/id :person-list/label {:person-list/people (prim/get-query Person)}]
+  {:query [:db/id :person-list/label {:person-list/people (comp/get-query Person)}]
    :ident [:person-list/by-id :db/id]
    :initial-state
           (fn [{:keys [id label]}]
@@ -1475,7 +1473,7 @@ To do this, we can add an option to our client. In `app.client` change `app`:
 ```
 (ns app.client
   (:require [fulcro.client :as fc]
-            [fulcro.client.data-fetch :as df] ; <1>
+            [com.fulcrologic.fulcro.data-fetch :as df] ; <1>
             [app.ui.root :as root]))
 
 ...
@@ -1493,7 +1491,7 @@ NOTE: *If you are using workspaces* you will need to place the option for the ap
 
 ```
 (ns myapp.workspaces.fulcro-demo-cards
-  (:require [fulcro.client.primitives :as fp]
+  (:require [com.fulcrologic.fulcro.components :as fp]
             [fulcro.client.localized-dom :as dom]
             [nubank.workspaces.core :as ws]
             [nubank.workspaces.card-types.fulcro :as ct.fulcro]
@@ -1519,7 +1517,7 @@ If you do that at the moment, you should see an error in the various consoles re
 
 IMPORTANT: Make sure any card is running from *your* server (port 3000), and not the workspaces dev server.
 
-Technically, `load` is just writing a query for you (in this case `[{:current-user (prim/get-query Person)}]`) and sending it to the
+Technically, `load` is just writing a query for you (in this case `[{:current-user (comp/get-query Person)}]`) and sending it to the
 server. The server will receive *exactly* that query as a CLJ data structure.
 
 ===== Implementing the Server Handler
@@ -1584,7 +1582,7 @@ substituting a Pathom parser in `middleware.clj` (search for fulcro-parser).
 
 Of course, the question is now "how do I use that in some arbitrary component?" We won't completely
 explore that right now, but the answer is easy: The query syntax has a notation for "query something at the root". It looks like this:
-`[ {[:current-user '_] (prim/get-query Person)} ]`. You should recognize this as a query join, but on something that
+`[ {[:current-user '_] (comp/get-query Person)} ]`. You should recognize this as a query join, but on something that
 looks like an ident without an ID (implying there is only one, at root).
 
 We'll just use it on the Root UI node, where we don't need to "jump to the top":
@@ -1592,11 +1590,11 @@ We'll just use it on the Root UI node, where we don't need to "jump to the top":
 ```
 (defsc Root [this {:keys [ui/react-key friends enemies current-user]}] ; <2>
   {:query         [:ui/react-key
-                   {:current-user (prim/get-query Person)} ; <1>
-                   {:friends (prim/get-query PersonList)}
-                   {:enemies (prim/get-query PersonList)}]
-   :initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"})
-                                :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
+                   {:current-user (comp/get-query Person)} ; <1>
+                   {:friends (comp/get-query PersonList)}
+                   {:enemies (comp/get-query PersonList)}]
+   :initial-state (fn [params] {:friends (comp/get-initial-state PersonList {:id :friends :label "Friends"})
+                                :enemies (comp/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
   (dom/div
     (dom/h4 (str "Current User: " (:person/name current-user))) ; <3>
     (ui-person-list friends)
@@ -1711,7 +1709,7 @@ just-loaded data, we'll add it there. Our dev card would now look like this:
 (ns app.intro
   (:require [fulcro.client.cards :refer [defcard-fulcro]]
             [app.ui.root :as root]
-            [fulcro.client.data-fetch :as df]
+            [com.fulcrologic.fulcro.data-fetch :as df]
             [app.api.mutations :as api]))
 
 (defcard-fulcro sample-app
@@ -1754,11 +1752,11 @@ Let's embed that into our UI at the root:
 ```
 (defsc Root [this {:keys [ui/react-key friends enemies current-user]}]
   {:query         [:ui/react-key
-                   {:current-user (prim/get-query Person)}
-                   {:friends (prim/get-query PersonList)}
-                   {:enemies (prim/get-query PersonList)}]
-   :initial-state (fn [params] {:friends (prim/get-initial-state PersonList {:id :friends :label "Friends"})
-                                :enemies (prim/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
+                   {:current-user (comp/get-query Person)}
+                   {:friends (comp/get-query PersonList)}
+                   {:enemies (comp/get-query PersonList)}]
+   :initial-state (fn [params] {:friends (comp/get-initial-state PersonList {:id :friends :label "Friends"})
+                                :enemies (comp/get-initial-state PersonList {:id :enemies :label "Enemies"})})}
   (dom/div
     (dom/h4 (str "Current User: " (:person/name current-user)))
     ; NEW BUTTON HERE:
@@ -2284,11 +2282,11 @@ These stand-ins (commonly referred to as the virtual DOM or VDOM)
 are ultimately what React uses to generate, diff, and update the real DOM.
 
 So, there are functions for every possible HTML5 element. These are in the
-`fulcro.client.dom` namespace.
+`com.fulcrologic.fulcro.dom` namespace.
 
 ```
 (ns app.ui
-  (:require [fulcro.client.dom :as dom]))
+  (:require [com.fulcrologic.fulcro.dom :as dom]))
 
 ...
 
@@ -2299,7 +2297,7 @@ So, there are functions for every possible HTML5 element. These are in the
 
 IMPORTANT: If you're writing your UI in CLJC files then you need to make sure you use a conditional
 reader to pull in the proper server DOM functions for Clojure:
-`(ns app.ui (:require #?(:clj [fulcro.client.dom-server :as dom] :cljs [fulcro.client.dom :as dom]))`
+`(ns app.ui (:require #?(:clj [com.fulcrologic.fulcro.dom-server :as dom] :cljs [fulcro.client.dom :as dom]))`
 
 The notation allowed is as follows:
 
@@ -2558,7 +2556,7 @@ It is even more powerful than that, because it analyzes your query and can deal 
 
 ```
 (defsc Person [this props]
-  {:query [{:person/job (prim/get-query Job)}]
+  {:query [{:person/job (comp/get-query Job)}]
   :initial-state {:person/job {:job/name "Welder"}}
   ...)
 ```
@@ -2567,7 +2565,7 @@ means (in simplified terms):
 
 ```
 (defsc Person [this props]
-  {:initial-state (fn [params] {:person/job (prim/get-initial-state Job {:job/name "Welder"})})}
+  {:initial-state (fn [params] {:person/job (comp/get-initial-state Job {:job/name "Welder"})})}
   ...)
 ```
 
@@ -2577,7 +2575,7 @@ To-many relations are also auto-derived:
 
 ```
 (defsc Person [this props]
-  {:query [{:person/prior-jobs (prim/get-query Job)}]
+  {:query [{:person/prior-jobs (comp/get-query Job)}]
   :initial-state {:person/prior-jobs [{:job/name "Welder"} {:job/name "Cashier"]}
   ...)
 ```
@@ -2587,8 +2585,8 @@ means (in simplified terms):
 ```
 (defsc Person [this props]
   {:initial-state (fn [params]
-    {:person/prior-jobs [(prim/get-initial-state Job {:job/name "Welder"})
-                         (prim/get-initial-state Job {:job/name "Cashier"})]})}
+    {:person/prior-jobs [(comp/get-initial-state Job {:job/name "Welder"})
+                         (comp/get-initial-state Job {:job/name "Cashier"})]})}
   ...)
 ```
 
@@ -2665,7 +2663,7 @@ code for it in `:initLocalState`, which is guaranteed to run once and only once 
 === React Lifecycle Methods
 
 The options of defsc allow for React Lifecycle methods to be defined (as lambdas). The `this` parameter of `defsc` is
-in scope for all of them, but *not* `props` or `computed`. You can obtain computed using `prim/get-computed`. This is
+in scope for all of them, but *not* `props` or `computed`. You can obtain computed using `comp/get-computed`. This is
 because the lifecycle method may receive prior or next props, and using the top parameter list could be confusing.
 
 The signatures are:
@@ -2770,10 +2768,10 @@ In some cases the sanity checking is more aggressive that you might desire. To g
 == Factories
 
 Factories are how you generate React elements (the virtual DOM nodes) from your React classes defined with
-`defsc`. You make a new factory using `fulcro.client.primitives/factory`:
+`defsc`. You make a new factory using `com.fulcrologic.fulcro.components/factory`:
 
 ```
-(def ui-component (prim/factory MyComponent {:keyfn f :validator v :instrument? true}))
+(def ui-component (comp/factory MyComponent {:keyfn f :validator v :instrument? true}))
 ```
 
 There are 3 supported options to a factory:
@@ -2788,7 +2786,7 @@ measurement and debugging code to your component's rendering.
 
 In Fulcro documentation we generally adopt the naming convention for UI factories to be prefixed with `ui-`. This
 is because you often want to name joins the same thing as a component: e.g. your query might be
-`[{:child (prim/get-query Child)}]`, and then when you destructure in render: `(let [{:keys [child]} (prim/props this) ...`
+`[{:child (comp/get-query Child)}]`, and then when you destructure in render: `(let [{:keys [child]} (comp/props this) ...`
 you have local data in the symbol `child`. If your UI factory was also called `child` then it would cause annoying name
 collisions. Prefixing the factories with `ui-` makes it very clear what is data and what is an element factory.
 
@@ -2796,7 +2794,7 @@ collisions. Prefixing the factories with `ui-` makes it very clear what is data 
 == Render and Props
 
 Properties are always passed to a component factory as the first argument. The properties can be accessed
-from within `render` by calling `fulcro.client.primitives/props` on the parameter passed to `render` (typically named `this`
+from within `render` by calling `com.fulcrologic.fulcro.components/props` on the parameter passed to `render` (typically named `this`
 to remind you that it is a reference to the instance itself).
 
 In components with queries there is a strong correlation between the query (which must join the child's query),
@@ -2818,7 +2816,7 @@ easily become out of sync and lead to more complex logic.
 (defn item-checked? [item] (:checked? item))
 
 (defsc Checkboxes [this {:keys [items]}]
-  {:query [{:items (prim/get-query CheckboxItem)}]}
+  {:query [{:items (comp/get-query CheckboxItem)}]}
   (let [all-checked? (every item-checked? items)]
     (dom/div
       "All: " (dom/input {:checked all-checked? ...})
@@ -2866,18 +2864,18 @@ the client database. Such a targeted refresh of a component cannot pass callback
 because the parent is where that is coded, but the parent may not be involved in the refresh!
 
 So, any value (function or otherwise) that is generated on-the-fly by the parent must be passed via
-`fulcro.client.primitives/computed`. This tells the data feed system how to reconstruct the complete data should it do a targeted update.
+`com.fulcrologic.fulcro.components/computed`. This tells the data feed system how to reconstruct the complete data should it do a targeted update.
 
 ```
 (defsc Child [this {:keys [y]}]
   {:query [:y]}
-  (let [onDelete (prim/get-computed this :onDelete)]
+  (let [onDelete (comp/get-computed this :onDelete)]
     ...))
 
 (defsc Parent [this {:keys [x child]}]
-  {:query  [:x {:child (prim/get-query Child)}]}
-  (let [onDelete (fn [id] (prim/transact! ...))
-        child-props-with-callbacks (prim/computed child {:onDelete onDelete})]
+  {:query  [:x {:child (comp/get-query Child)}]}
+  (let [onDelete (fn [id] (comp/transact! ...))
+        child-props-with-callbacks (comp/computed child {:onDelete onDelete})]
     (ui-child child-props-with-callbacks)))
 ```
 
@@ -2898,7 +2896,7 @@ Fulcro includes a few functions that are helpful when designing React components
 children within a single render:
 
 [horizontal]
-`(prim/children this)`:: Returns the React children of `this`
+`(comp/children this)`:: Returns the React children of `this`
 `(cutil/react-instance? Component instance)`:: Returns true if the given element is an instance of the given component class. Otherwise `nil`.
 `(cutil/first-node` Component child-seq):: Returns the first of a sequence of elements that has the given component class.
 
@@ -2906,11 +2904,11 @@ So, say you wanted to create the following kind of rendering scheme:
 
 ```
 (defsc Panel ...)
-(def ui-panel (prim/factory Panel))
+(def ui-panel (comp/factory Panel))
 (defsc PanelHeader ...)
-(def ui-panel-header (prim/factory PanelHeader))
+(def ui-panel-header (comp/factory PanelHeader))
 (defsc PanelBody ...)
-(def ui-panel-body (prim/factory PanelBody))
+(def ui-panel-body (comp/factory PanelBody))
 
 (ui-panel {}
   (ui-panel-header {} "Some Heading Text")
@@ -2922,7 +2920,7 @@ The DOM generation for `Panel` will need to find the header and body children:
 
 ```
 (defsc Panel [this props]
-  (let [children (prim/children this)
+  (let [children (comp/children this)
         header (util/first-node PanelHeader children)
         body (util/first-node PanelBody children)]
     (when header
@@ -2941,7 +2939,7 @@ function to wrap elements in a fragment:
 
 ```
 (defsc X [this props]
-  (prim/fragment ; in the prim namespace, because it isn't DOM specific. Could be used with native.
+  (comp/fragment ; in the prim namespace, because it isn't DOM specific. Could be used with native.
     (dom/p "a")
     (dom/p "b")))
 ```
@@ -2984,11 +2982,11 @@ should be shown/hidden. The actual DOM elements of those children are immaterial
 
 ```
 (defsc CollapseExample [this {:keys [collapse-1 child]}]
-  {:initial-state (fn [p] {:collapse-1 (prim/get-initial-state b/Collapse {:id 1 :start-open false})})
-   :query [{:collapse-1 (prim/get-query b/Collapse)}
-           {:child (prim/get-query SomeChild)}]}
+  {:initial-state (fn [p] {:collapse-1 (comp/get-initial-state b/Collapse {:id 1 :start-open false})})
+   :query [{:collapse-1 (comp/get-query b/Collapse)}
+           {:child (comp/get-query SomeChild)}]}
   (dom/div
-    (b/button {:onClick (fn [] (prim/transact! this `[(b/toggle-collapse {:id 1})]))} "Toggle")
+    (b/button {:onClick (fn [] (comp/transact! this `[(b/toggle-collapse {:id 1})]))} "Toggle")
     (b/ui-collapse collapse-1
       (ui-child child))))
 ```
@@ -3183,7 +3181,7 @@ just the cljs wrappers. For a good article explaining some of the concepts read,
 It is very important to consider when using any of these functions - the children. JS does not have a built in notion
 of lazy sequences. Clojurescript does. This can create subtle bugs when evaluating the children of a component.
 
-`fulcro.util/force-children` helps us in this regard by taking a seq and returning a vector. We can use this to
+`com.fulcrologic.fulcro.algorithms.misc/force-children` helps us in this regard by taking a seq and returning a vector. We can use this to
 create our own factory function, much like React.createFactory:
 
 ```
@@ -3243,15 +3241,15 @@ libraries):
 ```
 (ns sample
   (:require ["react-motion" :refer [Motion spring]]
-            [fulcro.client.primitives :as prim :refer [defsc]]
-            [fulcro.client.dom :as dom]
+            [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+            [com.fulcrologic.fulcro.dom :as dom]
             [goog.object :as gobj]))
 
 (def ui-motion (factory-apply Motion))
 
 
 (defsc Demo [this {:keys [ui/slid? block]}]
-  {:query         [:ui/slid? {:block (prim/get-query Block)}]
+  {:query         [:ui/slid? {:block (comp/get-query Block)}]
    :initial-state {:ui/slid? false :block {:id 1 :name "N"}}
    :ident         (fn [] [:control :demo])}
   (dom/div
@@ -3260,9 +3258,9 @@ libraries):
       (fn [p]
         (let [x (gobj/get p "x")]
           ; The binding wrapper ensures that internal fulcro bindings are held within the lambda
-          (prim/with-parent-context this
+          (comp/with-parent-context this
             (dom/div :.demo
-              (ui-block (prim/computed block {:x x})))))))))
+              (ui-block (comp/computed block {:x x})))))))))
 ```
 
 The key is the call to `with-parent-context`. It causes the enclosed elements to have bindings pulled 
@@ -3318,9 +3316,9 @@ A typical file will have the following layout:
 
 -----
 (ns my-ui
-  (:require [fulcro.client.dom :as dom]
+  (:require [com.fulcrologic.fulcro.dom :as dom]
             [fulcro-css.css :as css]
-            [fulcro.client.primitives :as prim :refer [defui defsc]]))
+            [com.fulcrologic.fulcro.components :as comp :refer [defui defsc]]))
 
 ; the item binding is destructured as the fourth param. The actual CSS classname
 ; will be namespaced to the component as my_ui_ListItem__item, but will be available
@@ -3452,7 +3450,7 @@ You can use the raw string in generated HTML, or use the server-compatible DOM f
 ```
 (ns app.ui
   (:require
-    [fulcro.client.dom :as dom]
+    [com.fulcrologic.fulcro.dom :as dom]
     [garden.core :as g]
     [fulcro-css.css :as css]))
 
@@ -3483,7 +3481,7 @@ better control and performance:
 (defsc MyRoot [this props]
   {:css [[rules]]
    ; NO css includes
-   :query [{:a (prim/get-query A)}]}
+   :query [{:a (comp/get-query A)}]}
   (dom/div
     (injection/style-element {:component this})
     ...))
@@ -3516,7 +3514,7 @@ use localized CSS without having to destructure the munged names at all.
 
 ```
 (ns app.ui
-  (:require [fulcro.client.dom :as dom]))
+  (:require [com.fulcrologic.fulcro.dom :as dom]))
 
 (defsc Component [this props comp {:keys [a]}]
   {:css [[:.a {:color :red}]]}
@@ -3617,8 +3615,8 @@ All we need to do is to have a factory function that will do the conversion. For
 ```
 (ns hoc-example
   (:require
-    [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     ["google-maps-react" :refer [GoogleApiWrapper Map Marker]]))
 
 (defn factory-apply [js-component-class]
@@ -3670,7 +3668,7 @@ and will recover our Cljs map props enhancing it also with `google` object provi
 ```
 ;; Plain Fulcro factory that will be used in our interop layer.
 ;; It won't be used directly in our client UI code.
-(def ui-location-view-wrapped (prim/factory LocationView)
+(def ui-location-view-wrapped (comp/factory LocationView)
 
 (defn ui-location-view-interop [js-props]
   (let [fulcro-clj-props (.-hocFulcroCljPropsPassthrough js-props) ;; unwrapping Fulcro Cljs props wrapped by hoc-factory-apply
@@ -3708,7 +3706,7 @@ props passed to the wrapped `LocationView` component.
 (ns utils.hoc
   (:require
     goog.object
-    [fulcro.client.primitives :as prim]))
+    [com.fulcrologic.fulcro.components :as comp]))
 
 (defn hoc-factory
   "Creates a factory for HOC wrapped component class.
@@ -3718,7 +3716,7 @@ props passed to the wrapped `LocationView` component.
    (hoc-factory hoc-wrapper-fn wrapped-component-class nil))
   ([hoc-wrapper-fn wrapped-component-class {:keys [extra-props-fn]}]
    (let [cljs-props-key (name (gensym "fulcro-cljs-props"))
-         wrapped-component-factory (prim/factory wrapped-component-class)
+         wrapped-component-factory (comp/factory wrapped-component-class)
          js->clj-props-interop (fn js->clj-props-interop [js-props]
                                  (let [clj-props (goog.object/get js-props cljs-props-key)
                                        props (if extra-props-fn
@@ -3832,16 +3830,16 @@ tree of data for the UI).
 
 ```
 (defui ListItem
-  static prim/IQuery
+  static comp/IQuery
   (query [this] [:db/id :item/label])
-  static prim/Ident
+  static comp/Ident
   (ident [this props] [:list-item/by-id (:db/id props)])
   ...)
 
 (defui List
-  static prim/IQuery
-  (query [this] [:db/id {:list/items (prim/get-query ListItem)}])
-  static prim/Ident
+  static comp/IQuery
+  (query [this] [:db/id {:list/items (comp/get-query ListItem)}])
+  static comp/Ident
   (ident [this props] [:list/by-id (:db/id props)])
   ...)
 
@@ -3852,8 +3850,8 @@ tree of data for the UI).
 
 Even though the method itself is declared statically, there are some interesting things about the `query` method:
 
-- Once mounted, a component can have a dynamic query. This means calling `(prim/get-query this)` will return either
-the static query, or whatever has been set on that component via `(prim/set-query! ...)`.
+- Once mounted, a component can have a dynamic query. This means calling `(comp/get-query this)` will return either
+the static query, or whatever has been set on that component via `(comp/set-query! ...)`.
 - The `get-query` accessor method not only helps with server-side invocation, it annotates the query with
 metadata that includes the component info. This is what makes normalization work.
 
@@ -3863,8 +3861,8 @@ Some rules about the query itself:
 +
 ```
 (defui PersonView1
-  static prim/IQuery
-  (query [this] (prim/get-query PersonView2)) ;; WRONG!!!!
+  static comp/IQuery
+  (query [this] (comp/get-query PersonView2)) ;; WRONG!!!!
 ```
 +
 This is wrong because the query will end up annotated with `PersonView2`'s metadata. Never use the return
@@ -3889,7 +3887,7 @@ and use that in both your component's ident implementation and all of your mutat
 
 ```
 (defui Person
-  static prim/Ident
+  static comp/Ident
   (ident [this props] (person-ident props)))
 
 ...
@@ -3952,7 +3950,7 @@ A join represents a traversal of an edge to another node in the graph. The notat
 query for the remainder of the graph walk:
 
 ```
-[{:children (prim/get-query Child)}]
+[{:children (comp/get-query Child)}]
 ```
 
 The query itself cannot specify that this is a to-one or to-many join. The data in the *database graph itself*
@@ -3974,9 +3972,9 @@ components. The union query itself is a map of the possible queries:
 ```
 (defsc PersonPlaceOrThingUnion [this props]
   ; lambda form required for unions (a limitation of the error checking routines in defsc)
-  {:query (fn [] {:person/by-id (prim/get-query Person)
-                  :place/by-id (prim/get-query Place)
-                  :thing/by-id (prim/get-query Thing)})}
+  {:query (fn [] {:person/by-id (comp/get-query Person)
+                  :place/by-id (comp/get-query Place)
+                  :thing/by-id (comp/get-query Thing)})}
   ...)
 ```
 
@@ -3985,7 +3983,7 @@ like this:
 
 ```
 (defsc Parent [this props]
-  {:query [{:person-place-or-thing (prim/get-query PersonPlaceOrThingUnion)}]})
+  {:query [{:person-place-or-thing (comp/get-query PersonPlaceOrThingUnion)}]})
 ```
 
 Union queries take a little getting used to because there are a number of rules to follow when
@@ -4000,7 +3998,7 @@ Here is what a graph database might look like for the above query assuming we st
 
 The query would start at the root. When it saw the join it would detect a union. The union would be resolved
 by looking at the *first* element of the *ident in the database* (in this case `:place` from `[:place 3]`). That keyword
-would then be used to select the *query* from the subcomponent union (in this example, `(prim/get-query Place)`).
+would then be used to select the *query* from the subcomponent union (in this example, `(comp/get-query Place)`).
 
 Processing of the query then continues as normal as if the join was just on `Place`.
 
@@ -4048,7 +4046,7 @@ kind of data (among the options) that you actually receive, and pass that on to 
 IMPORTANT: There is an older `defrouter` that is supported but no longer recommended. It has been superceeded by the
 more functional macro called `defsc-router` in the same namespace in Fulcro 2.6.18+.
 
-The `fulcro.client.routing/defsc-router` macro (2.6.18+) emits a union component that can be switched to point at any kind
+The `com.fulcrologic.fulcro.routing.union-router/defsc-router` macro (2.6.18+) emits a union component that can be switched to point at any kind
 of component that it knows about. The support for parameterized routers in the routing tree makes it possible
 to very easily reuse the UI router as a component that can show one of many screens in the same location.
 
@@ -4083,27 +4081,27 @@ is roughly this (cleaned up from macro output):
 
 ```
 (defsc ItemDetail-Union [this props]
-  {:initial-state [clz params] (prim/get-initial-state PersonDetail params)) ;; defaults to the first one listed
+  {:initial-state [clz params] (comp/get-initial-state PersonDetail params)) ;; defaults to the first one listed
    :ident [this props] (item-ident props))
-   :query (fn [] {:person/by-id (prim/get-query PersonDetail),
-                  :place/by-id (prim/get-query PlaceDetail),
-                  :thing/by-id (prim/get-query ThingDetail)}}
-   (let [page (first (prim/get-ident this))]
+   :query (fn [] {:person/by-id (comp/get-query PersonDetail),
+                  :place/by-id (comp/get-query PlaceDetail),
+                  :thing/by-id (comp/get-query ThingDetail)}}
+   (let [page (first (comp/get-ident this))]
     (case page
-     :person/by-id ((prim/factory PersonDetail) (prim/props this))
-     :place/by-id ((prim/factory PlaceDetail) (prim/props this))
-     :thing/by-id ((prim/factory ThingDetail) (prim/props this))
+     :person/by-id ((comp/factory PersonDetail) (comp/props this))
+     :place/by-id ((comp/factory PlaceDetail) (comp/props this))
+     :thing/by-id ((comp/factory ThingDetail) (comp/props this))
      (dom/div (str "Cannot route: Unknown Screen " page))))
 
 (defsc ItemDetail [this props]
-  {:initial-state (fn [params] {:fulcro.client.routing/id :detail-router
-                                :fulcro.client.routing/current-route (prim/get-initial-state ItemDetail-Union params)})
-   :ident (fn [] [:fulcro.client.routing.routers/by-id :detail-router])
-   :query [this] [:fulcro.client.routing/id {:fulcro.client.routing/current-route (prim/get-query ItemDetail-Union)}]}
-  (let [computed (prim/get-computed this)
-        props (:fulcro.client.routing/current-route (prim/props this))
-        props-with-computed (prim/computed props computed)]
-   ((prim/factory ItemDetail-Union) props-with-computed)))))
+  {:initial-state (fn [params] {:com.fulcrologic.fulcro.routing.union-router/id :detail-router
+                                :com.fulcrologic.fulcro.routing.union-router/current-route (comp/get-initial-state ItemDetail-Union params)})
+   :ident (fn [] [:com.fulcrologic.fulcro.routing.union-router.routers/by-id :detail-router])
+   :query [this] [:com.fulcrologic.fulcro.routing.union-router/id {:fulcro.client.routing/current-route (comp/get-query ItemDetail-Union)}]}
+  (let [computed (comp/get-computed this)
+        props (:com.fulcrologic.fulcro.routing.union-router/current-route (comp/props this))
+        props-with-computed (comp/computed props computed)]
+   ((comp/factory ItemDetail-Union) props-with-computed)))))
 ```
 
 You can see that this just defines a union whose "selection" is controlled by the `:current-route` property!
@@ -4145,7 +4143,7 @@ syntax quoting to get reasonably short expressions:
   (:require [app.mutations :as am]))
 
 ...
-   (prim/transact! this `[(am/do-something {})])
+   (comp/transact! this `[(am/do-something {})])
 ```
 
 We talked about <<Transactions,syntax quoting transactions>> in the Getting Started chapter. You may want to
@@ -4174,7 +4172,7 @@ for `:prop`.
 A join is similarly parameterized:
 
 ```
-[({:child (prim/get-query Child)} {:x 1})]
+[({:child (comp/get-query Child)} {:x 1})]
 ```
 
 with the same kind of effect.
@@ -4184,7 +4182,7 @@ choice, since you'll often need unquoting. For example, the join example above w
 
 ```
   ...
-  (query [this] `[({:child ~(prim/get-query Child)} {:x 1})])
+  (query [this] `[({:child ~(comp/get-query Child)} {:x 1})])
   ...
 ```
 
@@ -4209,7 +4207,7 @@ results in something like this:
   ...)
 
 (defsc Person [this props]
-  {:query [:id {:person/phone (prim/get-query Phone)}]
+  {:query [:id {:person/phone (comp/get-query Phone)}]
    :ident [:person/by-id :id]}
   ...)
 
@@ -4226,7 +4224,7 @@ Therefore these kinds of queries are normally done via a join:
 
 ```
 (defsc X [this props]
-  {:query [{[:person/by-id 1] (prim/get-query Person)}]}
+  {:query [{[:person/by-id 1] (comp/get-query Person)}]}
   (let [person (get props [:person/by-id 1])
         ...
         ; person contains {:id 1 :person/phone {:phone/id 4 :phone/number "555-1212"}}
@@ -4249,7 +4247,7 @@ This component query would result in `:ui/locale` in your props (not an ident) w
 overall root node of the database. Of course, denormalization just requires you use a join:
 
 ```
-[ {[:current-user '_] (prim/get-query Person)} ]
+[ {[:current-user '_] (comp/get-query Person)} ]
 ```
 
 would pull `:current-user` into the component's props with a continued walk of the graph. In other words this is
@@ -4273,7 +4271,7 @@ Sadly, even if you compose it into your UI properly it may not receive any data:
 
 ```
 (defsc Root [this {:keys [locale-switcher]}]
-  {:query [{:locale-switcher (prim/get-query LocaleSwitcher)}]}
+  {:query [{:locale-switcher (comp/get-query LocaleSwitcher)}]}
   (ui-locale-switcher locale-switcher)) ; data comes back nil!!!
 ```
 
@@ -4292,8 +4290,8 @@ The fix is simple: make sure the component has a presence in the database, even 
   (dom/div ...))
 
 (defsc Root [this {:keys [locale-switcher]}]
-  {:query [{:locale-switcher (prim/get-query LocaleSwitcher)}]
-   :initial-state (fn [params] {:locale-switcher (prim/get-initial-state LocaleSwitcher)})} ; empty map from child
+  {:query [{:locale-switcher (comp/get-query LocaleSwitcher)}]
+   :initial-state (fn [params] {:locale-switcher (comp/get-initial-state LocaleSwitcher)})} ; empty map from child
   (ui-locale-switcher locale-switcher)) ; link query data is found/passed
 ```
 
@@ -4309,7 +4307,7 @@ The first use-case might be handy if you pass some data to your mount through th
 latter is useful for data that affects everything in your application, such as the current user.
 
 The primary thing to remember is that components that look at shared state will not see updates unless a
-root render occurs with those updates. This typically means calling `prim/force-root-render!`.
+root render occurs with those updates. This typically means calling `comp/force-root-render!`.
 
 Say we wanted all components to be able to see `:pi` (a constant) and `:current-user` (a value from
 the database). We could declare this as follows:
@@ -4324,7 +4322,7 @@ Now *any* component can access these as follows:
 
 ```
 (defsc C [this props]
-  (let [{:keys [pi current-user]} (prim/shared this)]
+  (let [{:keys [pi current-user]} (comp/shared this)]
     ; current-user will be DEnormalized...it comes from the root props (Root must query for it still)
     ...))
 ```
@@ -4424,7 +4422,7 @@ include::src/book/book/queries/recursive_demo_bullets.cljs[]
 
 You can convert any expression of EQL into an AST (abstract syntax tree) and vice
 versa. This lends itself to doing complex parsing of the query (typically on the server). The functions
-of interest are `fulcro.client.primitives/query->ast` and `ast->query`.
+of interest are `com.fulcrologic.fulcro.components/query->ast` and `ast->query`.
 
 There are many uses for this. One such use might be to convert the graph expression into another form. For
 example, say you wanted to run a query against an SQL database. You could write an algorithm that translates
@@ -4448,7 +4446,7 @@ mutation. This has the effect of changing what will be sent to the server:
 
 (defmutation do-thing [params]
   (action [env] ...)
-  (remote [{:keys [ast]}] (prim/query->ast `[(do-other-thing)])) ; completely change what gets sent to `remote`
+  (remote [{:keys [ast]}] (comp/query->ast `[(do-other-thing)])) ; completely change what gets sent to `remote`
 
 (defmutation do-thing [params]
   (action [env] ...)
@@ -4491,25 +4489,25 @@ protocol cannot work on the server, so this helper method makes server-side rend
 (defui Child
   static fulcro.core/InitialAppState
   (initial-state [cls params] { :x 1 }) ; set :x to 1 for this component's state
-  static prim/IQuery
+  static comp/IQuery
   (query [this] [:x]) ; query for :x
-  static prim/Ident
+  static comp/Ident
   (ident [this props] ...) ; how to normalize
   Object
   (render [this]
-    (let [{:keys [x]} (prim/props this)] ; pull x from props
+    (let [{:keys [x]} (comp/props this)] ; pull x from props
       ...)))
 
 (defui Parent
   static fulcro.core/InitialAppState
-  (initial-state [cls params] { :y 2 :child (prim/get-initial-state Child {}) }) ; set y, and compose in child's state
-  static prim/IQuery
-  (query [this] [:y {:child (prim/get-query Child)}]) ; query for :y and compose child's query
-  static prim/Ident
+  (initial-state [cls params] { :y 2 :child (comp/get-initial-state Child {}) }) ; set y, and compose in child's state
+  static comp/IQuery
+  (query [this] [:y {:child (comp/get-query Child)}]) ; query for :y and compose child's query
+  static comp/Ident
   (ident [this props] ...) ; how to normalize
   Object
   (render [this]
-    (let [{:keys [y child]} (prim/props this)] ; pull y and child from props
+    (let [{:keys [y child]} (comp/props this)] ; pull y and child from props
       ...)))
 
 ...
@@ -4527,7 +4525,7 @@ list the same things, but in slightly different forms.
 The one "extra" feature that initial state support does for you is to initialize *alternate branches* of components that
 have to-one <<Unions, union query>>. Remember that a to-one relation from a union could be to any number of alternates.
 
-Take this union query: `{:person (prim/get-query Person) :place (prim/get-query Place)}`
+Take this union query: `{:person (comp/get-query Person) :place (comp/get-query Place)}`
 
 It means "if you find an ident in the graph pointing to a `:person`, then query for the person. If you find one
 for `:place`, then query for a place. The problem is: if it is a to-one relation then only *one* can be in the
@@ -4542,22 +4540,22 @@ If you look at a proposed initial state, it will make the problem more clear:
 
 ```
 (defui Person
-  static prim/InitialAppState
+  static comp/InitialAppState
   (initial-state [c {:keys [id name]}] {:id id :name name :type :person})
   ...)
 
 (defui PersonPlaceUnion
-  static prim/InitialAppState
-  (initial-state [c p] (prim/get-initial-state Person {:id 1 :name "Joe"})) ; I can only put in one of them!
-  static prim/IQuery
-  (query [this] {:person (prim/get-query Person) :place (prim/get-query Place)})
+  static comp/InitialAppState
+  (initial-state [c p] (comp/get-initial-state Person {:id 1 :name "Joe"})) ; I can only put in one of them!
+  static comp/IQuery
+  (query [this] {:person (comp/get-query Person) :place (comp/get-query Place)})
   ...)
 
 (defui Parent
-  static prim/InitialAppState
-  (initial-state [c p] {:person-or-place (prim/get-initial-state PersonPlaceUnion)})
-  static prim/IQuery
-  (query [this] [{:person-or-place (prim/get-query PersonPlaceUnion)}]))
+  static comp/InitialAppState
+  (initial-state [c p] {:person-or-place (comp/get-initial-state PersonPlaceUnion)})
+  static comp/IQuery
+  (query [this] [{:person-or-place (comp/get-query PersonPlaceUnion)}]))
 ```
 
 This would result in a person in the initial state, but not a place.
@@ -4612,7 +4610,7 @@ your normalized graph database.
 
 == Internals
 
-The function `prim/tree->db` is the workhorse that turns an incoming tree of data into normalized data (which can then
+The function `comp/tree->db` is the workhorse that turns an incoming tree of data into normalized data (which can then
 be merged into the overall database).
 
 Imagine an incoming tree of data:
@@ -4624,7 +4622,7 @@ Imagine an incoming tree of data:
 and the query:
 
 ```
-[{:people (prim/get-query Person)}]
+[{:people (comp/get-query Person)}]
 ```
 
 which expands to:
@@ -4660,7 +4658,7 @@ normalization process is applied and the resulting normalized data is merged wit
 
 If using websockets, it is the same thing: A server push gives you a tree of data. You could hand-normalize that data,
 but actually if you know the structure of the incoming data you can easily generate a client-side query (using
-`defsc` or `defui`) that can be used in conjunction with `prim/tree->db` to normalize that incoming data.
+`defsc` or `defui`) that can be used in conjunction with `comp/tree->db` to normalize that incoming data.
 
 Mutations can do the same thing. If a new instance of some entity is being generated by the UI as a tree of data, then
 the query for that UI component can be used to turn it into normalized data that can be merged into the state
@@ -4668,21 +4666,21 @@ within the mutation.
 
 Some useful functions to know about:
 
-- `prim/merge-component` - A utility function for merging new instances of a (possibly recursive) entity state into
+- `comp/merge-component` - A utility function for merging new instances of a (possibly recursive) entity state into
 the normalized database. Usable from within mutations.
-- `prim/merge-state!` - A utility function for merging out-of-band (e.g. push notification) data into your application.
+- `comp/merge-state!` - A utility function for merging out-of-band (e.g. push notification) data into your application.
 Includes ident integration options, and honors the Fulcro merge clobbering algorithm (if the query doesn't ask for it,
 then merge doesn't affect it). Also queues rendering for affected components (derived from integration of idents). Generally
 *not* used within mutations (use `merge-component` and `integrate-ident*` instead).
-- `prim/tree->db` - General utility for normalizing data via a query and chunk of data.
-- `fulcro.client.mutations/integrate-ident*` - A utility for adding an ident into existing to-one and to-many relations in your database.
+- `comp/tree->db` - General utility for normalizing data via a query and chunk of data.
+- `com.fulcrologic.fulcro.mutations/integrate-ident*` - A utility for adding an ident into existing to-one and to-many relations in your database.
 Can be used within mutations.
-- `fulcro.client.util/deep-merge` - An implementation of merge that is recursive
+- `com.fulcrologic.fulcro.algorithms.misc/deep-merge` - An implementation of merge that is recursive
 
 = Handling Mutations [[MutationsChapter]]
 
 Mutations are known by their symbol and are dispatched to the internal multimethod
-`fulcro.client.mutations/mutate`. To handle a mutation you can do two basic things: use `defmethod`
+`com.fulcrologic.fulcro.mutations/mutate`. To handle a mutation you can do two basic things: use `defmethod`
 to add a mutation support, or use the macro `defmutation`. The macro is recommended for most cases
 because it namespaces the mutation, prevents some common errors, and works better with IDEs.
 
@@ -4717,7 +4715,7 @@ Typically the multipass nature is ignored by the mutation itself, and it just re
 containing all of the possible things that should be done. This looks like:
 
 ```
-(defmethod fulcro.client.mutations/mutate `mutation-symbol [{:keys [state ast target] :as env} k params]
+(defmethod com.fulcrologic.fulcro.mutations/mutate `mutation-symbol [{:keys [state ast target] :as env} k params]
    {:action (fn [] ...)
     :rest-api true ; trigger this remotely on the rest API AND the normal one.
     :remote true })
@@ -4773,7 +4771,7 @@ you get a very nice tool experience at usage site:
   (:require [app.mutations :as am]))
 
 ...
-   (prim/transact! this `[(am/mutation-symbol {})]) ; am gets expanded to app.mutations
+   (comp/transact! this `[(am/mutation-symbol {})]) ; am gets expanded to app.mutations
 ```
 
 The final advantage is it is harder to accidentally side-effect. The `action` section of `defmutation`
@@ -4852,7 +4850,7 @@ broken (because you didn't know a component needed refresh).
   {:query         [:db/id :right/value]}
   (dom/div
     ; needs a follow-on read because it is updating something that is queried elsewhere...
-    (dom/button {:onClick #(prim/transact! this `[(ping-left {}) :left/value])} "Ping Left")
+    (dom/button {:onClick #(comp/transact! this `[(ping-left {}) :left/value])} "Ping Left")
     value))
 ```
 
@@ -4883,7 +4881,7 @@ The UI can then drop the follow-on reads:
   {:query         [:db/id :right/value] }
   (dom/div
     ; no longer need the :left/value as a follow-on read
-    (dom/button {:onClick #(prim/transact! this `[(ping-left {})])} "Ping Left")
+    (dom/button {:onClick #(comp/transact! this `[(ping-left {})])} "Ping Left")
     value))
 ```
 
@@ -4954,7 +4952,7 @@ and now you can use `boo` without quoting!
 
 ...
 
-   (prim/transact! this [(boo {:a "hello" :b 22})])
+   (comp/transact! this [(boo {:a "hello" :b 22})])
 ```
 
 There's really not much to the magic.  `boo` becomes a function-like thing that just returns a list with the proper
@@ -4978,8 +4976,8 @@ and also look up a component class for merges from within mutations:
 ```
 (defmutation f [params]
   (action [{:keys [state]}]
-    (let [todo-list-class (prim/classname->class :com.company.app/TodoList)]
-      (swap! prim/merge-component todo-list-class {:list/id ...}))))
+    (let [todo-list-class (comp/classname->class :com.company.app/TodoList)]
+      (swap! comp/merge-component todo-list-class {:list/id ...}))))
 ```
 
 === Parameter specs
@@ -4988,7 +4986,7 @@ Currently the specs are not enforced unless `*checked-mutations*` is bound to tr
 
 ```
 (binding [mi/*checked-mutations* true]
-  (prim/transact! this [(boo {:a 22})]))
+  (comp/transact! this [(boo {:a 22})]))
 ```
 
 should throw an exception.
@@ -5107,7 +5105,7 @@ Once you have your general operations written as basic functions on either the e
 targeted to nodes or the state map itself (like `add-friend*`), then it becomes much easier to create mutations that
 compose together operations to accomplish any higher-level task.
 
-For example, the `fulcro.client.routing/update-routing-links` function takes a state map, and changes all of the routers
+For example, the `com.fulcrologic.fulcro.routing.union-router/update-routing-links` function takes a state map, and changes all of the routers
 in the application state to show that particular screen. So, say you wanted add-friend to also
 take you to the screen that shows the details of that particular person. The top-level abstract mutation in the UI
 might still be called `add-friend`, but the internals now have two things to do.
@@ -5136,7 +5134,7 @@ into one abstract mutation, but don't forget that more that one mutation can be 
 to `transact!`:
 
 ```
-(prim/transact! this `[(route-to {:handler :show-friend :route-params {:person-id ~target-id}})
+(comp/transact! this `[(route-to {:handler :show-friend :route-params {:person-id ~target-id}})
                        (add-friend {:source-person-id ~my-id :target-id ~target-id})])
 ```
 
@@ -5148,22 +5146,22 @@ how you want to deal with remote mutations.
 
 This section covers a number of additional mutation techniques that arise in more advanced situations.
 Almost all of these circumstances arise
-from needing to modify your application database *outside* of the normal `prim/transact!` mechanism at the UI layer.
+from needing to modify your application database *outside* of the normal `comp/transact!` mechanism at the UI layer.
 
 A lot of these things are handled for you with normal <<FullStack,full-stack operations>>, so you might want to skip this
 section until you're comfortable with that material.
 
 === Saving a Reconciler
 
-The first note is that `prim/transact!` can be used on the <<Reconciler,reconciler>>. If you've saved your Fulcro Application
+The first note is that `comp/transact!` can be used on the <<Reconciler,reconciler>>. If you've saved your Fulcro Application
 in a top-level atom then you can run a transaction "globally" like this:
 
 ```
-(prim/transact! (:reconciler @app) ...)
+(comp/transact! (:reconciler @app) ...)
 ```
 
 This should generally be used in cases where there is an abstract operation (e.g. you want `setTimeout` to update
-a js/Date to the current time and have the screen refresh). Using `(prim/transact! (:reconciler @app) '[(update-time) :current-time])` is
+a js/Date to the current time and have the screen refresh). Using `(comp/transact! (:reconciler @app) '[(update-time) :current-time])` is
 much clearer and in the spirit of the framework than any other low-level data tweaking. That could also be done in
 the context of a component to prevent an overall root re-render, though you'd want to be careful to use both sides of
 the component lifecycle to install *and* remove a timer that triggers such an update.
@@ -5173,10 +5171,10 @@ the component lifecycle to install *and* remove a timer that triggers such an up
 Yes. There is a watch on Fulcro's state atom. Doing so will cause a refresh from the root of your UI.
 
 `(let [{:keys [reconciler]} @app
-       state-atom (prim/app-state reconciler)]
+       state-atom (comp/app-state reconciler)]
   (swap! state-atom ...))`
 
-=== Leveraging `fulcro.client.primitives/tree->db`
+=== Leveraging `com.fulcrologic.fulcro.components/tree->db`
 
 In some cases you will have obtained some data (or perhaps invented it) and you need to integrate that data into the
 database. If the data matches your UI structure (as a tree) and you have proper `Ident` declarations on those components
@@ -5195,7 +5193,7 @@ integrating data so that the result is normalized.
 ===  Using `integrate-ident`
 
 When in a mutation you very often need to place an ident in various spots in your graph database. The helper
-function `fulcro.client.mutations/integrate-ident*` can by used from within mutations to help you do this. It accepts
+function `com.fulcrologic.fulcro.mutations/integrate-ident*` can by used from within mutations to help you do this. It accepts
 any number of named parameters that specify operations to do with a given ident:
 
 ```
@@ -5226,7 +5224,7 @@ UI queries don't match what you'd like to ask the server).
 
 (defsc TopQuery [t p]
   {:ident [:top/by-id :id]
-   :query [:id {:subs (prim/get-query SubQuery)}]})
+   :query [:id {:subs (comp/get-query SubQuery)}]})
 ```
 
 ++++
@@ -5249,13 +5247,13 @@ this to work right. The `ident` functions are used to determine the table locati
 the normalized database!
 ****
 
-=== Using `fulcro.client.primitives/merge!`
+=== Using `com.fulcrologic.fulcro.components/merge!`
 
 Fulcro includes a function that takes care of the rest of these bits for you. It requires the reconciler (which
 as we mentioned earlier can be obtained from the Fulcro App). The arguments are similar to `tree->db`:
 
 ```
-(prim/merge! (:reconciler @app) ROOT-data ROOT-query)
+(comp/merge! (:reconciler @app) ROOT-data ROOT-query)
 ```
 
 The same things apply as `tree->db` (idents especially), however, the result of the transform will make it's way into
@@ -5265,12 +5263,12 @@ the app state (which is owned by the reconciler).
 from the ROOT of the database! That is sometimes perfectly fine, but our next section talks about a helper that
 might be easier to use.")
 
-=== Using `fulcro.client.primitives/merge-component!`
+=== Using `com.fulcrologic.fulcro.components/merge-component!`
 
 There is a common special case that comes up often: You want to merge something that is in the context of some particular UI component.
 
 ```
-(prim/merge-component! app ComponentClass ComponentData)
+(comp/merge-component! app ComponentClass ComponentData)
 ```
 
 Think of this case as: I have some data for a given component (which MUST have an ident). I want to merge into that
@@ -5306,12 +5304,12 @@ We'll want to:
 (defn add-counter
   "Merge the given counter data into app state and append it to our list of counters"
   [reconciler counter]
-  (prim/merge-component! reconciler Counter counter
+  (comp/merge-component! reconciler Counter counter
     :append [:panels/by-kw :counter :counters]))
 
 ...
 (defsc Root ...
-  (let [reconciler (prim/get-reconciler this)]  ; one way to get to the reconciler
+  (let [reconciler (comp/get-reconciler this)]  ; one way to get to the reconciler
     (dom/button {:onClick #(add-counter reconciler {:counter/id 4 :counter/n 22})} "Simulate Data Import")
    ...
 ```
@@ -5427,9 +5425,9 @@ The two core functions that allow you to trigger abstract operations or data mer
 (via a <<Reconciler,reconciler>>) are:
 
 [Horizontal]
-`prim/transact!`:: The central function for running abstract changes in the application. Can be run with a component
+`comp/transact!`:: The central function for running abstract changes in the application. Can be run with a component
 _or_ reconciler. If run with the reconciler, will typically cause a root re-render.
-`prim/merge!`:: A function that can be run against the reconciler to merge a tree of data via a UI query. This is
+`comp/merge!`:: A function that can be run against the reconciler to merge a tree of data via a UI query. This is
 the primary function that is used to integrate data in response to things like websocket server push.
 
 These (and related/derived helpers) are the primary tools to use when trying to make your application respond to
@@ -5455,7 +5453,7 @@ than a hand-coded variant, but in practice the parser is hard to make general in
 run willy-nilly queries and get what they want.
 
 In the example of "people who've had a particular phone number", the graph would be phone-number centric. Maybe
-`[:db/id :phone/number {:phone/historical-owners (prim/get-query Person)}]`. There probably isn't a graph edge in the
+`[:db/id :phone/number {:phone/historical-owners (comp/get-query Person)}]`. There probably isn't a graph edge in the
 real database called `:phone/historical-owners`.  One could write parser code that understood this particular edge,
 and did the logic. In this case, that really isn't even that hard and may be a good choice.
 
@@ -5495,7 +5493,7 @@ database.
 
 Thus, your `PersonListRow` view and `PersonDetail` view should both normalize the same person data to
 a location like `[:person/by-id id]`. Let's say you have a quick list of people on the screen that is paginated and
-demand-loaded, where each row is a `PersonListRow` with query `[:db/id :person/name {:person/image (prim/get-query Image)}]`.
+demand-loaded, where each row is a `PersonListRow` with query `[:db/id :person/name {:person/image (comp/get-query Image)}]`.
 Now say that you can click on one of these rows and a side-by-side view of that person's `PersonDetail` is shown,
 but the query for that is a whole bunch of stuff: name, age, address, phone numbers, etc. A *much* larger query.
 
@@ -5536,7 +5534,7 @@ Let's say we want to load all of our friends from the server. A query has to be 
 a root-level keyword, `:all-friends`, and join it to the UI query for a `Person`:
 
 ```
-[{:all-friends (prim/get-query Person)}]
+[{:all-friends (comp/get-query Person)}]
 ```
 
 What we'd like to see then from the server is a return value with the shape of the query:
@@ -5559,7 +5557,7 @@ interaction, and merge):
 
 ```
 (ns my-thing
-  (:require [fulcro.client.data-fetch :as df]))
+  (:require [com.fulcrologic.fulcro.data-fetch :as df]))
 
 ...
 
@@ -5666,7 +5664,7 @@ to refresh a given entity in a database. In the code of `Person` below you'll se
 this time with an `ident`:
 
 ```
-(df/load this (prim/ident this props) Person)
+(df/load this (comp/ident this props) Person)
 ```
 
 All of the parameters of this call can be easily derived when calling it from the component needing refreshed, so
@@ -5949,7 +5947,7 @@ Simply code your (nested) queries using `defsc`, and skip writing the body:
 
 ```
 (defsc ItemQuery [this props]
-  {:query [:db/id :item/name {:item/category (prim/get-query CategoryQuery)}]
+  {:query [:db/id :item/name {:item/category (comp/get-query CategoryQuery)}]
    :ident [:items/by-id :db/id]})
 ```
 
@@ -6171,9 +6169,9 @@ to keep this is a separated attribute that doesn't going to be displayed to the 
 include::src/book/book/demos/pre_merge/countdown_with_initial.cljs[]
 ----
 
-<1> During the normalization step of a load Fulcro will put `::prim/not-found` value on keys
-that were not delivered by the server, this is used to do a `sweep-merge` later, the `prim/nilify-not-found`
-will return the same input value (like `identity`) unless it's a `::prim/not-found`, in which case
+<1> During the normalization step of a load Fulcro will put `::comp/not-found` value on keys
+that were not delivered by the server, this is used to do a `sweep-merge` later, the `comp/nilify-not-found`
+will return the same input value (like `identity`) unless it's a `::comp/not-found`, in which case
 it returns `nil`, this way the `or` works in both cases.
 
 Next, we are going to extract the counter button into its own component, this serves to illustrate
@@ -6200,9 +6198,9 @@ how you can hook up pure UI components in remote based components.
                         :ui/keys [counter]}]
   {:ident     [::counter-id ::counter-id]
    :query     [::counter-id ::counter-label ::counter-initial
-               {:ui/counter (prim/get-query CountdownButton)}]
+               {:ui/counter (comp/get-query CountdownButton)}]
    :pre-merge (fn [{:keys [current-normalized data-tree]}]
-                (let [initial (prim/nilify-not-found (::counter-initial data-tree))]
+                (let [initial (comp/nilify-not-found (::counter-initial data-tree))]
                   (merge
                     ; <2>
                     {:ui/counter (cond-> {} initial (assoc :ui/count initial))}
@@ -6238,14 +6236,14 @@ demo:
 ----
 (defsc Root [this _]
   {:initial-state (fn [_] {::all-counters
-                           [{::counter-id    (prim/tempid)
+                           [{::counter-id    (comp/tempid)
                              ::counter-label "X"}
-                            {::counter-id    (prim/tempid)
+                            {::counter-id    (comp/tempid)
                              ::counter-label "Y"}
-                            {::counter-id      (prim/tempid)
+                            {::counter-id      (comp/tempid)
                              ::counter-label   "Z"
                              ::counter-initial 9}]})
-   :query         [{::all-counters (prim/get-query Countdown)}]}
+   :query         [{::all-counters (comp/get-query Countdown)}]}
   ...)
 ----
 
@@ -6263,14 +6261,14 @@ include::src/book/book/demos/pre_merge/countdown_initial_state.cljs[]
 ----
 
 Time to talk about mutations the third case, the mutations. Fulcro already offered some
-ways to integrate new data given a component and some data using functions like `prim/merge-component`.
+ways to integrate new data given a component and some data using functions like `comp/merge-component`.
 This means we can leverage the pre-merge hooks also when adding new data on mutations, like so:
 
 [source,clojure]
 ----
 (m/defmutation create-countdown [countdown]
   (action [{:keys [state ref]}]
-    (swap! state prim/merge-component Countdown countdown :append [::all-counters])
+    (swap! state comp/merge-component Countdown countdown :append [::all-counters])
     (swap! state update-in ref assoc :ui/new-countdown-label "")))
 ----
 
@@ -6280,18 +6278,18 @@ And add some UI to trigger this mutation:
 ----
 (defsc Root [this {::keys [all-counters]}]
   {:initial-state (fn [_] {::all-counters
-                           [{::counter-id    (prim/tempid)
+                           [{::counter-id    (comp/tempid)
                              ::counter-label "X"}
-                            {::counter-id    (prim/tempid)
+                            {::counter-id    (comp/tempid)
                              ::counter-label "Y"}
-                            {::counter-id      (prim/tempid)
+                            {::counter-id      (comp/tempid)
                              ::counter-label   "Z"
                              ::counter-initial 9}]})
-   :query         [{::all-counters (prim/get-query Countdown)}
+   :query         [{::all-counters (comp/get-query Countdown)}
                    :ui/new-countdown-label]}
   (dom/div
     (dom/h3 "Counters")
-    (dom/button {:onClick #(prim/transact! this [`(create-countdown ~{::counter-id    (prim/tempid)
+    (dom/button {:onClick #(comp/transact! this [`(create-countdown ~{::counter-id    (comp/tempid)
                                                                       ::counter-label "New"})])}
       "Add counter")
     (dom/div {:style {:display "flex" :alignItems "center" :justifyContent "space-between"}}
@@ -6376,7 +6374,7 @@ rename the default one.
 The technical structure of this looks like:
 
 ```
-(require [fulcro.client.mutations :refer [mutate]])
+(require [com.fulcrologic.fulcro.mutations :refer [mutate]])
 
 (defmethod mutate 'some/mutation [env k params]
   ;; sends this mutation with the same `env`, `k`, and `params` arguments to the server
@@ -6394,7 +6392,7 @@ or preferably using the `defmutation` macro:
 
 Basically, you use the *name* of the remote as an indicator of which remote you want to replicate the mutation to. From
 there you either return `true` (which means send the mutation as-is), or you may return an expression AST that represents
-the mutation you'd like to send instead. The `fulcro.client.primitives` namespace includes `ast->query` and `query-ast`
+the mutation you'd like to send instead. The `com.fulcrologic.fulcro.components` namespace includes `ast->query` and `query-ast`
 for arbitrary generation of ASTs, but the original AST of the mutation is also available in the mutation's environment.
 
 Therefore, you can alter a mutation simply by altering and returning the `ast` given in `env`:
@@ -6443,7 +6441,7 @@ implementations of the same mutation:
 ;; client
 ;; src/my_app/mutations.cljs
 (ns my-app.mutations
-  (:require [fulcro.client.mutations :refer [defmutation]]))
+  (:require [com.fulcrologic.fulcro.mutations :refer [defmutation]]))
 
 (defmutation do-something [{:keys [p]}]
   (action [{:keys [state]}]
@@ -6467,7 +6465,7 @@ or even a CLJC file:
 ```
 (ns my-app.mutations
   (:require
-    #?(:cljs [fulcro.client.mutations :refer [defmutation]]
+    #?(:cljs [com.fulcrologic.fulcro.mutations :refer [defmutation]]
        :clj [fulcro.server :as server])))
 
 #?(:cljs
@@ -6501,7 +6499,7 @@ source file. The only trick is that you have to make sure you use the correct `d
 (ns my-app.api
   (:require
     #?(:clj [fulcro.server :as server]
-       :cljs [fulcro.client.mutations :refer [defmutation]])))
+       :cljs [com.fulcrologic.fulcro.mutations :refer [defmutation]])))
 
   #?(:clj (server/defmutation do-thing [params]
           (action [server-env] ...))
@@ -6525,7 +6523,7 @@ and eliminates some classes of syntactic error.
 
 === New item creation – Temporary IDs
 
-Fulcro has a built in function `prim/tempid` that will generate a unique temporary ID. This allows the normalization
+Fulcro has a built in function `comp/tempid` that will generate a unique temporary ID. This allows the normalization
 and denormalization of the client side database to continue working while the server processes the new data and returns
 the permanent identifier(s).
 
@@ -6535,7 +6533,7 @@ you have optimistic updates on the client it is important that things go in the 
 for the server don't get confused about what ID is correct!
 
 WARNING: Because mutation code can be called multiple times (at least once + once per each remote),
-you should take care to not call `fulcro.client.primitives/tempid` inside your mutation.
+you should take care to not call `com.fulcrologic.fulcro.components/tempid` inside your mutation.
 Instead call it from your UI code that builds the mutation params.
 
 Fulcro's implementation works as follows:
@@ -6556,7 +6554,7 @@ and the delete), each with the same tempid that you currently know. When the cre
 it will automatically rewrite all of the tempids in state and the network queues, then send the next operation. Thus,
 the edit will apply to the current server entity, as will the delete.
 
-All the server code has to do is return a map with the special key `:fulcro.client.primitives/tempids`
+All the server code has to do is return a map with the special key `:com.fulcrologic.fulcro.components/tempids`
 (or the legacy `:tempids`) whose value is a map of `tempid->realid` whenever it sees an ID during persistence operations.
 Here are the client-side and server-side implementations of the same mutation that create a new item:
 
@@ -6564,7 +6562,7 @@ Here are the client-side and server-side implementations of the same mutation th
 ;; client
 ;; src/my_app/mutations.cljs
 (ns my-app.mutations
-  (:require [fulcro.client.mutations :refer [defmutation]]))
+  (:require [com.fulcrologic.fulcro.mutations :refer [defmutation]]))
 
 (defmutation new-item [{:keys [tempid text]}]
   (action [{:keys [state]}]
@@ -6576,14 +6574,14 @@ Here are the client-side and server-side implementations of the same mutation th
 ;; server
 ;; src/my_app/mutations.clj
 (ns my-app.mutations
-  (:require [fulcro.client.primitives :as prim]
+  (:require [com.fulcrologic.fulcro.components :as comp]
             [fulcro.server :refer [defmutation]]))
 
 (defmutation new-item [{:keys [tempid text]}]
   (action [{:keys [state]}]
     (let [database-tempid (make-database-tempid)
           database-id (add-item-to-database database {:db/id database-tempid :item/text text})]
-      {::prim/tempids {tempid database-id}})))
+      {::comp/tempids {tempid database-id}})))
 ```
 
 Other mutation return values are covered in Mutation Return Values.
@@ -6594,16 +6592,16 @@ In earlier sections you learned that you can list properties with your mutation 
 These follow-on read keywords are always local re-render reads, and nothing more:
 
 ```
-(prim/transact! this '[(app/f) :thing])
+(comp/transact! this '[(app/f) :thing])
 ; Does mutation, and re-renders anything that has :thing in a query
 ```
 
 Fulcro will automatically queue remote reads *after* writes when they are submitted in the same thread interaction:
 
 ```
-(prim/transact! this `[(f)])
+(comp/transact! this `[(f)])
 (df/load this :thing Thing)
-(prim/transact! this `[(g)])
+(comp/transact! this `[(g)])
 ```
 
 will result in two network interactions. The first will run `[(f) (g)]`, and the second will be a load of `:thing`. This
@@ -6620,7 +6618,7 @@ the server isn't down or something.
 Fulcro 2.0+ has support for pessimistic transactions that enable exactly this sort of behavior:
 
 ```
-(prim/ptransact! this `[(a) (b)])
+(comp/ptransact! this `[(a) (b)])
 ```
 
 Will run `a`'s action, `a`'s remote, *then* `b`'s action and `b`'s remote.
@@ -6628,7 +6626,7 @@ This can be combined with analysis of <<ReturnValues, mutation return values>> t
 
 ```
 ; assume submit-my-form blocks the UI, and leave-form-if-ok checks app state and moves on.
-(prim/ptransact! this `[(submit-my-form) (leave-form-if-ok)])
+(comp/ptransact! this `[(submit-my-form) (leave-form-if-ok)])
 ```
 
 WARNING: Use caution when using mutations with *conditional* remote behavior.
@@ -6696,7 +6694,7 @@ Fulcro handles loads by placing entries in a load queue in the
 application database. Whenever a remote operation is triggered, the
 networking layer will check this queue and process it.
 
-The `fulcro.client.data-fetch/load` function simply runs a `transact!`
+The `com.fulcrologic.fulcro.data-fetch/load` function simply runs a `transact!`
 that does both (adds the load to the queue and triggers remote processing).
 
 If you'd like to compose one or more loads into a mutation there are helper
@@ -6736,10 +6734,10 @@ You can access this marker from any component that composes to root by including
 
 ```
 (defsc Item ... )
-(def ui-item (prim/factory Item {:keyfn :id}))
+(def ui-item (comp/factory Item {:keyfn :id}))
 
 (defsc List [this {:keys [title items ui/loading-data]}]
-  {:query [:id :title {:items (prim/get-query Item)} [:ui/loading-data '_]]}
+  {:query [:id :title {:items (comp/get-query Item)} [:ui/loading-data '_]]}
   ...
   (if (and loading-data (empty? items))
     (dom/div "Loading...")
@@ -6778,7 +6776,7 @@ can use to show that activity.
 Load markers are normalized into a well-known table via an ID that you choose.
 You can use just about any value (except a boolean) for the id. This has the following behavior:
 
-. Load markers are placed in a top-level table (the var fulcro.client.data-fetch/marker-table holds the table name),
+. Load markers are placed in a top-level table (the var com.fulcrologic.fulcro.data-fetch/marker-table holds the table name),
 using your marker value as their ID.
 . You can explicitly query for them using an ident join.
 
@@ -6866,7 +6864,7 @@ and causes the tempid to be rewritten everywhere in your state and network backl
 (defmutation new-thing [params]
   (action [env]
     ...
-    {::prim/tempids {old-id new-id}}))
+    {::comp/tempids {old-id new-id}}))
 ```
 
 In some cases you'd like to return other details. However, remember that
@@ -6891,7 +6889,7 @@ but you never write them this way because a manual query doesn't have ident info
 you write them just like you do when grabbing queries for anything else:
 
 ```
-`[{(f) ~(prim/get-query Item)}]
+`[{(f) ~(comp/get-query Item)}]
 ```
 
 Running a mutation with this notation allows you to return a value from the server's mutation that exactly matches the graph
@@ -6920,7 +6918,7 @@ Here's the difference. With the manual syntactic technique we just described you
 
 ```
 ; in the UI
-(transact! this `[{(f) ~(prim/get-query Item)}])
+(transact! this `[{(f) ~(comp/get-query Item)}])
 
 ; in your mutation definition (client-side)
 (defmutation f [params]
@@ -6932,7 +6930,7 @@ However, using the helpers you can instead write it like this:
 
 ```
 (ns api
-  (:require [fulcro.client.mutations :refer [returning]]))
+  (:require [com.fulcrologic.fulcro.mutations :refer [returning]]))
 
 ; in the UI
 (transact! this `[(f)])
@@ -7150,25 +7148,25 @@ the triggering component does not know.
 
 === Load Actions in Mutations
 
-In reality `load` and `load-field` call `prim/transact!` under the hood, targeting fulcro's built-in `fulcro/load`
+In reality `load` and `load-field` call `comp/transact!` under the hood, targeting fulcro's built-in `fulcro/load`
 mutation, which is responsible for sending your request to the server.
 
 There are similar functions: `load-action` and `load-field-action`
-that **do not** call `prim/transact!`, but instead just push a load request into the load queue and can be used to
+that **do not** call `comp/transact!`, but instead just push a load request into the load queue and can be used to
 inside of one of your own client-side mutations.
 
 Let's look at an example of a standard load. Say you want to load a list of people from the server:
 
 ```
-(require [fulcro.client.data-fetch :as df])
+(require [com.fulcrologic.fulcro.data-fetch :as df])
 
 (defsc Person [this props]
   {:query [:id :name]}
   ... )
-(def ui-person (prim/factory Person))
+(def ui-person (comp/factory Person))
 
 (defsc PeopleList [this {:keys [people]}]
-  {:query [:db/id :list-title {:people (prim/get-query Person}]
+  {:query [:db/id :list-title {:people (comp/get-query Person}]
    :ident [:people-list/by-id :db/id]}
    (dom/div
      (if (seq people)
@@ -7177,20 +7175,20 @@ Let's look at an example of a standard load. Say you want to load a list of peop
 ```
 
 Since we are in the UI and not inside of a mutation's action thunk, we can use `load-field` to initialize the
-call to `prim/transact!`.
+call to `comp/transact!`.
 
 The action-suffixed load functions are useful when performing an action in the user interface that must *both* modify
 the client-side database *and* load data from the server.
 
 NOTE: You must use the result of the
-`fulcro.client.data-fetch/remote-load` funtion as the value of the `remote` in the mutation. The
+`com.fulcrologic.fulcro.data-fetch/remote-load` funtion as the value of the `remote` in the mutation. The
 `action` calls of `load-action` place the request on a queue. The `remote-load` returns the correct indicator to
 Fulcro so that it knows you queued a load. If you forget it, then your load won't be processed until the next
 operation causes remote interactions.
 
 ```
-(require [fulcro.client.data-fetch :as df]
-         [fulcro.client.mutations :refer [mutate]]
+(require [com.fulcrologic.fulcro.data-fetch :as df]
+         [com.fulcrologic.fulcro.mutations :refer [mutate]]
          [app.ui :as ui])
 
 (defmutation change-view [{:keys [new-view]}]
@@ -7218,7 +7216,7 @@ and loads the data for that view. A few important points:
 
 === Using the `fulcro/load` Mutation Directly (NOT recommended)
 
-Fulcro has a built-in mutation `fulcro/load` (also aliased as `fulcro.client.data-fetch/load`).
+Fulcro has a built-in mutation `fulcro/load` (also aliased as `com.fulcrologic.fulcro.data-fetch/load`).
 
 The mutation can be used from application startup or anywhere you'd run a mutation (`transact!`). This covers almost
 all of the possible remote data integration needs!
@@ -7242,7 +7240,7 @@ For example:
 is a simple helper that is ultimately identical to:
 
 ```
-(prim/transact! reconciler '[(fulcro/load {:query [:prop]}) :ui/loading-data])
+(comp/transact! reconciler '[(fulcro/load {:query [:prop]}) :ui/loading-data])
 ```
 
 (the follow-on read is to ensure load markers update).
@@ -7294,7 +7292,7 @@ of `:without` on the query:
 ```
 (defsc Blog [this props]
   {:ident  [:blog/by-id :db/id]
-   :query  [:db/id :blog/title {:blog/content (prim/get-query BlogContent)} {:blog/comments (prim/get-query BlogComment)}]}
+   :query  [:db/id :blog/title {:blog/content (comp/get-query BlogContent)} {:blog/comments (comp/get-query BlogComment)}]}
   (dom/div
      ...
      (dom/button {:onClick #(load-field this :blog/comments)} "Show Comments")
@@ -7308,7 +7306,7 @@ joined through the given key. It also generates an *entity rooted query* based o
 [{[:table ID] subquery}]
 ```
 
-where the `[:table ID]` are the ident of the invoking component, and subquery is `(prim/get-query invoking-component)`, but
+where the `[:table ID]` are the ident of the invoking component, and subquery is `(comp/get-query invoking-component)`, but
 focused down to the one field. In the example above, this would end up something like this:
 
 ```
@@ -7332,10 +7330,10 @@ is how we can write the same previous example using `:focus`:
 ```
 (defsc Blog [this props]
   {:ident  [:blog/by-id :db/id]
-   :query  [:db/id :blog/title {:blog/content (prim/get-query BlogContent)} {:blog/comments (prim/get-query BlogComment)}]}
+   :query  [:db/id :blog/title {:blog/content (comp/get-query BlogContent)} {:blog/comments (comp/get-query BlogComment)}]}
   (dom/div
      ...
-     (dom/button {:onClick #(load this (prim/get-ident this) Blog {:focus [:blog/comments]})}
+     (dom/button {:onClick #(load this (comp/get-ident this) Blog {:focus [:blog/comments]})}
        "Show Comments")
      ...)))
 ```
@@ -7558,7 +7556,7 @@ Fulcro has a number of ways that you can accomplish this, but we'll cover the si
 
 This technique uses the following pattern:
 
-1. We use the `prim/ptransact!` to submit a transaction, which will run each mutation in pessimistic mode (each element
+1. We use the `comp/ptransact!` to submit a transaction, which will run each mutation in pessimistic mode (each element
 runs only after the prior element has completed a round-trip to the server).
 2. The first call in the tx will block the UI, and do the remote operation. We'll also leverage mutation return values
 so the server can indicate success to us.
@@ -7603,12 +7601,12 @@ check the result and run whatever in response to it.
 
 ```
 (defsc Root [this {:keys [ui/name overlay]}]
-  {:query         [:ui/name {:overlay (prim/get-query BlockingOverlay)}]
+  {:query         [:ui/name {:overlay (comp/get-query BlockingOverlay)}]
    :initial-state {:overlay {} :ui/name "Alicia"}}
   (dom/div {:style (clj->js {:width "400px" :height "100px"})}
     (ui-overlay overlay)
     (dom/p "Name: " (dom/input {:value name}))
-    (dom/button {:onClick #(prim/ptransact! this `[(submit-form) (retry-or-hide-overlay)])}
+    (dom/button {:onClick #(comp/ptransact! this `[(submit-form) (retry-or-hide-overlay)])}
       "Submit")))
 ```
 
@@ -7664,7 +7662,7 @@ Then we can leverage that to make something that reads well:
                        (set-overlay-visible* false))))
       (do
         (swap! state set-overlay-message* (str (-> state deref :remote-mutation :status :message) " (Retrying...)"))
-        (prim/ptransact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})])))))
+        (comp/ptransact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})])))))
 ```
 
 It's the real work-horse. The optimistic side can assume the result is updated, so it looks for the result code via
@@ -7694,21 +7692,21 @@ with the mutation. Fallbacks are triggered the mutation on the server throws an 
 detectable, or if there is a network error.
 
 The requirement for a server mutation to trigger fallbacks is for it to throw an `ex-info` exception and
-include `{:type :fulcro.client.primitives/abort}` in the data. Otherwise the server-side parser will swallow
+include `{:type :com.fulcrologic.fulcro.components/abort}` in the data. Otherwise the server-side parser will swallow
 the exception and continue with the transaction.
 
 Defining a fallback for a transaction is done by including a special mutation in the transaction that names the
 mutation to invoke on error:
 
 ```
-(prim/transact! this `[(some/mutation) (fulcro.client.data-fetch/fallback {:action handle-failure})])
+(comp/transact! this `[(some/mutation) (com.fulcrologic.fulcro.data-fetch/fallback {:action handle-failure})])
 ```
 
 ```
-(require [fulcro.client.mutations :refer [mutate]]
-         [fulcro.client.primitives :as prim)
+(require [com.fulcrologic.fulcro.mutations :refer [mutate]]
+         [com.fulcrologic.fulcro.components :as comp)
 
-(defmutation handle-failure [{:keys [error ::prim/ref] :as params}]
+(defmutation handle-failure [{:keys [error ::comp/ref] :as params}]
   ;; fallback mutations are designed to recover the client-side app state from server failures
   ;; THEY DO NOT CHECK FOR REMOTE. You cannot chain a remote interaction in a fallback.
   (action [{:keys [state]}]
@@ -7721,7 +7719,7 @@ client with params that include an `:error` key that includes the details of the
 and ex-info's data). Be sure to only include serializable data in the server exception!
 
 If triggered due to a *mutation* fallback (not load), then the fallback will also receive the ident of the component
-that invoked the original transaction in parameters under the key `fulcro.client.primitives/ref`.
+that invoked the original transaction in parameters under the key `com.fulcrologic.fulcro.components/ref`.
 
 You can have any number of fallbacks in a tx, and they will run in order if the transaction fails.
 
@@ -7914,7 +7912,7 @@ The base server is trivial to create:
   (:require
     [fulcro.easy-server :as server]
     [app.api :as api]
-    [fulcro.server :as prim]))
+    [fulcro.server :as comp]))
 
 (defn make-system []
   (server/make-fulcro-server
@@ -8166,11 +8164,11 @@ to have instances of a class that can have different queries:
 
 ```
 (defsc Thing ...)
-(def ui-thing (prim/factory Thing)) ; query ID is based solely on the class itself (with no qualifier)
-(def ui-thing-1 (prim/factory Thing {:qualifier :a})) ; query ID is derived from Thing plus the qualifier :a
+(def ui-thing (comp/factory Thing)) ; query ID is based solely on the class itself (with no qualifier)
+(def ui-thing-1 (comp/factory Thing {:qualifier :a})) ; query ID is derived from Thing plus the qualifier :a
 
 (defsc Parent [this props]
-  {:query (fn [] [{:child (prim/get-query ui-thing-1)}])}
+  {:query (fn [] [{:child (comp/get-query ui-thing-1)}])}
   ...)
 ```
 
@@ -8202,7 +8200,7 @@ The top-level metadata will be added for you, so this is fine:
 ```
 (defmutation change-a-query [_]
   (action [{:keys [state]}]
-    (swap! state prim/set-query* B {:query [:MODIFIED]}))
+    (swap! state comp/set-query* B {:query [:MODIFIED]}))
 ```
 
 but as soon as there's a join you must ensure the subqueries have the correct metadata.  This means that this is probably
@@ -8211,7 +8209,7 @@ but as soon as there's a join you must ensure the subqueries have the correct me
 ```
 (defmutation change-a-query [_]
   (action [{:keys [state]}]
-    (swap! state prim/set-query* B {:query [:MODIFIED {:subquery [:x]}]}))
+    (swap! state comp/set-query* B {:query [:MODIFIED {:subquery [:x]}]}))
 ```
 
 instead, you should use `get-query` with a state parameter to pull the query for a given component.  So, say you
@@ -8223,7 +8221,7 @@ wanted to change the query for this:
    :ident [:x/by-id :id]})
 
 (defsc A [_ _]
-  {:query [:id {:x (prim/get-query X)}]
+  {:query [:id {:x (comp/get-query X)}]
    :ident [:a/by-id :id]})
 ```
 
@@ -8234,8 +8232,8 @@ and you want to change both component's queries.  The correct form for the resul
   (action [{:keys [state]}]
     (swap! state (fn [s]
                     (as-> s state-map
-                      (prim/set-query* state-map X {:query [:id :address]})
-                      (prim/set-query* state-map A {:query [:id :new-prop {:x (prim/get-query X state-map}]}))))))
+                      (comp/set-query* state-map X {:query [:id :address]})
+                      (comp/set-query* state-map A {:query [:id :new-prop {:x (comp/get-query X state-map}]}))))))
 ```
 
 
@@ -8323,7 +8321,7 @@ If you understand that, you can probably already write a simple recursive parse 
 you need a bit more hand-holding, then read on.
 
 NOTE: When doing recursive parsing *You do not have to use the parser from `env`*. Parsers are cheap. If you want to
-make one to deal with a particular graph, go for it! The `fulcro.client.primitives/parser` can make one.
+make one to deal with a particular graph, go for it! The `com.fulcrologic.fulcro.components/parser` can make one.
 
 Now, let's get a feeling for the parser in general. The example below
 runs a parser on an arbitrary query that you supply, records the calls to the read emitter,
@@ -8490,7 +8488,7 @@ parser like this:
 
 ```
 (defn read-42 [env key params] {:value 42})
-(def parser-42 (prim/parser {:read read-42}))
+(def parser-42 (comp/parser {:read read-42}))
 ```
 
 The UI just passes your query off to the parser and shows the results.
@@ -8523,7 +8521,7 @@ identities, then a better read is similarly trivial:
 
 ```
 (defn property-read [{:keys [state]} key params] {:value (get @state key :not-found)})
-(def property-parser (prim/parser {:read property-read}))
+(def property-parser (comp/parser {:read property-read}))
 ```
 
 It just assumes the property will be in the top-level of some injected state atom. Let's try
@@ -8580,7 +8578,7 @@ with a basic recursive parse, *but use more flat data* (the following is live co
     {:value (parser env query)}                             ; recursive call. query is now [:user/name]
     {:value (get @state key)}))                             ; gets called for :user/name :a and :c
 
-(def my-parser (prim/parser {:read flat-state-read}))
+(def my-parser (comp/parser {:read flat-state-read}))
 ```
 
 The important bit is the `then` part of the `if`. Return a value that is
@@ -8771,7 +8769,7 @@ include::src/book/book/queries/parsing_parameters.cljs[]
 Most of this book has assumed you'll be using Fulcro's predefined server parser. Note that you can still do that
 and switch out to an alternate (custom) parser at any phase of parsing. You can even install a custom parser in your server
 (though then the macros for defining mutations and query handlers won't work for you).
-Parsers can be constructed using the `prim/parser` function.
+Parsers can be constructed using the `comp/parser` function.
 
 == Parsing on the Client
 
@@ -8820,7 +8818,7 @@ A basic router looks like this:
 
 ```
 (ns app
-  (:require [fulcro.client.routing :refer [defrouter defsc-router]]) ; requires 2.6.18 for defsc-router
+  (:require [com.fulcrologic.fulcro.routing.union-router :refer [defrouter defsc-router]]) ; requires 2.6.18 for defsc-router
 
 (defsc Index [this {:keys [db/id router/page]}]
   {:query         [:db/id :router/page]
@@ -8906,7 +8904,7 @@ like this if you want to examine the "current route" in the body of the "bad rou
 ```
 (defsc-router Router [this props]
   {...}
-  (let [{:fulcro.client.routing/keys [id current-route]} (prim/props this)]
+  (let [{:com.fulcrologic.fulcro.routing.union-router/keys [id current-route]} (comp/props this)]
     (dom/div "Bad route: " current-route)))
 ```
 
@@ -8916,12 +8914,12 @@ instead:
 
 ```
 (ns ...
-  (:require [fulcro.client.routing :as r :refer [defsc-router]]))
+  (:require [com.fulcrologic.fulcro.routing.union-router :as r :refer [defsc-router]]))
 
 (defsc-router Router [this props]
   {...}
-  (let [state-map (prim/component->state-map this)
-        {:fulcro.client.routing/keys [id]} (prim/props this)]
+  (let [state-map (comp/component->state-map this)
+        {:com.fulcrologic.fulcro.routing.union-router/keys [id]} (comp/props this)]
         current-route (get-in state-map [r/routers-table ::r/id id ::r/current-route])]
     (dom/div "Bad route ident: " current-route)))
 ```
@@ -8961,7 +8959,7 @@ URI *as a concept* is a single route to a screen, but the mutation you'd trigger
 two different routers:
 
 ```
-(prim/transact! this `[(r/set-route ...) (r/set-route ...)])
+(comp/transact! this `[(r/set-route ...) (r/set-route ...)])
 ```
 
 == Routing Tree Support
@@ -9027,8 +9025,8 @@ The routing namespace includes a Fulcro mutation for triggering the routing tree
 It takes a `:handler` (e.g. `:main`)  and an optional `:route-params` argument:
 
 ```
-; assumes you've aliased fulcro.client.routing to r
-(prim/transact! `[(r/route-to {:handler :main})])
+; assumes you've aliased com.fulcrologic.fulcro.routing.union-router to r
+(comp/transact! `[(r/route-to {:handler :main})])
 ```
 
 Running this mutation will run all of the `router-instruction`, and will also do route parameter substitution on the
@@ -9082,8 +9080,8 @@ table) to check the route:
 
 ```
 (ns x
-  (:require [fulcro.client.routing :as r]
-            [fulcro.client.primitives :as prim]))
+  (:require [com.fulcrologic.fulcro.routing.union-router :as r]
+            [com.fulcrologic.fulcro.components :as comp]))
 
 (r/defsc-router SomeRouter [this props]
  {:router-id :top-router
@@ -9125,7 +9123,7 @@ Of course you can compose this with other mutations into a single transaction. T
 to switch to a screen whose data might not yet exist:
 
 ```
-(prim/transact! `[(ensure-report-loaded {:report-id :a}) (r/route-to {:graph :a})])
+(comp/transact! `[(ensure-report-loaded {:report-id :a}) (r/route-to {:graph :a})])
 ```
 
 here we're assuming that `ensure-report-loaded` is a mutation that ensures that there is at least placeholder data in
@@ -9154,7 +9152,7 @@ component of your UI). Of course, combining such things into functions adds a ni
 ```
 (defn show-report!
   [component report-id]
-  (prim/transact! component `[(app/clear-old-reports)
+  (comp/transact! component `[(app/clear-old-reports)
                               (app/ensure-report-loaded {:report-id ~report-id})
                               (r/route-to {:graph ~report-id})
                               :top-level-key]))
@@ -9315,9 +9313,9 @@ with an initial phone number to fill out. The tree for that data might look like
 
 ```
 (def person-tree
-  { :db/id (prim/tempid)
+  { :db/id (comp/tempid)
     :person/name "Joe"
-    :person/phone-numbers [{:db/id (prim/tempid) :phone/number "555-1212"}]})
+    :person/phone-numbers [{:db/id (comp/tempid) :phone/number "555-1212"}]})
 ```
 
 with components like:
@@ -9330,7 +9328,7 @@ with components like:
   ...)
 
 (defsc PersonForm [this props]
-  {:query [:db/id :person/name {:person/phone-numbers (prim/get-query PhoneForm)}
+  {:query [:db/id :person/name {:person/phone-numbers (comp/get-query PhoneForm)}
            fs/form-config-join]
    :ident [:person/by-id :db/id]
    :form-fields #{:person/name :person/phone-numbers}}
@@ -9340,7 +9338,7 @@ with components like:
 Normally you might throw this into your application state with something like:
 
 ```
-(prim/merge-component! reconciler PersonForm person-tree)
+(comp/merge-component! reconciler PersonForm person-tree)
 ```
 
 which will insert and normalize the person and phone number.
@@ -9349,7 +9347,7 @@ If you also are supporting form interactions then you can augment the form with 
 
 ```
 (def person-tree-with-form-support (fs/add-form-config PersonForm person-tree))
-(prim/merge-component! reconciler PersonForm person-tree-with-form-support)
+(comp/merge-component! reconciler PersonForm person-tree-with-form-support)
 ```
 
 IMPORTANT: `add-form-config` will look at all of the form (and subforms reachable from that form), but it will
@@ -9403,7 +9401,7 @@ For example:
 (defsc PersonForm [this {:keys [person/name] :as props}]
    ...
    ;; The `mark-complete!` mutation is covered below
-   (dom/input {:value name :onBlur #(prim/transact! this `[(fs/mark-complete! ...)]) ...})
+   (dom/input {:value name :onBlur #(comp/transact! this `[(fs/mark-complete! ...)]) ...})
    (when (fs/invalid-spec? props :person/name)
       (dom/span "Invalid username!")
    ...)
@@ -9459,7 +9457,7 @@ not supplied it means to affect the entire form recursively:
 
   ;; uses the ident of the current instance as the entity-ident
   (dom/input {:value name
-              :onBlur #(prim/transact! this `[(fs/mark-complete! {:field :person/name})])})
+              :onBlur #(comp/transact! this `[(fs/mark-complete! {:field :person/name})])})
   ...)
 ```
 
@@ -9495,7 +9493,7 @@ For example, you might want to make a simple new user form validation that looks
 
 (defsc NewUser [this {:keys [username password password-2] :as props}]
    ...
-   (dom/input {:name "password-2" :value password-2 :onBlur #(prim/transact! this `[(fs/mark-complete ...)]) ...})
+   (dom/input {:name "password-2" :value password-2 :onBlur #(comp/transact! this `[(fs/mark-complete ...)]) ...})
    (when (= :invalid (validator props :password-2))
       (dom/span "Passwords do not match!")
    ...)
@@ -9528,7 +9526,7 @@ database).
 
 (defsc Person [this props]
    ... ; as before
-   (dom/button {:onClick #(prim/transact! this `[(submit-person ~{:id id :diff (fs/dirty-fields props true)})])} "Submit")
+   (dom/button {:onClick #(comp/transact! this `[(submit-person ~{:id id :diff (fs/dirty-fields props true)})])} "Submit")
    ...)
 ```
 
@@ -9542,7 +9540,7 @@ some submission information, and move the `entity->pristine*` step to a later mu
    :ident [:submission-status/by-id :id]})
 
 (defmutation submit-person [{:keys [id]}]
-  (remote [{:keys [ast state]] (fulcro.client.mutations/returning ast @state SubmissionStatus))
+  (remote [{:keys [ast state]] (com.fulcrologic.fulcro.mutations/returning ast @state SubmissionStatus))
 
 (defmutation finish-person-submission [{:keys [id]}]
   (action [{:keys [state]}]
@@ -9649,10 +9647,10 @@ The following `requires` define the namespaces used in the examples:
     [fulcro.client.cards :refer [defcard-fulcro]]
     [clojure.string :as str]
     [com.stuartsierra.component :as component]
-    [fulcro.client.dom :as dom]
-    [fulcro.client.primitives :as prim :refer [defui defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.components :as comp :refer [defui defsc]]
     [fulcro.client :as fc]
-    [fulcro.client.mutations :as m]
+    [com.fulcrologic.fulcro.mutations :as m]
     [fulcro.ui.forms :as f]
     [fulcro.i18n :refer [tr]]))
 ```
@@ -9763,7 +9761,7 @@ initialize the form support on a specific form with its subforms:
 ```
 (defsc MyForm [this props]
   {:query (fn [] [f/form-key ...])
-   :componentWillMount (fn [] (when-not (f/is-form? (prim/props this)) (prim/transact! this `[(f/initialize-form {})])))
+   :componentWillMount (fn [] (when-not (f/is-form? (comp/props this)) (comp/transact! this `[(f/initialize-form {})])))
    ...}
   ...)
 ```
@@ -9906,7 +9904,7 @@ Adding a phone number (which acts as a sub-form) is done via the `add-phone` mut
   (action [{:keys [state]}]
     (let [new-phone    (f/build-form ValidatedPhoneForm {:db/id id :phone/type :home :phone/number " "})
           person-ident [:people/by-id person]
-          phone-ident  (prim/ident ValidatedPhoneForm new-phone)]
+          phone-ident  (comp/ident ValidatedPhoneForm new-phone)]
       (swap! state assoc-in phone-ident new-phone)
       (m/integrate-ident* state phone-ident :append (conj person-ident :person/phone-numbers)))))
 ```
@@ -9918,7 +9916,7 @@ For example, the button to run a transaction to add a phone number to
 a person creates a tempid for the phone number and passes it as a parameter in the transaction:
 
 ```
-  (dom/button {:onClick #(prim/transact! this `[(add-phone ~{:id     (prim/tempid) ...})])}
+  (dom/button {:onClick #(comp/transact! this `[(add-phone ~{:id     (comp/tempid) ...})])}
     "Add Phone")
 ```
 
@@ -9988,7 +9986,7 @@ and its renderer looks like this:
                                 :value       input-value
                                 :placeholder (placeholder form field-name)
                                 :onBlur      (fn [_]
-                                               (prim/transact! component
+                                               (comp/transact! component
                                                  `[(validate-field
                                                      ~{:form-id id :field field-name})
                                                    ~@(get-on-form-change-mutation form field-name :blur)
@@ -9998,7 +9996,7 @@ and its renderer looks like this:
                                                      field-info {:form-id id
                                                                  :field   field-name
                                                                  :value   value}]
-                                                 (prim/transact! component
+                                                 (comp/transact! component
                                                    `[(set-field ~field-info)
                                                      ~@(get-on-form-change-mutation form field-name :edit)
                                                      ~form-root-key])))}))]
@@ -10244,7 +10242,7 @@ errors or adding new ones). It also includes the `f/form-root-key` to ensure the
 ```
 (defn commit-to-entity!
   [component & {:keys [remote rerender fallback fallback-params] :or {fallback-params {} remote false}}]
-  (let [form          (prim/props component)
+  (let [form          (comp/props component)
         fallback-call (list `df/fallback (merge fallback-params {:action fallback}))]
     (let [is-valid? (valid? (validate-fields form))
           tx        (cond-> []
@@ -10253,7 +10251,7 @@ errors or adding new ones). It also includes the `f/form-root-key` to ensure the
                       (not is-valid?) (conj `(validate-form ~{:form-id (form-ident form)}))
                       (seq rerender) (into rerender)
                       :always (conj form-root-key))]
-      (prim/transact! component tx))))
+      (comp/transact! component tx))))
 ```
 
 The mutation itself now has all of the data it needs to calculate a diff and such. Here is its implementation:
@@ -10726,7 +10724,7 @@ reader to pull in the proper server DOM functions for Clojure:
 
 ```
 (ns app.ui
-  (:require #?(:clj [fulcro.client.dom-server :as dom] :cljs [fulcro.client.dom :as dom]))
+  (:require #?(:clj [com.fulcrologic.fulcro.dom-server :as dom] :cljs [fulcro.client.dom :as dom]))
 ```
 
 == Recommendations
@@ -10836,8 +10834,8 @@ Of course, the whole point is to pre-render the page. Now that you have a comple
 trivial:
 
 ```
-(let [props                (prim/db->tree (prim/get-query app/Root normalized-db) state-map state-map)
-      root-factory         (prim/factory app/Root)]
+(let [props                (comp/db->tree (comp/get-query app/Root normalized-db) state-map state-map)
+      root-factory         (comp/factory app/Root)]
   (dom/render-to-str (root-factory props)))
 ```
 
@@ -10927,8 +10925,8 @@ One approach for getting SSR on node.js with the data loaded from the network is
 ```
 (ns app.server
   (:require
-   [fulcro.client.primitives :as prim :refer [defsc]]
-   [fulcro.client.data-fetch :as df]
+   [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+   [com.fulcrologic.fulcro.data-fetch :as df]
    [fulcro.client :as fc]
    [fulcro.client.network :as fcn]
    [fulcro.server-render :refer [defer-until-network-idle]]
@@ -10947,7 +10945,7 @@ One approach for getting SSR on node.js with the data loaded from the network is
      reconciler
      (fn []
        (let [app-state      (-> reconciler deref)
-             app-state-tree (prim/db->tree (prim/get-query root/Root app-state) app-state app-state)]
+             app-state-tree (comp/db->tree (comp/get-query root/Root app-state) app-state app-state)]
          (.send resp (get-html (rdom/renderToString (ui-root app-state-tree)) app-state)))))))
 
 ```
@@ -11005,13 +11003,13 @@ Client main (which does the mount) becomes:
 Server rendering (client-side cljs) is:
 
 ```
-(def ui-root (prim/factory root/Root))
+(def ui-root (comp/factory root/Root))
 
 (defn ^:export server-render [props-str]
  ; incoming data will come from JVM as transit-stringified EDN
  (if-let [props (some-> props-str util/transit-str->clj)]
    (js/ReactDOMServer.renderToString (ui-root props))
-   (js/ReactDOMServer.renderToString (ui-root (prim/get-initial-state root/Root nil)))))
+   (js/ReactDOMServer.renderToString (ui-root (comp/get-initial-state root/Root nil)))))
 ```
 
 And the server-side code holds a script engine in an atom or something (a component would be best), and
@@ -11089,7 +11087,7 @@ The recommended way to deal with aborts is:
 ```
 (ns my-client
   (:require [fulcro.client :as fc]
-            [fulcro.client.mutations :refer [defmutation]]
+            [com.fulcrologic.fulcro.mutations :refer [defmutation]]
             [loading.ui.root :as root]
             [fulcro.client.network :as net]))
 
@@ -11318,7 +11316,7 @@ Here's a simple example to give you an idea of how simple it can be:
             [com.wsscode.pathom.core :as p]
             [com.wsscode.pathom.fulcro.network :as pn]
             [clojure.core.async :as async]
-            [fulcro.client.primitives :as prim]
+            [com.fulcrologic.fulcro.components :as comp]
             [fulcro.client.network :as net]))
 
 (defmulti resolver-fn pc/resolver-dispatch)
@@ -11649,12 +11647,12 @@ an atom you can easily write the callbacks to use it:
 
 (defn push-handler [msg]
   (when-let [reconciler (some-> app deref :reconciler)]
-    (prim/transact! reconciler `[(process-push {:message ~msg})])))
+    (comp/transact! reconciler `[(process-push {:message ~msg})])))
 
 (defn state-callback
   [_ {:keys [open?] :as new-state}]
   (when-let [reconciler (some-> app deref :reconciler)]
-    (prim/transact! reconciler `[(set-network-status {:up? ~open?})])))
+    (comp/transact! reconciler `[(set-network-status {:up? ~open?})])))
 
 (defn mount []
   (reset! app (fc/mount @app root/Root "app")))
@@ -12201,7 +12199,7 @@ FormatJS library as a script in your HTML, and then use something like this:
 
 ```
 (ns appns
-  (:require [fulcro.client.primitives :as prim :refer [defsc]]
+  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
             [fulcro.i18n :as i18n :refer [tr trc trf]]))
 
 (defn message-formatter [{:keys [::i18n/localized-format-string ::i18n/locale ::i18n/format-options]}]
@@ -12242,13 +12240,13 @@ component query should join on the `Locale` component:
 
 ```
 (defsc Root [this props]
-  {:query         [{::i18n/current-locale (prim/get-query i18n/Locale)}]
-   :initial-state (fn [p] {::i18n/current-locale (prim/get-initial-state i18n/Locale {:locale :en :translations {}})})}
+  {:query         [{::i18n/current-locale (comp/get-query i18n/Locale)}]
+   :initial-state (fn [p] {::i18n/current-locale (comp/get-initial-state i18n/Locale {:locale :en :translations {}})})}
 ```
 
 == Accessing the Current Locale
 
-Shared properties are visible to all UI components via `(prim/shared this)`. You will find the property `::i18n/current-locale`
+Shared properties are visible to all UI components via `(comp/shared this)`. You will find the property `::i18n/current-locale`
 in there as well as your message formatter.
 
 Mutations have the state database, and can simply look for the top-level key `::i18n/current-locale`.
@@ -12265,7 +12263,7 @@ All of these tasks are handled for you by the `i18n/change-locale` mutation, whi
 application:
 
 ```
-(prim/transact! this `[(i18n/change-locale {:locale :es})])
+(comp/transact! this `[(i18n/change-locale {:locale :es})])
 ```
 
 There is a pre-built <<LocaleSelector, locale selector>> for your convenience.
@@ -12331,13 +12329,13 @@ own and invoke the `change-locale` mutation, but the pre-written one can be used
 
 ```
 (defsc Root [this {:keys [locale-selector]}]
-  {:query         [{:locale-selector (prim/get-query i18n/LocaleSelector)}
-                   {::i18n/current-locale (prim/get-query i18n/Locale)}]
-   :initial-state (fn [p] {::i18n/current-locale (prim/get-initial-state Locale {:locale :en :translations {}})
-                           :locale-selector      (prim/get-initial-state LocaleSelector
-                                                   {:locales [(prim/get-initial-state Locale {:locale :en :name "English"})
-                                                              (prim/get-initial-state Locale {:locale :es :name "Espanol"})
-                                                              (prim/get-initial-state Locale {:locale :de :name "Deutsch"})]}}}
+  {:query         [{:locale-selector (comp/get-query i18n/LocaleSelector)}
+                   {::i18n/current-locale (comp/get-query i18n/Locale)}]
+   :initial-state (fn [p] {::i18n/current-locale (comp/get-initial-state Locale {:locale :en :translations {}})
+                           :locale-selector      (comp/get-initial-state LocaleSelector
+                                                   {:locales [(comp/get-initial-state Locale {:locale :en :name "English"})
+                                                              (comp/get-initial-state Locale {:locale :es :name "Espanol"})
+                                                              (comp/get-initial-state Locale {:locale :de :name "Deutsch"})]}}}
   (dom/div
     (i18n/ui-locale-selector locale-selector)
     ...))
@@ -12373,11 +12371,11 @@ The steps are:
     (str "<html><head>" initial-state-script "</head><body><div id='app'>" app-html "</div></body></html>")))
 
 (defn index-html []
-  (let [initial-tree     (prim/get-initial-state Root {})
+  (let [initial-tree     (comp/get-initial-state Root {})
         es-locale        (i18n/load-locale "po-directory" :es)
         tree-with-locale (assoc initial-tree ::i18n/current-locale es-locale)
         initial-db       (ssr/build-initial-state tree-with-locale Root)
-        ui-root          (prim/factory Root)]
+        ui-root          (comp/factory Root)]
     (generate-index-html initial-db
       (i18n/with-locale message-formatter es-locale
         (dom/render-to-str (ui-root tree-with-locale))))))
@@ -12569,20 +12567,20 @@ for some hints on how you can extend transit to support additional types.
 
 == Sending a Support Request
 
-There is a built-in mutation that can do this called `fulcro.client.mutations/send-history`. It can accept anything
+There is a built-in mutation that can do this called `com.fulcrologic.fulcro.mutations/send-history`. It can accept anything
 as parameters, and will send the support request to `:remote`. All you have to do is run it via UI:
 
 ```
-(transact! this `[(m/send-history {:support-id ~(prim/tempid)})])
+(transact! this `[(m/send-history {:support-id ~(comp/tempid)})])
 ```
 
 == Storing the Support Request
 
-Basically you just have to write something to handle the `fulcro.client.mutations/send-history` mutation, save the
+Basically you just have to write something to handle the `com.fulcrologic.fulcro.mutations/send-history` mutation, save the
 data, and return a tempid remapping (optional, since the client itself won't care):
 
 ```
-(server/defmutation fulcro.client.mutations/send-history [params]
+(server/defmutation com.fulcrologic.fulcro.mutations/send-history [params]
   (action [env]
      ...save the history from params...
      ...send an email to a developer with the saved id?...))
@@ -12636,7 +12634,7 @@ main application knows to provide the link, but it does not yet have the renderi
 WARNING: There was a bug in dynamic queries prior to 2.6.0, which are used by dynamic routers.  Make sure you're using
 a newer version of Fulcro for this support.
 
-The `fulcro.client.routing` namespace includes a second kind of UI router that can be used with the routing tree: `DynamicRouter`.
+The `com.fulcrologic.fulcro.routing.union-router` namespace includes a second kind of UI router that can be used with the routing tree: `DynamicRouter`.
 
 A `DynamicRouter` uses a dynamic query to change routes instead of a union, and it can derive the details of the target
 component at runtime, meaning that it can be used to route to screens that were not in the loaded application code base
@@ -12664,7 +12662,7 @@ when needed.
 The `defsc` and `defmethod` needed for step 2 look like this:
 
 ```
-(prim/defsc Main [this {:keys [label]}]
+(comp/defsc Main [this {:keys [label]}]
   {:initial-state (fn [params] {r/dynamic-route-key :main :label "MAIN"})
    :ident (fn [] [:main :singleton])
    :query [r/dynamic-route-key :label]}
@@ -12688,7 +12686,7 @@ is:
 ```
 (defn application-loaded! [{:keys [reconciler]}]
   ; Let the dynamic router know that two of the routes are already loaded.
-  (prim/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
+  (comp/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
                                (r/install-route {:target-kw :login :component ~Login})
                                (r/route-to {:handler :login})])
   ; Clojurescript requires you call this on every successfully "loaded" module:
@@ -12750,10 +12748,10 @@ One screen is defined in `other.cljc`:
 (ns ssr-dynamic-routing.ui.other
   (:require
     #?(:cljs [cljs.loader :as loader])
-    #?(:cljs [fulcro.client.dom :as dom] :clj
-        [fulcro.client.dom-server :as dom])
-        [fulcro.client.primitives :as prim :refer [defsc]]
-        [fulcro.client.routing :as r]))
+    #?(:cljs [com.fulcrologic.fulcro.dom :as dom] :clj
+        [com.fulcrologic.fulcro.dom-server :as dom])
+        [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+        [com.fulcrologic.fulcro.routing.union-router :as r]))
 
 (defsc Other [this {:keys [x]}]
   {:query         [r/dynamic-route-key :x]
@@ -12772,10 +12770,10 @@ Another (with Root and the routing tree) is in `main.cljc`:
 (ns ssr-dynamic-routing.ui.root
   (:require
     #?(:cljs [cljs.loader :as loader])
-    #?(:cljs [fulcro.client.dom :as dom] :clj
-        [fulcro.client.dom-server :as dom])
-        [fulcro.client.primitives :as prim :refer [defsc]]
-        [fulcro.client.routing :as r]))
+    #?(:cljs [com.fulcrologic.fulcro.dom :as dom] :clj
+        [com.fulcrologic.fulcro.dom-server :as dom])
+        [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+        [com.fulcrologic.fulcro.routing.union-router :as r]))
 
 (def routing-tree (r/routing-tree
                     (r/make-route :main [(r/router-instruction :top-router [:main :singleton])])
@@ -12788,14 +12786,14 @@ Another (with Root and the routing tree) is in `main.cljc`:
    :ident         (fn [] [:main :singleton])}
   (dom/div (str "MAIN " y)))
 
-(def ui-main (prim/factory Main))
+(def ui-main (comp/factory Main))
 
 (defsc Root [this {:keys [top-router]}]
   {:query         [{:top-router (r/get-dynamic-router-query :top-router)}]
    :initial-state (fn [_] (merge
                             routing-tree
                             {r/dynamic-route-key :main
-                             :top-router         (prim/get-initial-state r/DynamicRouter {:id :top-router})}))}
+                             :top-router         (comp/get-initial-state r/DynamicRouter {:id :top-router})}))}
   (r/ui-dynamic-router top-router))
 
 (defmethod r/get-dynamic-router-target :main [_] Main)
@@ -12814,23 +12812,23 @@ Next, the basic server is then:
     [fulcro.server-render :as ssr]
     [ssr-dynamic-routing.ui.other :as other]
     [ssr-dynamic-routing.ui.root :as root]
-    [fulcro.client.dom-server :as dom]
-    [fulcro.client.primitives :as prim]
-    [fulcro.client.routing :as r]))
+    [com.fulcrologic.fulcro.dom-server :as dom]
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.routing.union-router :as r]))
 
 (defn build-ui-tree [match]
-  (let [client-db (ssr/build-initial-state (prim/get-initial-state root/Root {}) root/Root)
+  (let [client-db (ssr/build-initial-state (comp/get-initial-state root/Root {}) root/Root)
         final-db  (-> client-db
                     ;; CRITICAL: Install the routes, or their state won't be in the db
                     (r/install-route* :main root/Main)
                     (r/install-route* :other other/Other)
                     (r/route-to* match))]
     ;; CRITICAL: Pass the final database to get-query!!! Or you won't get the updated dynamic query
-    (prim/db->tree (prim/get-query root/Root final-db) final-db final-db)))
+    (comp/db->tree (comp/get-query root/Root final-db) final-db final-db)))
 
 (defn server-side-render [env {:keys [handler] :as match}]
   (let [ui-tree (build-ui-tree match)
-        html    (dom/render-to-str ((prim/factory root/Root) ui-tree))]
+        html    (dom/render-to-str ((comp/factory root/Root) ui-tree))]
     (-> (resp/response (str
                          "<html><body><div id='app'>"
                          html
@@ -12898,11 +12896,11 @@ your UI could ever show, on every frame! This will perform very badly as your ap
 The solution to this is to ensure that your query contains only the currently relevant things.
 There are a number of possible solutions for this, but the two most common are to use union or dynamic queries.
 
-The `fulcro.client.routing` namespace includes primitives for building UI routes using unions (the unions are written
+The `com.fulcrologic.fulcro.routing.union-router` namespace includes primitives for building UI routes using unions (the unions are written
 for you). It has a number of features, including the ability to nicely integrate with HTML5 history events for full HTML5
 routing in your application.
 
-In the dynamic query approach you use `prim/set-query!` to actually change the query of a component at runtime in
+In the dynamic query approach you use `comp/set-query!` to actually change the query of a component at runtime in
 response to user events.
 
 It is also important to note that you need not normalize things that are really just big blobs of data that you don't
@@ -13484,13 +13482,13 @@ If you look at the source for the root component you'll see two buttons with tra
 (defsc Root [this {:keys [current-tab] :as props}]
   ; Construction MUST compose to root, just like the query. The resulting tree will automatically be normalized into the
   ; app state graph database.
-  {:initial-state (fn [params] {:ui/react-key "initial" :current-tab (prim/get-initial-state UITabs nil)})
-   :query         [{:current-tab (prim/get-query UITabs)}]}
+  {:initial-state (fn [params] {:ui/react-key "initial" :current-tab (comp/get-initial-state UITabs nil)})
+   :query         [{:current-tab (comp/get-query UITabs)}]}
   (dom/div
     ; The selection of tabs can be rendered in a child, but the transact! must be done from the parent (to
-    ; ensure proper re-render of the tab body). See prim/computed for passing callbacks.
-    (dom/button {:onClick #(prim/transact! this `[(choose-tab {:tab :main})])} "Main")
-    (dom/button {:onClick #(prim/transact! this `[(choose-tab {:tab :settings})
+    ; ensure proper re-render of the tab body). See comp/computed for passing callbacks.
+    (dom/button {:onClick #(comp/transact! this `[(choose-tab {:tab :main})])} "Main")
+    (dom/button {:onClick #(comp/transact! this `[(choose-tab {:tab :settings})
                                                       ; extra mutation: sample of what you would do to lazy load the tab content
                                                       (lazy-load-tab {:tab :settings})])} "Settings")
     (ui-tabs current-tab)))
@@ -13559,7 +13557,7 @@ a particular component, which makes tracking the page number and items on that p
 ```
 (defsc ListPage [this {:keys [page/number page/items]}]
   {:initial-state {:page/number 1 :page/items []}
-   :query         [:page/number {:page/items (prim/get-query ListItem)}]
+   :query         [:page/number {:page/items (comp/get-query ListItem)}]
    :ident         [:page/by-number :page/number]}
   (dom/div
     (dom/p "Page number " number)
@@ -13572,14 +13570,14 @@ to jump to any page, since the mutation itself is `goto-page`.
 
 ```
 (defsc LargeList [this {:keys [list/current-page]}]
-  {:initial-state (fn [params] {:list/current-page (prim/get-initial-state ListPage {})})
-   :query         [{:list/current-page (prim/get-query ListPage)}]
+  {:initial-state (fn [params] {:list/current-page (comp/get-initial-state ListPage {})})
+   :query         [{:list/current-page (comp/get-query ListPage)}]
    :ident         (fn [] [:list/by-id 1])}
   (let [{:keys [page/number]} current-page]
     (dom/div
       (dom/button {:disabled (= 1 number)
-        :onClick #(prim/transact! this `[(goto-page {:page-number ~(dec number)})])} "Prior Page")
-      (dom/button {:onClick #(prim/transact! this `[(goto-page {:page-number ~(inc number)})])}
+        :onClick #(comp/transact! this `[(goto-page {:page-number ~(dec number)})])} "Prior Page")
+      (dom/button {:onClick #(comp/transact! this `[(goto-page {:page-number ~(inc number)})])}
         "Next Page")
       (ui-list-page current-page))))
 ```
@@ -13743,7 +13741,7 @@ code is:
 (defn make-system []
   (core/make-fulcro-server
     :config-path "config/demos.edn"
-    :parser (prim/parser {:read logging-query :mutate logging-mutate})
+    :parser (comp/parser {:read logging-query :mutate logging-mutate})
     :parser-injections #{:authentication}
     :components {
                  ; Server security demo: This puts itself into the Ring pipeline to add user info to the request
@@ -13840,7 +13838,7 @@ Then with some simple UI components like
   ...
 
 (defsc Account [this {:keys [db/id account/name account/members account/settings]}]
-  {:query [:db/id :account/name {:account/members (prim/get-query Member)} {:account/settings (prim/get-query Settings)}]
+  {:query [:db/id :account/name {:account/members (comp/get-query Member)} {:account/settings (comp/get-query Settings)}]
 ```
 
 we might want to issue a load like this:
@@ -13910,14 +13908,14 @@ The complete source for this demo is:
               [clojure.java.jdbc :as jdbc]
               [taoensso.timbre :as timbre]])
               [com.stuartsierra.component :as component]
-              [fulcro.client.dom :as dom]
+              [com.fulcrologic.fulcro.dom :as dom]
               [fulcro.easy_server :refer [make-fulcro-server]]
               [fulcro.server :as server :refer [defquery-root server-read server-mutate]]
-              [fulcro.client.data-fetch :as df]
+              [com.fulcrologic.fulcro.data-fetch :as df]
               [fulcro.logging :as log]
               [fulcro.client :as fc]
               [fulcro.ui.bootstrap3 :as b]
-              [fulcro.client.primitives :as prim :refer [defsc]]))
+              [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -13964,7 +13962,7 @@ The complete source for this demo is:
     (dom/li (str "Auto open? " auto-open?))
     (dom/li (str "Enable Keyboard Shortcuts? " keyboard-shortcuts?))))
 
-(def ui-settings (prim/factory Settings {:keyfn :db/id}))
+(def ui-settings (comp/factory Settings {:keyfn :db/id}))
 
 (defsc Member [this {:keys [db/id member/name]}]
   {:query [:db/id :member/name]
@@ -13972,10 +13970,10 @@ The complete source for this demo is:
   (dom/div
     "Member: " name))
 
-(def ui-member (prim/factory Member {:keyfn :db/id}))
+(def ui-member (comp/factory Member {:keyfn :db/id}))
 
 (defsc Account [this {:keys [db/id account/name account/members account/settings]}]
-  {:query [:db/id :account/name {:account/members (prim/get-query Member)} {:account/settings (prim/get-query Settings)}]
+  {:query [:db/id :account/name {:account/members (comp/get-query Member)} {:account/settings (comp/get-query Settings)}]
    :ident [:account/by-id :db/id]}
   (dom/div
     (dom/h3 (str "Account for " name))
@@ -13988,10 +13986,10 @@ The complete source for this demo is:
         (dom/h3 "Members in the account")
         (map ui-member members)))))
 
-(def ui-account (prim/factory Account {:keyfn :db/id}))
+(def ui-account (comp/factory Account {:keyfn :db/id}))
 
 (defsc Root [this {:keys [ui/react-key accounts]}]
-  {:query [:ui/react-key {:accounts (prim/get-query Account)}]}
+  {:query [:ui/react-key {:accounts (comp/get-query Account)}]}
   (dom/div {:key react-key}
     (dom/h3 "Accounts with settings and users")
     (map ui-account accounts)))
