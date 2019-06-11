@@ -4,10 +4,10 @@
  :builds   {:book {:target     :browser
                    :output-dir "docs/js/book"
                    :asset-path "/js/book"
-                   :modules    {:book {:entries [book.main]}
+                   :modules    {:book    {:entries [book.main]}
                                 ; For the dynamic code splitting demo
-                                :main {:entries    [book.demos.dynamic-ui-main]
-                                       :depends-on #{:book}}}
+                                :ui-main {:entries    [book.demos.dynamic-ui-main]
+                                          :depends-on #{:book}}}
                    :devtools   {:preloads  [com.fulcrologic.fulcro.inspect.preload]
                                 :http-root "resources/public"
                                 :http-port 9005}}}}

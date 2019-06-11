@@ -234,7 +234,7 @@
 ;(defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :remotes book.main/example-server)
 (defexample "Component Localized CSS" book.demos.component-localized-css/Root "component-localized-css" :remotes book.main/example-server)
 (defexample "Localized DOM" book.demos.localized-dom/Root "localized-dom")
-(defexample "dynamicUiRouting" book.demos.dynamic-ui-routing/Root "dynamic-ui-routing"
+(defexample "Dynamic UI Routing" book.demos.dynamic-ui-routing/Root "dynamic-ui-routing"
   :client-did-mount book.demos.dynamic-ui-routing/application-loaded
   :remotes book.main/example-server)
 ;

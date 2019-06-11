@@ -3,7 +3,8 @@
     [com.fulcrologic.fulcro.routing.union-router :as r]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [cljs.loader :as loader]))
+    [cljs.loader :as loader]
+    [taoensso.timbre :as log]))
 
 (defsc Login [this {:keys [label login-prop]}]
   {:initial-state (fn [params] {r/dynamic-route-key :login :label "LOGIN" :login-prop "login data"})
@@ -22,25 +23,25 @@
 (defsc Root [this {:keys [top-router :com.fulcrologic.fulcro.routing.union-router/pending-route]}]
   {:initial-state (fn [params] (merge
                                  (r/routing-tree
-                                   (r/make-route :main [(r/router-instruction :top-router [:main :singleton])])
+                                   (r/make-route :ui-main [(r/router-instruction :top-router [:ui-main :singleton])])
                                    (r/make-route :login [(r/router-instruction :top-router [:login :singleton])])
                                    (r/make-route :new-user [(r/router-instruction :top-router [:new-user :singleton])]))
                                  {:top-router (comp/get-initial-state r/DynamicRouter {:id :top-router})}))
    :query         [:ui/react-key {:top-router (r/get-dynamic-router-query :top-router)}
-                   :com.fulcrologic.fulcro.routing.union-router/pending-route]}
+                   :com.fulcrologic.fulcro.routing.union-router/pending-route
+                   r/routing-tree-key]}
   (dom/div nil
     ; Sample nav mutations
-    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :main})])} "Main") " | "
+    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :ui-main})])} "Main") " | "
     (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "
     (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :login})])} "Login") " | "
     (dom/div (if pending-route "Loading" "Done"))
     (r/ui-dynamic-router top-router)))
 
 ; Use this as started-callback. These would happen as a result of module loads:
-(defn application-loaded [{:keys [reconciler]}]
+(defn application-loaded [app]
   ; Let the dynamic router know that two of the routes are already loaded.
-  (comp/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
-                               (r/install-route {:target-kw :login :component ~Login})
-                               (r/route-to {:handler :login})])
-  (loader/set-loaded! :entry-point))
+  (comp/transact! app `[(r/install-route {:target-kw :new-user :component ~NewUser})
+                        (r/install-route {:target-kw :login :component ~Login})
+                        (r/route-to {:handler :login})]))
 
