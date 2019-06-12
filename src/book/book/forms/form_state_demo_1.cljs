@@ -1,12 +1,10 @@
 (ns book.forms.form-state-demo-1
-  (:require [fulcro.ui.elements :as ele]
-            [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-            [fulcro.ui.form-state :as fs]
-            [fulcro.ui.bootstrap3 :as bs]
-            [com.fulcrologic.fulcro.components :as comp :refer [defui defsc]]
-            [com.fulcrologic.fulcro.dom :as dom]
-            [clojure.spec.alpha :as s]
-            [garden.core :as g]))
+  (:require
+    [book.elements :as ele]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.algorithms.form-state :as fs]
+    [com.fulcrologic.fulcro.components :as comp :refer [defui defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]))
 
 (declare Root PhoneForm)
 

@@ -7,28 +7,10 @@
     [book.ui.hover-example :as hover-example]
     [book.ui.victory-example :as victory-example]
     [book.queries.union-example-1 :as union-example-1]
-    ;[book.queries.union-example-2 :as union-example-2]
-    ;[book.queries.parsing-trace-example :as trace]
-    ;book.queries.parsing-key-trace
-    ;book.queries.naive-read
-    ;book.queries.simple-property-read
-    ;book.queries.parsing-simple-join
-    ;book.queries.parsing-recursion-one
-    ;book.queries.parsing-recursion-two
-    ;book.queries.parsing-parameters
-    ;book.queries.dynamic-queries
-    ;book.queries.dynamic-query-parameters
-    ;book.queries.recursive-demo-1
-    ;book.queries.recursive-demo-2
-    ;book.queries.recursive-demo-3
-    ;book.queries.recursive-demo-bullets
+    book.queries.dynamic-queries
+    book.queries.dynamic-query-parameters
     ;book.forms.form-state-demo-1
     ;book.forms.form-state-demo-2
-    ;book.forms.forms-demo-1
-    ;book.forms.forms-demo-2
-    ;book.forms.forms-demo-3
-    ;book.forms.whole-form-logic
-    ;book.forms.full-stack-forms-demo
     [book.demos.autocomplete :as autocomplete]
     book.ui-routing
     book.simple-router-1
@@ -219,17 +201,9 @@
 (defexample "HTML Converter" book.html-converter/Root "html-converter")
 ;
 ;;; Forms
-;#?(:cljs (defexample "Editing Existing Data" book.forms.form-state-demo-1/Root "form-state-demo-1" :networking book.main/example-server))
-;#?(:cljs (defexample "Network Interactions and Forms" book.forms.form-state-demo-2/Root "form-state-demo-2" :networking book.main/example-server))
-;
-;#?(:cljs (defexample "Basic Form" book.forms.forms-demo-1/Root "forms-demo-1" :networking book.main/example-server))
-;#?(:cljs (defexample "Validated Form" book.forms.forms-demo-2/Root "forms-demo-2" :networking book.main/example-server))
-;#?(:cljs (defexample "Validated Form" book.forms.forms-demo-3/Root "forms-demo-3" :networking book.main/example-server))
-;#?(:cljs (defexample "Whole Form Logic" book.forms.whole-form-logic/Root "whole-form-logic" :networking book.main/example-server))
-;#?(:cljs (defexample "Full Stack Forms" book.forms.full-stack-forms-demo/Root "full-stack-forms-demo"
-;           :started-callback book.forms.full-stack-forms-demo/initialize
-;           :networking book.main/example-server))
-;
+;(defexample "Editing Existing Data" book.forms.form-state-demo-1/Root "form-state-demo-1" :networking book.main/example-server)
+;(defexample "Network Interactions and Forms" book.forms.form-state-demo-2/Root "form-state-demo-2" :networking book.main/example-server)
+
 (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :remotes book.main/example-server)
 ;(defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :remotes book.main/example-server)
 (defexample "Component Localized CSS" book.demos.component-localized-css/Root "component-localized-css" :remotes book.main/example-server)
