@@ -3287,26 +3287,29 @@ The render middleware is a function
 The intention is that you can wrap or instrument/measure rendering.  For example, using
 the `tufte` library:
 
-```
+[source%nowrap]
+----
 (ns my.ui
   (:require
     ...
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.rendering.ident-optimized-render :refer [render!]]
     [taoensso.tufte :as tufte :refer [p profile]]))
 
 (tufte/add-basic-println-handler! {})
 
 (defonce SPA (app/fulcro-app
-               {:client-did-mount  (fn [app]
-                                     (df/load! app :all-users root/User))
-                :render-middleware (fn [this real-render]
+               {:render-middleware (fn [this real-render]
+                                     ;; record how long each component, by name, takes to render
                                      (p {:id (comp/component-name this)}
                                        (real-render)))
                 :optimized-render! (fn render-performance
                                      ([app options]
+                                      ;; capture the recordings and print a report at the end
                                       (profile {}
                                         (render! app options)))
                                      ([app] (render-performance app {})))
-```
+----
 
 would print statistics like this to the Chrome developer's console:
 
@@ -3401,11 +3404,15 @@ All we need to do is to have a factory function that will do the conversion. For
   (fn [props & children]
     (apply js/React.createElement
            js-component-class
-           (dom/convert-props props) ;; convert-props makes sure that props passed to React.createElement are plain JS object
+           ;; convert-props makes sure that props passed to React.createElement are plain JS object
+           (dom/convert-props props)
            children)))
 
-(def ui-google-map (factory-apply Map)) ;; Fulcro wrapper factory for google-maps-react's Map component
-(def ui-map-marker (factory-apply Marker)) ;; Another wrapper factory for Marker component
+;; Fulcro wrapper factory for google-maps-react's Map component
+(def ui-google-map (factory-apply Map))
+
+;; Another wrapper factory for Marker component
+(def ui-map-marker (factory-apply Marker))
 ```
 
 In the second scenario we will have React JS component passing plain JS object props to our Fulcro component and we need to
