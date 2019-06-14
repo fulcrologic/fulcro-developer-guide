@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: June 10, 2019
-:revnumber: 30
+:revdate: June 14, 2019
+:revnumber: 31
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -105,10 +105,6 @@ This chapter takes you through a step-by-step guide of how to go from nothing to
 Concepts are introduced as we go, and given a very cursory definition in the interest of concision. Once you've got
 the general idea you can use other materials to refine your understanding.
 
-The Leiningen template is the very quickest way to get started. It gives you a number of useful
-things like workspaces (a place to build components and even apps in cards), production builds, CI integration and more
-while also giving you the minimal amount of actual code. This can save you hours of setup.
-
 IMPORTANT: This document assumes you're working with Fulcro 3.x and above.  Please see older versions of the Developer's
 Guide if you're working with an older version. (TODO: Link to old version)
 
@@ -138,180 +134,204 @@ https://developers.google.com/web/tools/chrome-devtools/customize[developer tool
 and always keep devtools open when you're working on your apps.  This ensures you'll not be confused by caching issues
 and will be able to see clojure data structures as Clojure, and not low-level js objects.
 
-== Project setup
+== Install Supporting Tools
 
-You can get a basic working app using:
+You'll normally want to build a real application based on the Fulcro template (TODO, in progress). It contains a lot
+of boilerplate on things like server configuration, CSRF, testing, better error message formatting, and so on.
+This can save you quite a bit of setup and development time.
+
+For this chapter we're going to start from literally nothing.  These instructions should work with an UNIX-like (e.g.
+OSX or Linux) system.  I do not use Windows, so your mileage may vary if you're on that platform.
+
+- Install a https://clojure.org/guides/getting_started[Java SE Development Kit (JDK)].
+You'll have an easier time if you use an older version: 8.  OpenJDK or the official one is fine.
+- Install https://clojure.org/guides/getting_started[Clojure CLI Tools]
+- Install https://nodejs.org/en/[Node and npm]: The shadow-cljs compiler uses node for all js dependencies.
+- Optional: Install IntelliJ CE and the Cursive plugin. There are free versions of both for
+  non-commercial use. Any editor will do, but if you're doing anything large I recommend this
+  (or Spacemacs if (and only if) you already use it).
+
+The following commands should work from your command line (the `$` is the command prompt):
 
 [source,bash]
 ----
-$ lein new fulcro app
+$ clj
+Clojure 1.10.0
+user=>
 ----
 
-This gives you a shell of a project that still contains everything you'd want to set up
-(workspaces, testing, a development web server, shadow-cljs, etc.) without much actual code
-to understand or delete.
+(hit CTRL-D or CTRL-C to exit)
 
-You should stop here for a moment and read the README in your generated project to see how that
-is laid out.
+[source,bash]
+----
+$ java -version
+java version "1.8.0_162"
+Java(TM) SE Runtime Environment (build 1.8.0_162-b12)
+Java HotSpot(TM) 64-Bit Server VM (build 25.162-b12, mixed mode)
+----
 
-=== Starting the Compiler
+your version may be different, but it should be 1.8.x.
 
-The Fulcro template uses `shadow-cljs`, and Fulcro 3.x *requires* that you use it.  We no longer use anything in the
-`cljsjs` ecosystem. The additions over the stock Clojurescript compiler make for a much more polished experience.
-It allows you to use the normal js ecosystem of components very easily, is really good about caching, doesn't get easily
-confused.
+[source,bash]
+----
+$ npm list
+/your/directory
+└── (empty)
+----
 
-You should check out the https://shadow-cljs.github.io/docs/UsersGuide.html[User's Guide] when
-you have a chance, but for now you can simply start the compiler server:
+If any of these fail, diagnose your installation of those products before continuing.
+
+== Create Your Project
+
+Create a directory and set up a basic node project:
+
+[source,bash]
+----
+$ mkdir app
+$ cd app
+$ mkdir -p src/main src/dev resources/public
+$ npm init
+... answer the questions or just take defaults ...
+$ npm install shadow-cljs react react-dom --save
+----
+
+=== Clojure Dependencies
+
+Create a `deps.edn` file with this content:
 
 ```
-$ npm install  # only need to do this once
+{:paths   ["src" "resources"]
+ :deps    {com.fulcrologic/fulcro {:mvn/version "3.0.0-alpha-6"}}
+
+ :aliases {:dev {:extra-paths ["src/dev"]
+                 :extra-deps  {binaryage/devtools {:mvn/version "0.9.10"}}}}}
+```
+
+=== https://shadow-cljs.github.io/docs/UsersGuide.html[Shadow-cljs] Compiler Configuration
+
+And a `shadow-cljs.edn` file that looks like this:
+
+```
+{:deps     {:aliases [:dev]}
+ :dev-http {8000 "classpath:public"}
+ :builds   {:main {:target     :browser
+                   :output-dir "resources/public/js/main"
+                   :asset-path "/js/main"
+                   :modules    {:main {:init-fn app.client/init
+                                       :entries [app.client]}}
+                   :devtools   {:after-load app.client/refresh
+                                :preloads   [com.fulcrologic.fulcro.inspect.preload]}}}}
+```
+
+The `init-fn` and `after-load` options give you a place to put code that will set up an application on load, and
+trigger UI refreshes on hot code reload.  We'll put those functions in the source in a moment.
+
+The top-level `dev-http` server will cause shadow to start a dev web server on port 8080 that serves the files
+from our `resources/public` directory (`resources` is on our classpath via `:paths` in `deps.edn`).
+
+The `:modules` section configures that code gets pulled into a given build.  Every build has at least a main module,
+and shadow will follow requires in the namespaces, so you typically only need your entry-point namespace in `:entries`.
+
+See the  https://shadow-cljs.github.io/docs/UsersGuide.html[Shadow-cljs User's Guide] for more information.
+
+=== HTML File
+
+In `resources/public/index.html` add this content:
+
+
+[source,html]
+----
+<html>
+  <body>
+    <div id="app"></div>
+    <script src="/js/main/main.js"></script>
+  </body>
+</html>
+----
+
+We really only need to load our one (generated) js file and supply a `div` with an ID.  Our React application will be
+rendered on that `div`. You may, of course, include other content around that: CSS, other divs, etc.
+
+=== Application Source
+
+Finally we can add the source of the program itself.  Our base source path is `src/main` for production code,
+and we want a namespace within the app package.  Our directory structure must match this, so we create
+`src/main/app/client.cljs`:
+
+```
+(ns app.client
+  (:require
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]))
+
+(defonce app (app/fulcro-app))
+
+(defsc Root [this props]
+  (dom/div "TODO"))
+
+(defn ^:export init
+  "Shadow-cljs sets this up to be our entry-point function. See shadow-cljs.edn `:init-fn` in the modules of the main build."
+  []
+  (app/mount! app Root "app")
+  (js/console.log "Loaded"))
+
+(defn ^:export refresh
+  "During development, shadow-cljs will call this on every hot reload of source. See shadow-cljs.edn"
+  []
+  ;; re-mounting will cause forced UI refresh
+  (app/mount! app Root "app")
+  (js/console.log "Hot reload"))
+```
+
+=== Summary
+
+Your project source tree should now look like this:
+
+[source,bash]
+----
+$ tree .
+.
+├── deps.edn
+├── package.json
+├── resources
+│   └── public
+│       ├── index.html
+├── shadow-cljs.edn
+└── src
+    └── main
+        └── app
+            └── client.cljs
+----
+
+That's it!  You have a complete Fulcro application!
+
+=== Build It!
+
+You can start the compiler server with:
+
+[source,bash]
+----
 $ npx shadow-cljs server
-```
+----
 
 and navigate to the URL it prints out for the compiler server (usually http://localhost:9630). You can then use the
 "Builds" menu to turn on/off different client builds and see the progress live as it happens!
 
 It also has hot-code (and CSS) reload built in, so there is no need for an additional tool like figwheel.
 
-=== Starting the Server
-
-Simply start a REPL (see the README in your generated project for instructions) and use:
-
-```
-(start)
-```
-
-to start the server (which defaults to port 3000). If you've turned on the `main` build in shadow-cljs then you
-should see the base template page.  Please refer to the README in your template app if this doesn't work in case
-the template has changed since this was written.
-
-NOTE: At the time of this writing you'll have the fewest problems running JDK 8 (newer versions work, but have various
-extra options you have to pass).
-
-IMPORTANT: Make sure you don't have anything strange in your personal Leiningen profile, global deps config,
-and that your Clojure tools.deps version is up-to-date.
-
-=== Choosing a React Version
-
-Fulcro 3 officially supports React 16 and above, though it should work with older versions as well.
-The template uses `shadow-cljs` for compiles, so you simply include the version of React you'd like to use in the standard
-`package.json` file.  This is already done for you in the template.
-
-== The Code Client Files
-
-A complete Fulcro front-end client can be created in about two lines of code. Hot-load
-concerns require just a few more lines.
-
-Your project should have a `src/main/app/client.cljs` file that looks something like this:
-
-```
-```
-
-These functions are used from the HTML page to initialize the application. The reason things
-are split into multiple functions is to allow the application to be remounted on hot-code reload.
-The client isn't active until you mount it, and to mount it
-you need a UI. The file `src/main/ui/root.cljc` contains some simple UI.
-
-```
-(ns app.ui.root
-  (:require
-    [com.fulcrologic.fulcro.dom :as dom :refer [div]]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [app.ui.components :as comp]))
-
-(defsc Root [this {:keys [root/message]}]
-  {:query         [:root/message]
-   :initial-state {:root/message "Hello!"}}
-  (div :.ui.segments
-    (div :.ui.top.attached.segment
-      (div :.content
-        "Welcome to Fulcro!"))
-    (div :.ui.attached.segment
-      (div :.content
-        (comp/ui-placeholder {:w 50 :h 50})
-        (div message)
-        (div "Some content here would be nice.")))))
-```
-
-If you look at the `shadow-cljs.edn` file you'll see it is configured to re-call `start` after every hot load.
-Mounting an already mounted app is the same as asking for a forced UI refresh.  This ensures you'll see UI changes
-even if your props don't change (all Fulcro components are pure and don't render unless forced to, or see a prop change).
-
-```
-...
- :builds {:main       {...
-                       :devtools   {:after-load app.client/start}
-                       ...
-```
-
-This is all the real code you need to get started with a hot-code reload capable application! However, the
-browser needs instructions to load this stuff up, and the target `div` of the mount needs to exist.
-
-=== The HTML
-
-Your HTML file to load the app needs these things:
-
-- Include a DIV on the DOM with the ID you want to mount on.
-- Include the generated JS file.
-- Call your exported `init` function.
-
-This corresponds to:
-
-[source,html]
-----
-<!DOCTYPE html>
-<html>
-    <body>
-        <div id="app"></div>
-        <script src="js/app.js" type="text/javascript"></script>
-        <script>app.client.init();</script>
-    </body>
-</html>
-----
-
-but you won't find this in your template resources.  The template generates a secure app with CSRF (cross-site request forgery) protection.
-This means a CSRF token needs to be embedded in the page,
-and this is a complication you can ignore for the most part right now; however, it explains why we dynamically
-generate the HTML file in the server using `hiccup` (in `middleware.clj`):
-
-```
-(defn index [csrf-token]
-  (html5
-    [:html {:lang "en"}
-     [:head {:lang "en"}
-      [:title "Application"]
-      [:meta {:charset "utf-8"}]
-      [:meta {:name "viewport" :content "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"}]
-      [:link {:href "https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css"
-              :rel  "stylesheet"}]
-      [:link {:rel "shortcut icon" :href "data:image/x-icon;," :type "image/x-icon"}]
-      [:script (str "var fulcro_network_csrf_token = '" csrf-token "';")]]
-     [:body
-      [:div#app]
-      [:script {:src "js/main/app.js"}]
-      [:script "app.client.init();"]]]))
-```
-
-REMINDER: When developing it is a good idea to: Use Chrome (the devtools only work there) *and install the
-Fulcro Inspect extension* from the Chrome store. Keep the developer's console open, and in the developer console settings:
-"Network, Disable cache (while DevTools is open)", and "Console, Enable custom formatters".
-
-Cached files can, as everywhere else, cause you lots of headaches. Fortunately they only really affect you poorly
-on the initial load in Fulcro. Hot reloads typically work very well.
-
-The Fulcro Inspect tab will show the state of your Fulcro application (along with lot of other useful details
-like your transaction log) if you've included the proper dependencies and preloads
-(which the template should have done for you).
+We configured the `shadow-cljs` server to also start a development mode HTTP server to serve our HTML file and
+javascript.  If you didn't make any typos, then your new app should display "TODO" via
+http://localhost:8000.
 
 == Basic UI Components
 
-Fulcro supplies `defsc` to build React components. This macro emits React components that work as 100% raw React
-components (i.e. once you compile them to Javascript they could be used from other native React code).
+Fulcro supplies `defsc` macro to build React components. This macro emits component-based React components (hook support
+coming soon, but does not work with `defsc`) that are augmented with Fulcro's data management and render refresh
+augmentations.
 
-There are also factory functions for generating all standard HTML5 DOM elements in React in the `com.fulcrologic.fulcro.dom` namespace.
-
-=== The `defsc` Macro
+There are also factory functions for generating all standard HTML5 DOM elements in React in the
+`com.fulcrologic.fulcro.dom` namespace.
 
 The basic code to build a simple component has the following form:
 
@@ -325,53 +345,39 @@ The basic code to build a simple component has the following form:
 
 This macro emits the equivalent of a React component with a `render` method.
 
-Class names and IDs can be written in a more compact format instead of the map (or in front of it if you have other
-props to pass):
 
-```
-(dom/div :.a#id {:style {:color "red"}}
-  (dom/p "Hello"))
-```
-
-of course you can also `:refer` the common tags in your namespace declaration:
+of course you can tighten your DOM code up even more if you also `:refer` the common tags in your namespace declaration:
 
 ```
 (ns ui
   (:require [com.fulcrologic.fulcro.dom :as dom :refer [div p]]))
+
+...
+
+   (div :.x.y.z#id {:style {:color "red"}} ...)
 ```
 
-and make this even tighter:
-
-```
-(div :.a#id {:style {:color "red"}}
-  (p "Hello"))
-```
-
-For our purposes we won't be saying much about the React lifecycle methods, though they can be added. The basic
-intention of this macro's syntax is to declare a component that can render UI and participate in our
-data-driven story.
+React lifecycle methods are all supported, but we'll talk about those later.
 
 === The `render` method.
 
 The body of `defsc` is the render for the component and can do whatever work you need, but it should return
 a react element (see https://facebook.github.io/react/blog/2015/12/18/react-components-elements-and-instances.html[React Components, Elements, and Instances]).
-As of React 16 you can return a sequence of elements as well (though each must have a unique `:key`).
+As of React 16 you can return a fragment or sequence of elements as well (though each must have a unique `:key`).
 
-There are factory methods for all of HTML5 in `com.fulcrologic.fulcro.dom`. These functions can take an optional keyword that
-specifies classes and an ID, followed by an optional map or additional props. If the tag allows children then
-they are simply placed after these two optional things:
+The DOM element functions allow class names and IDs to be written in various forms for convenience. The following are
+all equivalent:
 
 ```
-(dom/div :.a#thing "Hi") ; keyword can contain any number of classes preceeded by dots, and an id with #
-(dom/div :.a#thing {:data-prop 3} "Hi") ; props can still be supplied with the keyword
-(dom/div :.a.b.c "Hi") ; Any number of static classes (a b, and c).
-(dom/div {:className "a" :data-prop 3} "Hi") ; or it can all be done in props
-(dom/div {:classes [(when hidden "hidden") (if tall :.tall :.short)]} ...) ; :classes is nice for expressions (2.5.12+)
+(dom/div {:id "id" :className "x y z" :style {:color "red"}} ...)
+(dom/div :.x#id {:className "y z" :style {:color "red"}} ...)
+(dom/div :.x.y.z#id {:style {:color "red"}} ...)
+(dom/div :.x#id {:classes ["y" "z"] :style {:color "red"}} ...)
 ```
 
-These are macros that obtain very good runtime speed by converting the maps and such to low-level js at compile time.
+NOTE: The keyword notation requires each class to be preceeded by a `.`, and will give a compile error if you forget to do that.
 
-NOTE: The class keyword requires each class to be preceeded by a `.`, and will give a compile error if you forget to do that.
+Children simply placed after the props as nested children.
 
 IMPORTANT: If you're writing your UI in CLJC files then you need to make sure you use a conditional
 reader to pull in the proper server DOM functions for Clojure:
@@ -385,8 +391,18 @@ reader to pull in the proper server DOM functions for Clojure:
 
 The reason this is necessary is that CLJS requires macros to be in CLJ files, but in order to get higher-order functions to
 operate in CLJ the DOM elements must be functions. In CLJS, you can have both a macro and function with
-the same name, but this is not true in CLJ. Therefore, in order to get the optimal (inlined) client performance two namespaces are
-required.
+the same name, but this is not true in CLJ. Therefore, two namespaces are required in order to get the optimal (inlined) client performance.
+
+NOTE: Regarding performance: The `dom` macros/functions in Fulcro *can be* nearly as fast as calling raw React `createElement`
+directly, even when using the convenience features; however, the macros cannot make them that fast if there is ambiguity about
+the props vs. children. For example, `(div :.a (f))` is ambiguous at compile time
+(the expression after `:.a` could be a function call returning a props map or a nested React element), so it will be
+forced to add code that checks for a cljs map, and if it finds one, code to convert it to a js object.
+Technically you can force the highest level of runtime performance by always including a props map, even if you don't
+need one: `(div :.a {} (f))`. This latter example has no ambiguity and the macro can *at compile time* convert
+the props to a javascript object for passing directly to React `createElement`. The speed difference can be about 3-fold,
+but even then it is usually so small that it won't matter, so you may want to use tighter notation unless you measure a real
+performance problem.
 
 === Props
 
