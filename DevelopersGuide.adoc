@@ -99,6 +99,365 @@ code. This book adopts the following general set of requires and aliases:
 
 others will be identified as they are used.
 
+= Fulcro From 10,000 Feet
+
+You may be reading this guide hoping for a "quick feel" for why Fulcro might be a good fit for a project.  The
+<<Getting Started>> chapter walks you through the evolution of the model in a way that is intended to
+lead to the best understanding, but it is a lot of minutiae to absorb just to get the "big picture" and there
+is some chance you'll misunderstand where that is going and stop before you get to the good stuff.  This book is
+also a rather large work intended to serve as a complete reference guide, so reading it cover to cover may not be
+all that desirable for your purposes.
+
+If you really want to learn to *use* Fulcro, feel free to skip this chapter and read <<Getting Started>>; however,
+if you'd rather learn the central ideas and approach of Fulcro this is a good place to start.
+
+At its core Fulcro and its companion library https://wilkerlucio.github.io/pathom[`pathom`] are a full-stack
+application programming system centered around graph-based UI and data management.
+
+The core ideas are as follows:
+
+* Graphs and Graph Queries are a great way to generalize data models.
+* UI trees are directed graphs that can easily be "fed" from graph queries.
+* User-driven operations are modeled at transactions whose values are simply data (that look like calls).
+* Arbitrary graphs of data from the server need to be normalized (as in database normalization):
+** UI trees often repeat parts of the graph.
+** *Local Manipulation* of data obtained from a graph needs to be de-duped.
+* Composition is *King*. Seamless composition is a key component of software sustainability.
+
+== Server Schema vs. UI Graph
+
+Fulcro makes no assumptions nor does it have *any* requirements about back-end databases.  You don't even have
+to have a back-end.  You could simulate one with browser local storage, or simply not need one.
+
+If you are using a server database, then normalization and schema on the server is done according to whatever you've designed.
+Pathom makes it easy to "reshape" any particular schema into a graph that fits your external API and UI needs.
+
+This is an important point: it does not *matter* how your database structures the data, as long as *you* know how to
+get the data you need when given a "context" that makes sense.
+
+== Queries (EQL)
+
+Fulcro uses EQL (EDN Query Language), a graph query language similar to Datomic's pull query notation.
+
+A query looks like this:
+
+```
+[:person/name {:person/address [:address/street]}]
+```
+
+The above query (when run against a person) asks for that person's name, and then indicates a "join" via a
+map whose key is the join property on person, and whose value is a subquery of things to pull from there.
+
+Such a query returns a map that mirrors the query structure:
+
+```
+{:person/name "Joe"
+ :person/address {:address/street "111 Main St."}}
+```
+
+and could potentially return to-many results (if the address field were to-many in the database of the server):
+
+```
+{:person/name "Joe"
+ :person/address [{:address/street "111 Main St."} {:address/street "345 Center Ave."}]}
+```
+
+== Fulcro Client Database
+
+Fulcro does *not* use a component-centric subscription model (though you can get the *actual* "features" you're look for
+from those easily enough).
+Subscription models introduce arbitrary management components that are meant to manage your state for you.  This can be
+a nice convenience, but it leads to a number of problems related to caching, reasoning, deduplicating network queries, and data sharing.
+
+Fulcro uses a single, central, normalized graph database.  Any time data is created or read into a Fulcro application it can be
+auto-normalized into this database, and EQL queries from the UI components can easily be fulfilled from it.
+
+The format of this database is *trivial* (and very fast as a result):
+
+* Nodes of the graph are given "identities" or "idents"
+* Nodes are stored in "tables"
+* Edges are represented as vectors: `[:table-name id-of-node]`
+
+The graph of data like this:
+
+```
+{:person/id 1 :person/name "Joe" :person/address {:address/id 42 :address/street "111 Main St."}}
+```
+
+can be turned into this:
+
+[source%nowrap]
+----
+;; TABLE     ID   ENTITY                                           POINTER TO ADDRESS TABLE
+{ :PERSON  { 1    {:person/id 1 :person/name "Joe" :person/address [:ADDRESS 42]}}
+  :ADDRESS { 42   {:address/id 42 :address/street "111 Main St."}}}
+----
+
+This format supports any arbitrary graph, to-many (a vector of idents) and to-one (single ident) relations, any possible
+property value type (though you should generally make sure they're serialzable for network transfer), and is simple to manipulate
+(an `assoc-in` with a path length of 2 or 3 gets you to anything).
+
+This leads to the following useful results:
+
+* Everything is de-duped for you. No need to worry that composing in some "alternate view" of pre-existing data will
+cause two out of sync copies to exist.
+* Caching is a centralized concern. Your normalized client database is the only possible place for the data, and
+each node of the graph has exactly *one place* to live (even if a query has two views of of the same thing on different branches
+of some complex graph query result, which is common when composing related components onto a UI).
+* Subgraph reasoning is trivial: You can (re)load *any portion* of the graph at *any time*.
+** A UI query, server load, or transfer of some portion of the graph can be started from any node.
+** Manipulation of some node affects all paths through that node.
+
+You may be asking "by what magic can Fulcro do this?". The answer is simple: by co-locating the node/edge
+descriptions with the components of your UI!
+
+== The Glue: UI Components
+
+We also are writing SPAs where what we care about is the UI we end up with.  Pathom can shape our server graph to
+match whatever we need on the client, and this frees us to design our UI as we see fit.
+
+Components can therefore represent the desired UI *nodes* of a graph, and the EQL joins can represent *where* we want
+the edges. Auto-normalization just requires one more detail: how to manufacture the correct "table name" and "id" for
+a given node in order to make that "ident pointer" for edges?
+
+This is functional programming, so of course the answer is a function:
+
+```
+(defn person-ident [props] [:person/id (:person/id props)])
+```
+
+The convention for our table names (for ease of use with Pathom) is to use the name of the ID field of the entity
+in question.
+
+Thus, the "ident" of this person:
+
+```
+(person-ident {:person/id 22 ...})
+; => [:person/id 22]
+```
+
+Of course, this function needs to be associated with the `Person` component for Fulcro to know how to use it. That
+looks like this:
+
+[source]
+-----
+(defsc Person [this props]
+ {:query [:person/id :person/name]  ; <1>
+  :ident (fn [] [:person/id (:person/id props)])} ; <2>
+ (dom/div                 ; <3>
+   (:person/name props)))
+-----
+<1> The co-located query: What should we ask the server for when we're asking for person data?
+<2> The ident: Given the props for some particular person, what is the 2-tuple that describes the table and ID for it?
+<3> What does this component look like when rendered?
+
+=== Putting Things in the Database
+
+Of course, the most interesting aspect of the operation now is "how do I get data into the system?".
+
+Well, the query and normalization constructs are on the component, so you simply use the component with various
+APIs.
+
+For example, to put some arbitrary graph of data you generated by hand into the database you could
+use:
+
+```
+(merge/merge-component! app Person {:person/id 11 ...})
+```
+
+which just results in this:
+
+```
+{:person/id {11 {:person/id 11 ...}}}
+```
+
+to put that same data into the database and add an "edge" somewhere else in the graph you could do:
+
+```
+(merge/merge-component! app Person {:person/id 11 ...} :append [:lists/id :friends :people])
+```
+
+which would add this to the graph:
+
+```
+;;                  append implies to-many. i.e. a vector of idents
+{:lists/id {:friends {:people [... [:person/id 11]] ...}}
+ :person/id {11 {:person/id 11 ...}}}
+```
+
+==== Loading
+
+Loading is just as trivial and uses the same mechanisms. Loading a particular person from the server might look
+like this:
+
+```
+(df/load app [:person/id 22] Person)
+```
+
+==== Nested Things
+
+Of course components are typically nested, and all of this composes with elegance. Say your person had some
+addresses that you modelled on a sub-component. If you compose those together everything else just falls into place:
+
+```
+(defsc Address [this props]
+  {:query [:address/id :address/street]
+   :ident :address/id} ; shorthand notation for the most common case: the table name and id key are the same keyword
+  ...)
+
+(defsc Person [this props]
+  {:query [:person/id :person/name {:person/address (comp/get-query Address)}]
+   :ident :person/id}
+  ...)
+```
+
+The using load or merge against such a component
+
+```
+(merge-component! app Person {:person/id 1 :person/address {:address/id 42 ...}})
+```
+
+will merge and normalize the entire (sub)graph.
+
+== The Operational Model
+
+During operation you will need to make things happen.
+
+=== Mutations
+
+Mutations are a first-class higher-order citizen of Fulcro, and encode all of the possible interactions that your UI might
+need to have with the local graph database and any remote servers.
+
+The UI-layer need know nothing about these details because it simply submits transactions that look like this:
+
+```
+(comp/transact! this [(add-person {:name name})])
+```
+
+`add-person` in this case is not a function, but instead a *mutation*.  If you call `add-person` as a function,
+it simply returns that symbol in a list:
+
+```
+user=> (def name "Tony")
+user=> (add-person {:name name})
+;;=> (ns.of.mutation/add-person {:name "Tony"})
+```
+
+This is an important point. Fulcro 2 and earlier had you write these with quoting notation:
+
+```
+(comp/transact! this `[(add-person ~{:name name})])
+```
+
+but Fulcro 3 changes mutations so that they simply return themselves as data if accidentally called.
+
+The core point is that the UI submits an abstract bit of data to Fulcro's transaction system. It doesn't usually
+directly manipulate anything to do with the database or networking.
+
+Mutations are written as separate code units using `defmutation`, which has a notation somewhere between `defn` and
+`defrecord` with a protocol:
+
+```
+(defmutation add-person [params]
+  (action [env] ...)
+  (remote [env] ...)
+  (rest [env] ...)
+  (ok-action [env] ...)
+  (error-action [env] ...))
+```
+
+where each "section" represents how that particular mutation interacts with the world around it.  The `action` section
+describes what happens *locally* and usually *optimistically* to the client database. This is the main place
+where you will manipulate the graph database (via `swap!`/`merge`/etc. on it).
+
+The `remote` sections (which is any section not ending in `-action`) describe how that mutation should interact
+with some particular server (you name them, and `remote` is the default name).
+
+Other `*-action` sections have to do with handling network results as they occur.
+
+Thus a simple UI call can turn into a combination of optimistic actions, remote interactions, etc.
+
+Mutations are allowed to submit new transactions themselves, so sections like `ok-action` can check results of
+the remote interactions and then decide what to do.
+
+=== UI Refresh
+
+Fulcro manages UI updates by targeting refreshes according to what actually changes (the rendering optimizations are
+even pluggable in Fulcro 3), and it turns out the the normalized database makes this all very fast to calculate.
+
+Here's a quick overview of how (one method) of these optimizations work:
+
+* Each component has a `shouldComponentUpdate` that checks to see if the props have actually changed.  If a component
+  is asked to "double render" or render without changed props, then it will short-circuit (e.g. it is a PureComponent). Checking
+  this fact in CLJS is *very very* fast, since we use immutable data structures where reference comparisons are enough to
+  ensure two things are identical.
+* Fulcro keeps indexes of *mounted* components by their *idents*.  Thus, at any given time it knows exactly which
+  components "represent" somethin like `[:person/id 1]`.  It keeps these up to date via hooks on React's lifecycle.
+* At certain points in processing (e.g. after any optimistic action in a mutation or the arrival of a network result)
+  a refresh is scheduled via requestAnimationFrame.
+* AFTER every render, Fulcro keeps a snapshot of what the state looked like (last rendered state). This is cheap because
+  of immutable data and structural sharing (e.g. ns time-scale...copy a single 64-bit reference).
+* The ident-optimized render does the following:
+  * It reads all of the "mounted component" idents from its internal indexes.  This is the list of "data that matters" to
+    things on the screen.
+  * If finds the "component to refresh" by checking to see if the table entries at these idents are
+    *identical* (reference compare) to the last rendered version.  It can then translate a "change table entry" into
+    a set of components using the indexes.  Typically only 1-2 components will be found.
+  * For all components that need a refresh: It "tunnels" new props to the components via a hidden property using
+    React `setState`.
+
+So, a form with 50 fields on-screen will do roughly 50 64-bit compares (to find stale data), run 1-2 queries against
+the state database targeted at the affected components, and call React `setState` a couple of time.
+
+The alternate renderer (keyframe) just does a root refresh every time and relies on `shouldComponentUpdate`.  It is
+actually quite fast as well, since the query engine in Fulcro is pretty highly tuned to be fast, and CLJS
+implementations of `shouldComponentUpdate` are equally impressive.
+
+Fulcro 2 and earlier leveraged "follow-on reads". A concept invented by Om Next where you named the data that changed
+during a mutation (e.g. :person/name).  It would then leverage indexes to find which classes queried that property,
+then look up which on-screen components had that class.  It's still a potential "alternate" optimization strategy, but
+it suffered from a few problems:
+
+1. It was a manual process, so it was easy to forget to "tell it" what changed.
+2. It was harder to understand (fully automatic is hard to beat).
+
+All of the required indexes still exist, so it would not be hard to "replicate" this style of refresh optimization. Another
+possible future expansion would be to re-purpose "follow-on reads" as "refresh only this" (tell the underlying scanner not
+to scan anything else).  This could be useful when doing rapid UI interactions where you want to eliminate as much
+processing as possible in-between frames.
+
+== Additional Items of Interest
+
+The prior sections describe the core points of Fulcro's architecture.  Data flows in and out via graph queries
+and mutations that can easily manipulate a local normalized graph database in a unified way.  Remote interactions
+are managed by mutation declarations and all side-effecting and asynchrony is isolated from the UI layer by a
+transactional semantic. Fulcro leverages the idents, immutable data structures, and other tricks to optimize refresh.
+
+Here are some additional interesting things that fall out of this model "for free":
+
+* Initial application state can also be co-located as a superb optimization for "getting things going"
+* The queries can be used to "traverse" the declarative UI graph. Some places where this is used to good effect:
+** Nested forms can "discover" children using the query and leverage that to calculate diffs for server interactions.
+** UI screen routers can discover nested routers allowing UI
+   sub-module composition for things like HTML 5 routing without explicit declaration.
+* Debugging is a relatively simple matter of looking at a component's current state, which is always in a well-defined location
+(and easily visible in Fulcro Inspect, a Chrome extension).
+* History traversal is trivial. All application state is just a single immutable map. Saving snapshots over time is all it takes
+to be able to "view" the app as it existed at some prior point in time.
+
+Finally, a more recent addition to the library has proven to be extremely useful: UI State Machines.
+
+Most UIs end up with a mess of logic spread out in ways that are hard to reason about. Look no further than any "login" module of
+an application.  Are you logged in? Are we checking the server to see if our session is valid?  Should I show a "wait" indicator?
+
+We've known for years that state machines are a great way to manage this kind of complexity, but they are traditionally
+a bit of work to integrate into any give "UI library".
+
+Fulcro's central normalized database and mutation model made an internal version of state machines a very good match. Not
+only is it easy to define them, the model makes them reusable: that is to say you can indicate which UI components
+serve roles within the machine, leading to things like CRUD state machines can manage the interactions (edit, list, save, reset,
+cancel, etc.) for most of the entities in a form system.
+
 = Getting Started
 
 This chapter takes you through a step-by-step guide of how to go from nothing to a full-stack basic application.
@@ -726,12 +1085,12 @@ reader what kind of entity you're working against (it also ensures that over-ren
 refreshes later).
 
 You can try this query stuff out in your REPL. Let's say you just want the friends list label. The function
-`db->tree` can take an application database (which we can generate from initial state) and run a query
+`fdn/db->tree` can take an application database (which we can generate from initial state) and run a query
 against it:
 
 [source]
 ----
-dev:cljs.user=> (com.fulcrologic.fulcro.components/db->tree [{:friends [:person-list/label]}] (fulcro.client.primitives/get-initial-state app.ui.root/Root {}) {})
+dev:cljs.user=> (fdn/db->tree [{:friends [:person-list/label]}] (comp/get-initial-state app.client/Root {}) {})
 {:friends {:person-list/label "Friends"}}
 ----
 
