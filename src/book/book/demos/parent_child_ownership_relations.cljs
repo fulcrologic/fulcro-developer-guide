@@ -2,8 +2,8 @@
   (:require
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as m]
-    [fulcro.client :as fc]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]))
 
 ; Not using an atom, so use a tree for app state (will auto-normalize via ident functions)
 (def initial-state {:ui/react-key "abc"
@@ -11,8 +11,6 @@
                                    :list/name  "My List"
                                    :list/items [{:item/id 1 :item/label "A"}
                                                 {:item/id 2 :item/label "B"}]}})
-
-(defonce app (atom (fc/make-fulcro-client {:initial-state initial-state})))
 
 (m/defmutation delete-item
   "Mutation: Delete an item from a list"
@@ -22,7 +20,7 @@
       (fn [s]
         (-> s
           (update :items dissoc id)
-          (m/remove-ident* [:items id] [:lists 1 :list/items]))))))
+          (merge/remove-ident* [:items id] [:lists 1 :list/items]))))))
 
 (defsc Item [this
              {:keys [item/id item/label] :as props}

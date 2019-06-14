@@ -57,7 +57,7 @@
   "A debounced function that will trigger a load of the server suggestions into a temporary locations and fire
    a post mutation when that is complete to move them into the main UI view."
   (letfn [(load-suggestions [comp new-value id]
-            (df/load comp :autocomplete/airports nil
+            (df/load! comp :autocomplete/airports nil
               {:params               {:search new-value}
                :marker               false
                :post-mutation        `populate-loaded-suggestions

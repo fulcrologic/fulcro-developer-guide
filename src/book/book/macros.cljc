@@ -115,8 +115,4 @@
        (defonce ~example-app (book.macros/new-example {:title ~title :example-app ~app :root-class ~root-class}))
        (app/mount! ~example-app ExampleRoot ~id))))
 
-(defmacro deftool [root-class id & args]
-  (let [app (symbol (str "fulcroapp-" id))]
-    `(do
-       (defonce ~app (app/fulcro-app (into {} ~@args)))
-       (app/mount! ~app ~root-class ~id))))
+
