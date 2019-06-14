@@ -324,6 +324,24 @@ We configured the `shadow-cljs` server to also start a development mode HTTP ser
 javascript.  If you didn't make any typos, then your new app should display "TODO" via
 http://localhost:8000.
 
+=== Using the REPL
+
+Shadow-cljs creates an network REPL for your clojurescript program.  You can actually use a limited REPL via
+the shadow-cljs control web page (the one at port 9630).  If you look at the startup output you'll also see it
+report a port number on which you can connect a more advanced REPL.
+
+If you're using IntelliJ, edit your run configurations and add a "Clojure -> Remote REPL".  Give it `localhost`
+for the host, and the port reported by shadow's startup message.
+
+Once you run the IntelliJ REPL you'll have to select the build you want to work against (and you *must* already
+have that application running in a browser). Just run:
+
+```
+user=> (shadow/repl :main)
+```
+
+to cause it to change over to a CLJS REPL connected to your running application.
+
 == Basic UI Components
 
 Fulcro supplies `defsc` macro to build React components. This macro emits component-based React components (hook support
@@ -522,23 +540,6 @@ enemies|     |friends
  +--------+ +--------+
 ----
 
-=== The Component Registry (version 2.8.8+)
-
-We don't need it at the moment, but you may find it useful to note that any component that is required in your
-application will appear in a global component registry.  You can look up such components using a symbol or keyword
-that matches the fully namespace-qualified name of the component:
-
-```
-(comp/classname->class `app.ui/Root)
-
-;; OR
-
-(comp/classname->class :app.ui/Root)
-```
-
-This comes in handy for things like code splitting (where the dynamically loaded code will appear in the registry),
-tracking classes (by name) in app state (which cannot appear there as "code").
-
 == Feeding the Data Tree
 
 Obviously it isn't going to be desirable to hand-manage this very well for anything
@@ -659,15 +660,16 @@ application state.
 By default, the entire initial state database is passed into your root node on render, so it is
 available for destructuring in Root's props.
 
-If you even want to see your current application state, you can do so through the atom that is holding
-your mounted application:
+If you even want to see your current application state, you can do so through the `app` itself:
 
 [source]
 ----
-dev:cljs.user=> @(com.fulcrologic.fulcro.components/app-state (get @app.client/app :reconciler))
+dev:cljs.user=> (com.fulcrologic.fulcro.application/current-state app.client/app)
 ----
 
-Let's see how we program our UI to access the data in the application state!
+but usually you'll look at this state via the Fulcro Inspect Chrome development tool.
+
+Let's move on and see how we program our UI to access the data in the application state!
 
 === Step 2 -- Establishing a Query
 
@@ -709,12 +711,12 @@ would have a query that looks like this:
 This query reads "At the root you'll find `:friends`, which joins to a nested entity that has a label and people,
 which in turn has nested properties name and age.
 
-- A vector always means "get this stuff at the current node"
+- A vector always means "get this stuff at the current node". Note that this is a *relative* statement.
 - `:friends` is a key in a map, so at the root of the application state the query engine would expect to find that
 key, and would expect the value to be nested state (because maps mean joins on the tree)
 - The value in the `:friends` join must be a vector, because we have to indicate what we want out of the nested data.
 
-Joins are automatically `to-one` if the data found in the state is a map, and `to-many` if the data found is a
+Joins are automatically `to-one` if the data found in the state is a singular, and `to-many` if the data found is a
 vector. In the example above the `:friends` field from root pointed to a single `PersonList`, whereas the `PersonList`
 field `:person-list/people` pointed to a vector of `Person`.  Beware that you don't confuse yourself with
 naming (e.g. friends is plural, but points to a single list).
@@ -2767,6 +2769,23 @@ Feel free to edit the components in this source file and try out the sanity chec
 * Forget to query for the ID field of a component that is stored at an ident
 
 In some cases the sanity checking is more aggressive that you might desire. To get around it simply use the lambda style.
+
+== The Component Registry
+
+You may find it useful to note that any Fulcro component that is loaded in your
+application will appear in a global component registry.  You can look up such components using a symbol or keyword
+that matches the fully namespace-qualified name of the component:
+
+```
+(comp/classname->class `app.ui/Root)
+
+;; OR
+
+(comp/classname->class :app.ui/Root)
+```
+
+This comes in handy for things like code splitting (where the dynamically loaded code will appear in the registry),
+tracking classes (by name) in app state (which cannot appear there as "code").
 
 == Factories
 
