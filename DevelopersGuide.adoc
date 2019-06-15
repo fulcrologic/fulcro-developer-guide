@@ -131,44 +131,62 @@ If you are familiar with other CLJS or JS UI libraries then you may have one of 
 common ones are:
 
 Can I use "hiccup" notation for the DOM?::
-Yes, you can use Sablono. It should work fine. If you want _support_, use what Fulcro provides.
+Yes, you can use https://github.com/r0man/sablono[Sablono]. It should work fine. If you
+want _support_, server-side rendering of components, etc.: then use what Fulcro provides.
 
 Where are the "reducers"?::
 Re-frame and Redux are very popular choices for front-end work, and for good reason.
-Fulcro is actually quite similar to these systems in a number of ways, but adds graph
-data support and auto-normalization of the database to the equation.
+Fulcro is basically graph-centric full-stack CQRS library.  Mutations are the "commands" that
+are queued (like events in a reducer system), but Fulco adds a some very important things:
+graph data support, auto-normalization of central database, and a centralized transaction
+processing system.
 +
 Fulcro 3's <<UI State Machines>> are usable in exactly the same way as reducer/event systems, but have some
 distinct differences (dare I say improvements?): They support an actor model where instances of
-UI components are assigned at runtime to play "roles" in the logical flow, they are true state machines
-(not just switch/case statements), they have use of Fulcro's database auto-normalization,
-graph query abilities and abstract mutation system, their current "state" is stored and normalized
-into the same central application database where Fulcro's Inspect Chrome extension makes them easy to debug.
+UI components are assigned at runtime to play "roles" in the logical flow; they are true state machines
+(not just switch/case statements); they use of Fulcro's database auto-normalization,
+graph query abilities, and abstract mutation system; and their current "state" is stored and normalized
+into the same central application database where Fulcro's Chrome extension makes them easy to debug.
 
+Can I Subscribe to XYZ?::
+Subscriptions are not a central concern of Fulcro itself, but Fulcro's architecture mixed with
+the websocket remote make building something that has a "Meteor JS" experience pretty easy to do.
+Almost all of the real difficulty in making a subscription system has to do with server-side
+management.  You could use a "custom" websocket remote to adapt to any existing GraphQL infrastructure
+that supplies such automatic updates.
+
+What about Server-Side Rendering?::
+Fulcro is written in CLJC. The intention is to be able to set up and "run" an application in a headless
+JS OR Java VM environment and either actively control a DOM or just render "frames" as strings. 
+The server-side implementation of the DOM methods let you render Fulcro
+UI in a Java VM without needing to resort to a js engine at all.  If you choose to use `node.js` for
+your server then you just use the normal cljs code there (with the appropriate headless DOM polyfill).
 
 == Server Schema vs. UI Graph
 
 Fulcro makes no assumptions nor does it have *any* requirements about back-end databases.  You don't even have
-to have a back-end.  You could simulate one with browser local storage, or simply not need one.
+to have a back-end:  You can easily simulate one with browser (like this book does), wrap browser local storage, 
+or simply not use one at all.
 
 If you are using a server database, then normalization and schema on the server is done according to whatever you've designed.
-Pathom makes it easy to "reshape" any particular schema into a graph that fits your external API and UI needs.
+Pathom makes it easy to "reshape" any particular schema or storage technology into a graph that fits your external API and UI needs.
 
 This is an important point: it does not *matter* how your database structures the data, as long as *you* know how to
 get the data you need when given a "context" that makes sense.
 
 == Queries (EQL)
 
-Fulcro uses EQL (EDN Query Language), a graph query language similar to Datomic's pull query notation.
+Fulcro uses https://github.com:edn-query-language/eql[EQL] (EDN Query Language), a graph query language similar to 
+Datomic's http://www.datomic.com/docs/pull-query[pull query notation (FIXME)].
 
-A query looks like this:
+A query is a vector (with nesting) that lists the things you want:
 
 ```
 [:person/name {:person/address [:address/street]}]
 ```
 
-The above query (when run against a person) asks for that person's name, and then indicates a "join" via a
-map whose key is the join property on person, and whose value is a subquery of things to pull from there.
+The above query (when run against a person) asks for that person's name, and then indicates a "join" by
+using a map whose *key* is the join _property_ on person, and whose *value* is a _subquery_ of things to pull from there.
 
 Such a query returns a map that mirrors the query structure:
 
@@ -216,8 +234,8 @@ can be turned into this:
 ----
 
 This format supports any arbitrary graph, to-many (a vector of idents) and to-one (single ident) relations, any possible
-property value type (though you should generally make sure they're serialzable for network transfer), and is simple to manipulate
-(an `assoc-in` with a path length of 2 or 3 gets you to anything).
+property value type (though you should generally make sure they're serialzable for network transfer), and is simple-to-manipulate
+(i.e. an `assoc-in` with a path length of 2 or 3 gets you to anything).
 
 This leads to the following useful results:
 
@@ -248,8 +266,8 @@ This is functional programming, so of course the answer is a function:
 (defn person-ident [props] [:person/id (:person/id props)])
 ```
 
-The convention for our table names (for ease of use with Pathom) is to use the name of the ID field of the entity
-in question.
+The convention for our table names (for ease of use with Pathom) is to use the name of the _ID field of the entity_
+(e.g. `:person/id`) as the table name for those types of entities.
 
 Thus, the "ident" of this person:
 
@@ -287,23 +305,23 @@ use:
 (merge/merge-component! app Person {:person/id 11 ...})
 ```
 
-which just results in this:
+which inserts this:
 
 ```
 {:person/id {11 {:person/id 11 ...}}}
 ```
 
-to put that same data into the database and add an "edge" somewhere else in the graph you could do:
+To put that same data into the database and add an "edge" somewhere else in the graph you could do:
 
 ```
-(merge/merge-component! app Person {:person/id 11 ...} :append [:lists/id :friends :people])
+(merge/merge-component! app Person {:person/id 11 ...} :append [:person-list/id :friends :people])
 ```
 
 which would add this to the graph:
 
 ```
 ;;                  append implies to-many. i.e. a vector of idents
-{:lists/id {:friends {:people [... [:person/id 11]] ...}}
+{:person-list/id {:friends {:person-list/people [... [:person/id 11]] :person-list/id :friends ...}}
  :person/id {11 {:person/id 11 ...}}}
 ```
 
@@ -348,7 +366,10 @@ During operation you will need to make things happen.
 === Mutations
 
 Mutations are a first-class higher-order citizen of Fulcro, and encode all of the possible interactions that your UI might
-need to have with the local graph database and any remote servers.
+need to have with the local graph database and any remote servers. Mutations are similar to specific "handler cases" of
+reducers in Redux, but are more akin to the "request" of a CQRS system in that they are serialized into a
+network-compatible form so that a single operation can be abstractly communicated to both the local logic and
+remote server(s) without having to deal with the low-level details.
 
 The UI-layer need know nothing about these details because it simply submits transactions that look like this:
 
@@ -357,7 +378,8 @@ The UI-layer need know nothing about these details because it simply submits tra
 ```
 
 `add-person` in this case is not a function, but instead a *mutation*.  If you call `add-person` as a function,
-it simply returns that symbol in a list:
+it simply returns the expression as namespace-resolved CLJ(S) data (a list containing a fully-qualified symbol and 
+the (evaluated) parameters):
 
 ```
 user=> (def name "Tony")
@@ -365,16 +387,15 @@ user=> (add-person {:name name})
 ;;=> (ns.of.mutation/add-person {:name "Tony"})
 ```
 
-This is an important point. Fulcro 2 and earlier had you write these with quoting notation:
+This is an important point. You can also write these with Clojure quoting (which makes it even
+more obvious that you're not calling something in the UI):
 
 ```
 (comp/transact! this `[(add-person ~{:name name})])
 ```
 
-but Fulcro 3 changes mutations so that they simply return themselves as data if accidentally called.
-
-The core point is that the UI submits an abstract bit of data to Fulcro's transaction system. It doesn't usually
-directly manipulate anything to do with the database or networking.
+The core point is that the UI submits an abstract bit of data to Fulcro's transaction system. The UI doesn't usually
+directly manipulate anything to do with the database, networking, or any other async APIs.
 
 Mutations are written as separate code units using `defmutation`, which has a notation somewhere between `defn` and
 `defrecord` with a protocol:
@@ -389,18 +410,23 @@ Mutations are written as separate code units using `defmutation`, which has a no
 ```
 
 where each "section" represents how that particular mutation interacts with the world around it.  The `action` section
-describes what happens *locally* and usually *optimistically* to the client database. This is the main place
-where you will manipulate the graph database (via `swap!`/`merge`/etc. on it).
+describes what happens *locally* and *optimistically* to the client database before any networking. This is the main place
+where you manipulate the graph database (via `swap!`/`merge`/etc. on it).
 
 The `remote` sections (which is any section not ending in `-action`) describe how that mutation should interact
-with some particular server (you name them, and `remote` is the default name).
+with some particular server (you name them, and `remote` is the default name). Remotes are defined at a top-level of
+the application so that networking code is not mixed into the mutations at all. Remotes usually just return `true`
+to indicate that the mutation should be forwarded on to the server it represents (unchanged), but they can also
+make decisions based on state and even "rewrite" the transaction that will flow over the network.
 
 Other `*-action` sections have to do with handling network results as they occur.
 
 Thus a simple UI call can turn into a combination of optimistic actions, remote interactions, etc.
 
 Mutations are allowed to submit new transactions themselves, so sections like `ok-action` can check results of
-the remote interactions and then decide what to do.
+remote interactions and then decide what to do, if anything, next.
+
+Mutations, as in GraphQL, can return graph results. Fulcro, of course, can auto-merge those into the client database.
 
 === UI Refresh
 
@@ -414,22 +440,23 @@ Here's a quick overview of how (one method) of these optimizations work:
   this fact in CLJS is *very very* fast, since we use immutable data structures where reference comparisons are enough to
   ensure two things are identical.
 * Fulcro keeps indexes of *mounted* components by their *idents*.  Thus, at any given time it knows exactly which
-  components "represent" somethin like `[:person/id 1]`.  It keeps these up to date via hooks on React's lifecycle.
+  on-screen components "represent" something like `[:person/id 1]`.  It keeps these up to date via hooks on React's lifecycle.
 * At certain points in processing (e.g. after any optimistic action in a mutation or the arrival of a network result)
-  a refresh is scheduled via requestAnimationFrame.
-* AFTER every render, Fulcro keeps a snapshot of what the state looked like (last rendered state). This is cheap because
+  a refresh is scheduled via `js/requestAnimationFrame`.
+* AFTER every render, Fulcro records a snapshot of what the state database looked like. This is cheap because
   of immutable data and structural sharing (e.g. ns time-scale...copy a single 64-bit reference).
 * The ident-optimized render does the following:
   * It reads all of the "mounted component" idents from its internal indexes.  This is the list of "data that matters" to
     things on the screen.
   * If finds the "component to refresh" by checking to see if the table entries at these idents are
     *identical* (reference compare) to the last rendered version.  It can then translate a "change table entry" into
-    a set of components using the indexes.  Typically only 1-2 components will be found.
-  * For all components that need a refresh: It "tunnels" new props to the components via a hidden property using
-    React `setState`.
+    a set of components using the indexes.  Typically only 1-2 components will be found. This stage typically takes
+    under a millisecond.
+  * For all components that need a refresh: It runs those component's queries to get new props and "tunnels" those 
+    new props to the components (via a hidden property in component-local state (e.g. React `setState`)).
 
 So, a form with 50 fields on-screen will do roughly 50 64-bit compares (to find stale data), run 1-2 queries against
-the state database targeted at the affected components, and call React `setState` a couple of time.
+the state database targeted at the affected components, and call React `setState` a couple of times.
 
 The alternate renderer (keyframe) just does a root refresh every time and relies on `shouldComponentUpdate`.  It is
 actually quite fast as well, since the query engine in Fulcro is pretty highly tuned to be fast, and CLJS
@@ -441,7 +468,7 @@ then look up which on-screen components had that class.  It's still a potential 
 it suffered from a few problems:
 
 1. It was a manual process, so it was easy to forget to "tell it" what changed.
-2. It was harder to understand (fully automatic is hard to beat).
+2. It was harder to understand (fully automatic is hard to beat), especially to new users.
 
 All of the required indexes still exist, so it would not be hard to "replicate" this style of refresh optimization. Another
 possible future expansion would be to re-purpose "follow-on reads" as "refresh only this" (tell the underlying scanner not
@@ -453,21 +480,27 @@ processing as possible in-between frames.
 The prior sections describe the core points of Fulcro's architecture.  Data flows in and out via graph queries
 and mutations that can easily manipulate a local normalized graph database in a unified way.  Remote interactions
 are managed by mutation declarations and all side-effecting and asynchrony is isolated from the UI layer by a
-transactional semantic. Fulcro leverages the idents, immutable data structures, and other tricks to optimize refresh.
+CQRS-style transactional semantic. Fulcro leverages the idents, immutable data structures, co-located queries,
+and other tricks to optimize refresh.
 
 Here are some additional interesting things that fall out of this model "for free":
 
-* Initial application state can also be co-located as a superb optimization for "getting things going"
-* The queries can be used to "traverse" the declarative UI graph. Some places where this is used to good effect:
+* Initial application state can also be co-located as a superb optimization for "getting things going".
+* The queries can be used to "traverse" the declarative UI graph. Some places where this has been used to good effect:
+** Error checking: The `defsc` macro leverages to co-located query to check things like you props destructuring and
+   initial state to warn you when you've got a typo or have forgotten something.
 ** Nested forms can "discover" children using the query and leverage that to calculate diffs for server interactions.
-** UI screen routers can discover nested routers allowing UI
-   sub-module composition for things like HTML 5 routing without explicit declaration.
+** UI screen routers can discover nested routers allowing UI sub-module composition for things like 
+   HTML 5 routing without explicit declaration.
 * Debugging is a relatively simple matter of looking at a component's current state, which is always in a well-defined location
 (and easily visible in Fulcro Inspect, a Chrome extension).
 * History traversal is trivial. All application state is just a single immutable map. Saving snapshots over time is all it takes
 to be able to "view" the app as it existed at some prior point in time.
+* Snapshotting an application state for re-use during development.  Fulcro Inspect can take a picture of app state and
+  save it in browser local storage for later restoration. This allows you to "jump to" some application state that you
+  use a lot during development (e.g. jump to screen 2, with a partially filled form read for submit).
 
-Finally, a more recent addition to the library has proven to be extremely useful: UI State Machines.
+Finally, a more recent addition to the library has proven to be extremely useful: <<UI State Machines>>.
 
 Most UIs end up with a mess of logic spread out in ways that are hard to reason about. Look no further than any "login" module of
 an application.  Are you logged in? Are we checking the server to see if our session is valid?  Should I show a "wait" indicator?
@@ -501,8 +534,6 @@ stack frame analysis and proper clojure names for things!  These tools will save
 
 Fulcro Inspect is a free extension for Chrome, and Binaryage devtools is a library that can be injected via a preload
 (which shadow-cljs does for you if it is in your dependencies).
-The setup for these is done automatically when you use the Fulcro lein template, but you still have to install the
-chrome extension via Chrome itself.
 
 == Configure Chrome Development Settings
 
@@ -521,16 +552,16 @@ You'll normally want to build a real application based on the Fulcro template (T
 of boilerplate on things like server configuration, CSRF, testing, better error message formatting, and so on.
 This can save you quite a bit of setup and development time.
 
-For this chapter we're going to start from literally nothing.  These instructions should work with an UNIX-like (e.g.
+For this chapter we're going to start from literally nothing.  These instructions should work with any UNIX-like (e.g.
 OSX or Linux) system.  I do not use Windows, so your mileage may vary if you're on that platform.
 
 - Install a https://clojure.org/guides/getting_started[Java SE Development Kit (JDK)].
 You'll have an easier time if you use an older version: 8.  OpenJDK or the official one is fine.
 - Install https://clojure.org/guides/getting_started[Clojure CLI Tools]
 - Install https://nodejs.org/en/[Node and npm]: The shadow-cljs compiler uses node for all js dependencies.
-- Optional: Install IntelliJ CE and the Cursive plugin. There are free versions of both for
-  non-commercial use. Any editor will do, but if you're doing anything large I recommend this
-  (or Spacemacs if (and only if) you already use it).
+- Optional, but recommended: Install IntelliJ CE and the Cursive plugin. There are free versions of both for
+  non-commercial use. Any programming editor will do, but if you're doing anything large I recommend this
+  (or Emacs/Spacemacs if (and only if) you already use it).
 
 The following commands should work from your command line (the `$` is the command prompt):
 
@@ -560,7 +591,7 @@ $ npm list
 └── (empty)
 ----
 
-If any of these fail, diagnose your installation of those products before continuing.
+If any of these fail, diagnose your installation of those tools before continuing.
 
 == Create Your Project
 
@@ -610,8 +641,8 @@ trigger UI refreshes on hot code reload.  We'll put those functions in the sourc
 The top-level `dev-http` server will cause shadow to start a dev web server on port 8080 that serves the files
 from our `resources/public` directory (`resources` is on our classpath via `:paths` in `deps.edn`).
 
-The `:modules` section configures that code gets pulled into a given build.  Every build has at least a main module,
-and shadow will follow requires in the namespaces, so you typically only need your entry-point namespace in `:entries`.
+The `:modules` section configures what code gets pulled into a given build.  Every build has at least one module,
+and shadow will follow requires in the code so you typically only need your entry-point namespace in `:entries`.
 
 See the  https://shadow-cljs.github.io/docs/UsersGuide.html[Shadow-cljs User's Guide] for more information.
 
@@ -635,9 +666,8 @@ rendered on that `div`. You may, of course, include other content around that: C
 
 === Application Source
 
-Finally we can add the source of the program itself.  Our base source path is `src/main` for production code,
-and we want a namespace within the app package.  Our directory structure must match this, so we create
-`src/main/app/client.cljs`:
+Our base source path is `src/main` for production code, and we want a namespace within the app package. 
+Our directory structure must match this in CLJ(S), so we create `src/main/app/client.cljs`:
 
 ```
 (ns app.client
@@ -699,22 +729,23 @@ $ npx shadow-cljs server
 and navigate to the URL it prints out for the compiler server (usually http://localhost:9630). You can then use the
 "Builds" menu to turn on/off different client builds and see the progress live as it happens!
 
-It also has hot-code (and CSS) reload built in, so there is no need for an additional tool like figwheel.
+It also has hot-code (and CSS) reload built in, so there is no need for any additional tools!
 
 We configured the `shadow-cljs` server to also start a development mode HTTP server to serve our HTML file and
-javascript.  If you didn't make any typos, then your new app should display "TODO" via
+javascript. So, if you didn't make any typos then your new app should display "TODO" at
 http://localhost:8000.
 
 === Using the REPL
 
 Shadow-cljs creates an network REPL for your clojurescript program.  You can actually use a limited REPL via
-the shadow-cljs control web page (the one at port 9630).  If you look at the startup output you'll also see it
-report a port number on which you can connect a more advanced REPL.
+the shadow-cljs control web page (the one at port 9630).  If you look at the command-line startup output you'll also see it
+report a port number on which you can connect a more advanced REPL (you can nail that port to a constant using
+the setting `:nrepl    {:port 9000}` at the top-level of `shadow-cljs.edn`).
 
 If you're using IntelliJ, edit your run configurations and add a "Clojure -> Remote REPL".  Give it `localhost`
 for the host, and the port reported by shadow's startup message.
 
-Once you run the IntelliJ REPL you'll have to select the build you want to work against (and you *must* already
+Once you connect to the network REPL you'll have to select the build you want to work against (and you *must* already
 have that application running in a browser). Just run:
 
 ```
@@ -722,6 +753,8 @@ user=> (shadow/repl :main)
 ```
 
 to cause it to change over to a CLJS REPL connected to your running application.
+
+Now running `(js/alert "Hi")` should cause the browser to throw up an alter on your application's tab.
 
 == Basic UI Components
 
@@ -751,9 +784,10 @@ of course you can tighten your DOM code up even more if you also `:refer` the co
 (ns ui
   (:require [com.fulcrologic.fulcro.dom :as dom :refer [div p]]))
 
-...
-
-   (div :.x.y.z#id {:style {:color "red"}} ...)
+(defsc ComponentName [this props] 
+  { ...options... }
+  (div {:className "a" :id "id" :style {:color "red"}}
+    (p "Hello")))
 ```
 
 React lifecycle methods are all supported, but we'll talk about those later.
@@ -793,7 +827,9 @@ operate in CLJ the DOM elements must be functions. In CLJS, you can have both a 
 the same name, but this is not true in CLJ. Therefore, two namespaces are required in order to get the optimal (inlined) client performance.
 
 NOTE: Regarding performance: The `dom` macros/functions in Fulcro *can be* nearly as fast as calling raw React `createElement`
-directly, even when using the convenience features; however, the macros cannot make them that fast if there is ambiguity about
+directly (the macros, in fact, directly turn into low-level js/createElement calls with *compile-time* conversion of the
+cljs props to js in the optimal case), even when using the convenience features; 
+however, the macros cannot make them that fast if there is ambiguity about
 the props vs. children. For example, `(div :.a (f))` is ambiguous at compile time
 (the expression after `:.a` could be a function call returning a props map or a nested React element), so it will be
 forced to add code that checks for a cljs map, and if it finds one, code to convert it to a js object.
@@ -8161,6 +8197,645 @@ The easy server also supplies a way to add in URI handlers via BIDI:
 The extra routes are processed right *after* the pre-hook, but just before the
 resource (filesystem) serving. Thus, you can respond to any URI that isn't already
 handled by your pre-hook.
+
+= UI State Machines
+
+User interfaces are full of interactions that beg for the help of state machines. Just a simple
+login form is usually quite difficult to code (independent of tools) because
+its behavior depends on a number of factors...factors that are actually quite easy to represent
+with state machines, but get ugly quickly when spread out in various code artifacts.
+
+This is not a new idea.  People have been using state machines to control user interfaces
+and graphics systems for decades.  For some reason most UI libraries and frameworks don't usually have
+a well-known or particularly general-purpose state machine aspect.  Part of the problem is that
+a state machine needs to interact with actual UI state and vice-versa, so it is difficult
+to "bolt on" something, and there is often a lot of "glue code" to make the two hang together
+properly.
+
+It turns out that Fulcro's approach to UI is quite easily amenable to state machines because it
+has the following facets:
+
+- The transactional nature of mutations and central state is *already* a lot _like_ a state machine.
+- Application state is just data.
+- The application database is normalized: It is very easy to describe where particular bits of
+  data are in a non-ambiguous manner.
+- The UI refresh is *based on* the normalized data model, and not the UI structure.  Triggering
+refreshes requires only that you know what data your changing.
+
+Thus, it turns out to be quite easy to build a state machine system for Fulcro
+with the following properties:
+
+. The state machine doesn't need not know anything about the UI
+. The UI only needs to support displaying the declared state of the state machine.
+. Simple aliasing can map the state machine "values" onto Fulcro database values.
+. The aliasing makes it possible to re-use state machines on UIs that have varying shapes, and need
+not even name their Fulcro state according to the state machine's conventions.
+. State machines can be *instanced*, so that more than one of the same kind can be running at once.
+. Active state machine data is stored in Fulcro's app database, so it honors all history properties (e.g.
+support viewer, etc.) and is amenable to great tooling.
+. Any number of simultaneous state machines of varying type can be running at once (even on the same component).
+. The state machine declarations are reusable (they are just maps), and make it easy to "derive" new
+definitions based on existing ones with simple clj functions like `merge` and `assoc-in`.
+
+== Aliases
+
+The first powerful concept for our state machines is aliasing.  The first kind of aliasing is
+for the "actors" that will participate in our UI.  An actor is simply a keyword defined in the
+state machine declaration, and is meant to stand for "some UI component".  The actions
+of a state machine can then be written to abstractly refer to that component without
+actually needing to know anything else about it:
+
+```
+(defstatemachine login
+  {::uism/actor-names #{:actor/dialog :actor/form}
+   ...})
+```
+
+In this example we plan to have a "dialog" and a "form" on the UI.  These could be separate UI
+components, or could be the same.  It doesn't matter to the state machine!  We adopt the
+_convention_ of using the `actor` namespace for these, but it is not required.
+
+In reality actors are merely names for some "yet to be specified" ident that points to an entity in your
+database.
+
+The next layer of aliasing is for the data our state machine will manipulate:
+
+```
+(defstatemachine login-machine
+  {::uism/actor-names #{:dialog :form}
+   ::uism/aliases {:visible?       [:actor/dialog :ui/active?]
+                   :login-enabled? [:actor/form :ui/login-enabled?]
+                   :busy?          [:actor/form :ui/busy?]
+                   :error          [:actor/form :ui/login-error]
+                   :username       [:actor/form :user/email]
+                   :password       [:actor/form :user/password]}
+   ...})
+```
+
+Thus, the alias `busy?` is now the data path to some field of an entity in the database. The actual path 
+will be resolved at runtime based on what components actually end up being used as the actors. For
+example if you use a component with ident `[:modal/id :general]` as the `:actor/dialog` then the alias
+`:visible?` means the path `[:modal/id :general :ui/active?]`. This is the primary aspect of UI state machines
+that makes them reusable. 
+
+== Derived State Machines  [[DerivedSM]]
+
+State machine definitions are just maps.  If you needed the field on the dialog to 
+be called `:ui/visible?` instead of `:ui/active?` you could simply do this:
+
+```
+(defstatemachine custom-login-machine
+  (assoc-in login-machine [::uism/aliases :visible? 1] :ui/visible?))
+```
+
+This makes it possible to easily build a library of state machines that work on your app state
+in a very general and configurable way without having to change any actual logic!
+
+NOTE: State machine definitions must be declared with `defstatemachine` even though
+they are just maps. The declaration registers them with the system so that they have
+a unique ID that can be used within the instances in Fulcro's client database.
+
+== Plugins
+
+In order for a state machine to be as reusable as possible we'd also like to be able to write
+logic that the state machine uses in a form that can be easily changed.  We call these bits of
+logic "plugins".  The are simply functions that will receive a map of the current UI state
+(by alias name) and will do some calculation.  They are meant to be side-effect free
+calculations.
+
+For example a login form we usually don't want them to be able to press "Login" (or enter) until both
+username and password fields have something in them.  If the username is an email we might also
+want to check that it looks like a valid email before allowing submission.
+
+The state machine can come with a simple plugin like this:
+
+```
+   ::uism/plugins     {:valid-credentials? (fn [{:keys [username password]}]
+                                             (boolean (and (seq username) (seq password))))}
+```
+
+Plugins receive (as a map) all of the current aliased data used by the state machine (so
+they can easily destructure it as shown).  They can return any value.  
+
+Changing a plugin is as simple as the trick shown for overriding an alias in <<DerivedSM, Derived State Machines>>.
+
+Plugins are called within a state handler like so:
+
+```
+  ...
+  :event/login        {::uism/handler
+                        (fn [env]
+                          (let [valid?   (uism/run env :valid-credentials?)]
+                            ...))}
+```
+
+== States
+
+The final bit of a state machine definition is, of course, the actual *states*.  In our
+system we define these as a map from user-defined state name to a function that will
+receive the running state machine environment for all events triggered on that state machine.
+
+The states *must* include an `:initial` state, whose handler will be invoked with a
+`::uism/started` event when the state machine is first started.  The "current state"
+handler is always invoked for each event that is triggered while it is active, but
+only the `:initial` state sees a `::uism/started` event.
+
+The overall configuration of states looks like this:
+
+```
+(defstatemachine login-machine
+  {::uism/actor-names #{...}
+   ::uism/aliases {...}
+   ::uism/states {:initial { ... }   ; REQUIRED
+                  :state/state-id { ... }
+                  :state/state2-id { ... }
+   ...
+```
+
+By convention it is a good idea to name your states with a `state` namespace for readability, but this is not required.
+
+You have two options for what you put in a state's definition.
+
+=== Option 1 -- Predicate/handler (preferred)
+
+With this option you specify a map of events to a description of what should happen:
+
+[source%nowrap]
+----
+::uism/states {:initial    {::uism/events 
+                            {:event/thing-happened! 
+                              {::uism/event-predicate (fn [env] ... true)
+                               ;; target-states is doc for diagram tools
+                               ::uism/target-states   #{:state/next-state :state/other-state} 
+                               ::uism/handler         (fn [env] ... (uism/activate env :state/next-state))}}}
+               :state/next-state {...}
+               ...
+----
+
+In this case the event `:event/thing-happened!` is the an event that can happen while in the `:initial` state. If that
+event occurs, the following things are done:
+
+. *If* there is an event predicate, it is run. The default predicate is `(constantly true)`.  If the predicate returns
+`false` then the event is ignored *and nothing else happens*.
+. *If* the predicate returned true (or didn't exist), then the handler is run.  Any effects it has
+on `env` are propagated.
+
+The predicate is useful for a few reasons:
+
+. You may have a condition that should short-circuit triggers of numerous events.  Without the predicate you'd
+have to code an `if` into each handler.
+. The UISM helper functions that set state (e.g. `set-string!`) apply state changes before your handler.  Under
+certain circumstances you'd like to avoid that.  If predicate is `false`, then these events (as per the rules
+above) are *not* applied.
+
+
+=== Option 2 -- A Single Handler
+
+This format of defining the states allows you to write just one function, but is not normally recommended, as it
+does not give you the ability to analyze the states/events as a diagram via simple data analysis.  It does, however,
+allow you complete flexibility with how the state machine is defined, so you are welcome to use it. Basically you do
+not define an event map, and instead embed a handler in it's place:
+
+```
+   ::uism/states  {:initial
+                   {::uism/handler
+                     (fn [env]
+                       (log/info "Initial state.")
+                       ...)}}
+```
+
+== Writing Handlers and Data Manipulation
+
+From here it's pretty easy.  The handlers are functions that receive a state machine (SM) environment and
+must return an updated environment (or nil, which is considered "no change"). Since the
+environment is an immutable value you will typically thread a sequence of these
+together to end up with a final result to return from the handler:
+
+```
+(fn [env]
+  (-> env
+     (uism/assoc-aliased :visible? true)
+     ...))
+```
+
+The library includes many functions for manipulating the system via the state machine handler's `env`:
+
+`(uism/assoc-aliased env alias new-value & more-kv-pairs)`:: Sets Fulcro state associated with the given alias
+to the given new value. Can accept multiple k-v pairs (like `assoc`).
+`(uism/dissoc-aliased env alias & more-aliases)`:: Removes given aliases from Fulcro state. Can accept multiple
+ aliases (like `dissoc`).
+`(uism/update-aliased env alias f & args)`:: Updates given aliases in Fulcro state with function f
+and given arguments. (like `update`).
+`(uism/integrate-ident env ident & named-parameter)`:: Integrates idents (append or prepend) to aliases in Fulcro state
+that refer to a list of idents. (like `mutations/integrate-ident*`).
+`(uism/remove-ident env ident alias)`:: Removes ident from aliases that refer to a list of idents, in
+ Fulcro state. (like `fulcro.client.mutations/remove-ident*`).
+`(uism/alias-value env alias)`:: Gets the current Fulcro state value associated with an alias.
+`(uism/run env plugin-name)`:: Runs the given plugin (passing it all of the aliased data from
+current Fulcro state) and returns the value from the plugin.
+`(uism/activate env state-name)`:: Returns a new env with `state-name` as the new active state.
+`(uism/exit env)`:: Returns a new env that will end the state machine (and GC it's instance from
+Fulcro state) after the results of the handler are processed.
+`(uism/store env k v)`:: Saves a state-machine local value.  Useful for keeping track of some additional
+bit of data while your state machine is running.
+`(uism/retrieve env k)`:: Get state-machine local value.
+`(uism/apply-action env (fn [state-map] state-map))`:: use a fn of state-map (i.e. some mutation helper) via a SM env.
+`(uism/asm-value env ks)`:: Get the value of from an active state machine based on keyword OR key-path `ks`. Primarily
+used for extending the library and internal use.
+`(uism/actor->ident env actor-name)`:: Get the ident of an actor
+
+Some of the utilities allow you to work fields directly on actors without having to alias fields:
+
+`(uism/actor-path env actor-name)`:: Get the real Fulcro state-path for the entity of the given actor.
+`(uism/actor-path env actor-name k)`:: Get the real Fulcro state-path for the attribute k of the entity of the given actor.
+`(uism/set-actor-value env actor-name k v)`:: Set a value in the actor's Fulcro entity. Only the actor is resolved. The k is not processed as an alias. 
+`(uism/actor-value env actor-name k follow-idents?)`:: Get the value of a particular key in the given actor's entity. If follow-idents? is true (which is the default),
+then it will recursively follow idents until it finds a non-ident value.
+
+== Using State Machines from the UI
+
+The next step, of course, is hooking this state machine up so it can control your UI (which really
+just means your app state).
+
+=== Starting An Instance
+
+The first thing you need to do is create an instance and start it:
+
+`(uism/begin! component machine-def instance-id actor-map)`:: Installs an instance of a state
+machine (to be known as `instance-id`, an arbitrary keyword), based on the definition in `machine-def`, into
+Fulcro's state and sends the `::uism/started` event.
+
+This is a Fulcro transaction internally, so it follows the normal transactional semantics and can be used from almost
+anywhere (including inside of a state machine handler).
+
+The instance is stored in your database at the well-known `::uism/asm-id` table with an id that is the instance ID you
+supply to this call.
+
+==== The Actor Map
+
+The `actor-map` is a map, keyed by actor-id, that lets the state machine know what components in your Fulcro app are being
+acted upon.  It also supplies the necessary information that is needed when doing remote mutations
+and loads (since a component class or instance is needed to figure out normalization).
+
+The actor map values must be one of the following:
+
+An ident:: A raw ident should be augmented using `with-actor-class` so that it can work with loads/mutations.
+A component class:: In this case the actor is assumed to be a singleton. The ident will be derived by calling
+`(comp/get-ident class {})`.  This actor will work properly with remote return values and loads.
+A component instance (e.g. `this`):: A component instance can be `this`, or can be found using the indexes 
+in the Fulcro indexer (e.g. `(comp/ref->any reconciler [:person/by-id 1])`).  A component instance is 
+sufficient for the state machine to find the corrent ident and query for the UI component, 
+so it will work with loads/mutations.
+
+==== Example Starts
+
+For example, to start the above state machine with an instance ID of `::loginsm`:
+
+```
+(uism/begin! this login-machine ::loginsm {:actor/dialog  Dialog
+                                           :actor/session Session
+                                           :actor/form    LoginForm})
+```
+
+In this example all three of our components are singletons whose idents are constant.  If you are working
+with actors that are live you either need to use a react instance (such as `this`), or an explicit ident:
+
+```
+(uism/begin! this person-editing-machine ::personsm {:person (uism/with-actor-class [:person/by-id 3] Person)
+                                                     :editor this
+                                                     :dialog Dialog})
+```
+
+Failing to associate a class with a raw ident may cause your state machine to misbehave (the state machine may 
+try to derive the class from Fulcro's indexes, but that will only work if the component is on-screen).
+
+=== Triggering Events
+
+Now that you have a state machine running it is ready to receive events.  It will have already
+run the initial state handler once, which means it will have already set up the state in such
+a way that it is possible for your UI to look correct.  For example, in our login case the initial
+state might show the dialog, clear the input fields, etc.
+
+Forms may commonly want to send a `::uism/value-changed` event to indicate that a value is changing
+in some form field.  Because this is such a common operation there are two helpers for it. For example, to
+update a string from a DOM onChange event or raw string:
+
+`(uism/set-string! component state-machine-id data-alias event-or-string)`:: Puts a string into
+the given data alias (you can pass a string or a DOM onChange event).
+`(uism/set-value! component state-machine-id data-alias raw-value)`:: Puts a raw (unmodified) value into
+the given data alias.
+
+You can define other "custom" events to stand for whatever you want (and they can include
+aux data that you can pass along to the handlers).  To trigger arbitrary events use:
+
+`(uism/trigger! comp-or-reconciler state-machine-id event)`:: Trigger an arbitrary event on the given
+state machine.
+
+For example:
+
+```
+(uism/trigger! this ::loginsm :event/failure)
+```
+
+would send a (user-defined) `:event/failure` event.  Event data is just a map that can be passed as an
+additional parameter:
+
+```
+(uism/trigger! reconciler ::loginsm :event/failure {:message "Server is down. Try in 15 minutes."})
+```
+
+=== Looking at The Running Instance
+
+For debugging purposes you should just look in Fulcro Inspect at the database.  The active
+state machines are in the `::uism/asm-id` table, with the ID you assigned.
+
+UI code can also look at the state machine's current state:
+
+`(uism/get-active-state this asm-id)`:: Returns the current state name (keyword).
+`(uism/asm-ident asm-id)`:: Returns the ident of the active state machine with the given ID.
+
+IMPORTANT: Technically you must query for any data you use in the UI, but these functions help keep
+the internals of the UISM system out of your UI code. 
+
+Any changes made to actor aliases presumably change data that a component is already querying for, meaning that those 
+components will automatically refresh without a problem; however, if you use data without querying for it (and this is
+true everywhere in Fulcro) then you can experience what looks like "missed refreshes".
+
+Remember that Fulcro won't re-render a component unless its props change (they are all pure components). If you use 
+`(get-active-state)` from a UI then you are "grabbing data" without it going through props. In order to 
+get proper refreshes on a component whose UI depends on the current state you *must* query for that state machine's 
+data.  Including the ident in your query is enough:
+
+```
+(defsc Component [this props]
+  {:query (fn [] [ (uism/asm-ident ::my-machine) ...]) 
+   ...}
+  ...
+  (let [s (get-active-state this ::my-machine)] ...))
+```
+
+== Mutations and State Machines
+
+Functions are included that allow you to trigger *remote* mutations.  Your state machine handlers are
+already an implementation of the client side operations of a mutation, so really what we need is a way to trigger
+a remote mutation and trigger events based on the outcome.
+
+The `trigger-remote-mutation` function does this. It takes:
+
+*  `env` - The SM handler environment
+*  `actor` - The name (keyword) of a defined actor.  The mutation will be run in the context of this actor's state
+            (see `pm/pmutate!`), which means that progress will be visible there. THERE MUST BE A MOUNTED COMPONENT
+            with this actor's name ON the UI, or the mutation will abort. This does *not* have to be the same
+            component as you're (optionally) returning from the mutation itself. It is purely for progress UI.
+*  `mutation` - The symbol (or mutation declaration) of the *server* mutation to run. This function will *not* run a local
+   version of the mutation (nor do you have to write one).
+*  `options-and-params` - The parameters to pass to your mutation. This map can *also* include these additional
+options (which will not show up in the remote):
+
+`::m/returning Class` :: Indicate a return value of the remote mutation (for normalizing the returned result). If you
+know the class you can use it. Use `(actor-class actor-name)` to get the correct class for an arbitrary actor, or 
+the `(comp/classname->class component-fully-qualified-symbol)` to look a class up (for avoiding circular requires in Clojure).
+`::targeting/target explicit-target` :: Option for targeting retuned result using data-targeting. Should be used with `::m/returning`.
+`::uism/target-actor actor` :: Helper that can translate an actor name to a target, if returning a result.
+`::uism/target-alias field-alias` :: Helper that can translate a data alias to a target (ident + field).
+`::uism/ok-event event-id` :: The SM event to trigger when the pessimistic mutation succeeds (no default).
+`::uism/error-event event-id` :: The SM event to trigger when the pessimistic mutation fails (no default).
+`::uism/ok-data map-of-data` :: Data to include in the event-data on an ok event
+`::uism/error-data map-of-data` :: Data to include in the event-data on an error event
+`::uism/mutation-remote` :: The keyword name of the Fulcro remote (defaults to :remote)
+
+The mutation response follows the same rules as normal mutations (e.g. `default-result-action`). The result
+*will also be merged* into the `::uism/event-data` under the `::uism/mutation-result` key so that 
+the `ok-event` and `error-event` handlers can simply look in event-data for
+the data sent back from the server.
+
+
+
+
+********************************************************************************
+********************************************************************************
+CONTINUE HERE
+********************************************************************************
+********************************************************************************
+
+
+
+
+
+This function does *not* side effect.  It queues the mutation to run after the handler exits."
+
+IMPORTANT: If you need to return a class type that is not one of your actors, then you should add an actor to
+represent it (even if you do no other manipulation for it). That will keep your state machine code decoupled from
+your UI code, which will prevent circular references and state machine code reuse.
+
+== Loads and State Machines
+
+The API includes these functions for doing loads in the context of a running state
+machine:
+
+`(load env k component-class params)`:: Just like Fulcro's load, but takes a SM env. Use `actor-class` to get a component class of an actor.
+`(load-actor env actor-name params)`:: (Re)load the given actor.
+
+The `params` of these functions can include most of the normal Fulcro load options (such as marker, which
+defaults to `false` for state machines), along with these special values:
+
+`:fulcro.client.primitives/component-class`:: A component class.  Only used on `load-actor`, and
+only if the actor isn't on-screen. Generally do not use. See note below.
+`::uism/post-event`:: An event to send when the load is done (instead of calling a mutation)
+`::uism/post-event-params`:: Extra parameters to send as event-data on the post-event.
+`::uism/fallback-event`:: The event to send if the load triggers a fallback.
+`::uism/fallback-event-params`:: Extra parameters to send as event-data on a fallback.
+
+NOTE: The helper function `(uism/actor-class actor-name)` can be used to retrieve the known Fulcro component
+class for an actor (if available). This should always be used in preference to the `component-class` option above
+since the helper function does not couple your state machine code to UI code.
+
+=== Dynamic Actor Idents
+
+There are all sorts of situations where you may not know the ident of an actor when the machine is first
+started, or perhaps the ident of an actor can change over time. The `reset-actor-ident` function
+can be used to update an actor.
+
+Say you start the machine like this, with a (made-up) `:none` marker as an ID.
+
+```
+(uism/begin! this person-editing-machine ::personsm {:actor/selected-person (uism/with-actor-class [:person/id :none] Person)
+                                                     :actor/list            [:person-list :singleton})
+```
+
+Then you can later set the actor's ident like so:
+
+```
+ ... ;; somewhere in the UI
+ (uism/trigger! this ::personsm :event/person-selected {:new-ident [:person/id 33]})
+
+...
+
+;; in the machine definition:
+:event/person-selected
+{::uism/handler (fn [{{:keys [new-ident]} ::uism/event-data :as env}]
+                  (uism/reset-actor-ident env :actor/selected-person new-ident))}
+```
+
+== Timer Events
+
+Many UI interactions work better with some kind of timeout.  For example, you don't want to issue a load on an
+autocomplete search field until the user stops typing for 300ms, or perhaps you'd like to close a dialog and show
+an error if a data load takes more than 5 seconds.
+
+The `(uism/set-timeout env timer-id event-id event-data timeout cancel-on-events)` function can be used
+in a handler to schedule a ms timer, where `timer-id` is a user-invented name for the timer (keyword),
+the `event-id` is the invented keyword for the event you want to send, `event-data` is additional
+data you'd like to send with the event, and `timeout` is in ms.
+
+The `cancel-on-events` parameter is a function that will be sent the name of any event that occurs while the timeout is
+waiting. If it returns `true` then the timeout will be auto-cancelled.
+
+You can also explcitly cancel a timeout with `(uism/clear-timeout! env timer-id)
+
+== Sending Events from one State Machine to Another
+
+Version 0.0.21+ includes support for sending events from one state machine to another. The mechanism
+for doing so is the `trigger` method (no `!`). It takes and returns a handler `env`, and is composed
+into the threading of `env` in your handlers:
+
+```
+(fn [env]
+  (-> env
+    (uism/trigger :state-machine-id :event-id {:data :map})
+    ...))
+```
+
+This has the effect of queueing the event for after the current handler has finished.
+
+=== Nested Event Order
+
+State machines that trigger events may cause handlers to run that themselves trigger further events.
+The ordering of such a cascade will be that of function call semantics. That is to say that if state
+machine A triggers an event on B and D, and B triggers an event on C, then the runtime evaluation
+order will be A, B, C, D.
+
+=== State Machine ID Passing
+
+In order to keep your state machine definition free from coupling, you will not want to embed the ID of
+some state machine into the code of the handler (though you can certainly do so if you wish). It is
+instead recommended that you pass any necessary state machine IDs as event data on `begin!`:
+
+```
+(uism/begin! this SM ::sm-id actor-map {:other-machine :machine-id})
+```
+
+and add a handler for the `::uism/started` event that extracts this data and stores it in the
+state machine's local store:
+
+```
+(uism/defstatemachine SM
+  {...
+   ::uism/states      {:initial
+                       {::uism/events
+                        {:uism/started
+                         {::uism/handler
+                          (fn [{::uism/keys [event-data] :as env}]
+                            (let [{:keys [other-machine]} event-data]
+                              (-> env
+                                (uism/store :mid other-machine))))}}}}})
+```
+
+== Aborting Loads and Mutations
+
+The built-in Fulcro support for aborting network requests requires the use of the actual application.  The general
+recommendation is to save your app into an atom via Fulcro's `started-callback`.
+
+The state machine load/mutation system supports abort IDs by simply adding an `:abort-id` to the options map:
+
+```
+(uism/load env ::session (uism/actor-class env :session) {:abort-id         :abort/session-load
+                                                          ::uism/post-event :session-checked})
+```
+
+You can then explicitly cancel such a request in the normal way (via your app atom) inside of your state
+machine handlers:
+
+```
+...
+  ::uism/handler
+    (fn [env]
+      (when @my-app
+        (fc/abort-request! @my-app :abort/session-load))
+      env)
+```
+
+== Full Example
+
+This combination of feature leads to very clean UI code.
+
+See https://github.com/fulcrologic/fulcro-incubator/blob/master/src/workspaces/fulcro/incubator/state_machine_ws.cljs[state_machine_ws.cljs]
+for the full example.
+
+== Parting Thoughts
+
+This relatively small set of primitives gives you quite a bit of power.  Here are some things you
+can do with this system that you might not immediately realize:
+
+- *Associate Multiple Machines with a Control*
+
+You might have a state machine that is interested in tracking something like the autocomplete status of a dropdown.
+Another state machine could be tracking the overall state of the form that the autocomplete is embedded in.
+
+- *Create a Library of Reusable Machines*
+
+We've mentioned this, but it bears repeating.  Common patterns exist all over the place.
+
+Take an autocomplete dropdown.  The behavior of waiting for some period of time between
+keystrokes before issuing a load, cancelling a load if the user starts typing again,
+showing/hiding the list of options and such can all be parameterized.  The loads *load an
+actor with parameters*.  This means the actual query and results for the load portion
+are controlled at `begin!`, not from within the state machine.  Various other aspects
+are also easy to make "tunable" by using the state machine's local storage:
+
+```
+(defstatemachine dropdown-autocomplete
+  {::uism/actors #{:dropdown-control ...}
+   ::uism/aliases {:options-visible? [:dropdown-control :ui/show-options?]
+                   ...}
+   ::uism/states
+     {:initial {
+       ::uism/events {::uism/started
+                       {::uism/handler (fn [{::uism/keys [event-data] :as env}]
+                                         (uism/store env :params event-data)
+                                         ...
+...
+
+(uism/begin! this dropdown-autocomplete :dropdown-car-make-sm
+  {:dropdown-control (uism/with-actor-class [:dropdown/id :car-make] Dropdown))}
+  {:dropdown-key-timeout 200})
+```
+
+=== Form Validation
+
+My initial experiments lead me towards the opinion that form validation does not generally belong in a state
+machine. Here are my reasons:
+
+* Rules around validation are often large and complex. This leads to a lot of states that become hard to follow.
+* The forms-state namespace in Fulcro does a nice job of tracking field state, letting you undo, diff, etc.  It
+is much easier to "follow" validation at the UI layer, where it is also simpler to co-locate validity checks
+and messages with fields.
+
+So, simple things like a login form might be ok to validate in the state machine, but larger forms should
+probably localize validation to the form itself.
+
+There is one element that you will often need *within* the state machine: whether or not the form *is*
+currently valid.
+
+Remember:
+
+* The `env` in the state machine handler includes the current Fulcro state map as the key `::uism/state-map`.
+* You can use `db->tree` to convert a state map into a tree based on a component's class.
+* You can get an actor's component class with `uism/actor-class`.
+* The form-state support in Fulcro can give you a validity check based on the form props.
+
+You can also pass specific event data when you trigger events, so you can trigger your own state change events
+(instead of using `uism/set-value!`) that include the current validity of the form.
 
 = Fulcro and GraphQL
 
