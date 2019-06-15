@@ -124,6 +124,28 @@ The core ideas are as follows:
 ** *Local Manipulation* of data obtained from a graph needs to be de-duped.
 * Composition is *King*. Seamless composition is a key component of software sustainability.
 
+== But Does it Have X?
+
+People have a number of initial "comparative" questions when looking at Fulcro when they've used other libraries.
+If you are familiar with other CLJS or JS UI libraries then you may have one of these questions. The most
+common ones are:
+
+Can I use "hiccup" notation for the DOM?::
+Yes, you can use Sablono. It should work fine. If you want _support_, use what Fulcro provides.
+
+Where are the "reducers"?::
+Re-frame and Redux are very popular choices for front-end work, and for good reason.
+Fulcro is actually quite similar to these systems in a number of ways, but adds graph
+data support and auto-normalization of the database to the equation.
++
+Fulcro 3's <<UI State Machines>> are usable in exactly the same way as reducer/event systems, but have some
+distinct differences (dare I say improvements?): They support an actor model where instances of
+UI components are assigned at runtime to play "roles" in the logical flow, they are true state machines
+(not just switch/case statements), they have use of Fulcro's database auto-normalization,
+graph query abilities and abstract mutation system, their current "state" is stored and normalized
+into the same central application database where Fulcro's Inspect Chrome extension makes them easy to debug.
+
+
 == Server Schema vs. UI Graph
 
 Fulcro makes no assumptions nor does it have *any* requirements about back-end databases.  You don't even have
