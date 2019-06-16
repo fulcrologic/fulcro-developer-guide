@@ -8262,7 +8262,7 @@ The next layer of aliasing is for the data our state machine will manipulate:
 
 ```
 (defstatemachine login-machine
-  {::uism/actor-names #{:dialog :form}
+  {::uism/actor-names #{:actor/dialog :actor/form}
    ::uism/aliases {:visible?       [:actor/dialog :ui/active?]
                    :login-enabled? [:actor/form :ui/login-enabled?]
                    :busy?          [:actor/form :ui/busy?]
@@ -8372,8 +8372,8 @@ With this option you specify a map of events to a description of what should hap
                ...
 ----
 
-In this case the event `:event/thing-happened!` is the an event that can happen while in the `:initial` state. If that
-event occurs, the following things are done:
+In this case the event `:event/thing-happened!` is an event that can happen while in the `:initial` state
+which:
 
 . *If* there is an event predicate, it is run. The default predicate is `(constantly true)`.  If the predicate returns
 `false` then the event is ignored *and nothing else happens*.
@@ -8461,15 +8461,15 @@ just means your app state).
 
 The first thing you need to do is create an instance and start it:
 
-`(uism/begin! component machine-def instance-id actor-map)`:: Installs an instance of a state
+`(uism/begin! app-or-component machine-def instance-id actor-map)`:: Installs an instance of a state
 machine (to be known as `instance-id`, an arbitrary keyword), based on the definition in `machine-def`, into
 Fulcro's state and sends the `::uism/started` event.
 
 This is a Fulcro transaction internally, so it follows the normal transactional semantics and can be used from almost
-anywhere (including inside of a state machine handler).
+anywhere (including inside of another state machine handler).
 
-The instance is stored in your database at the well-known `::uism/asm-id` table with an id that is the instance ID you
-supply to this call.
+The instance is stored in your database at the well-known `::uism/asm-id` table with an id that is
+the instance ID you supply to this call.
 
 ==== The Actor Map
 
@@ -8479,12 +8479,12 @@ and loads (since a component class or instance is needed to figure out normaliza
 
 The actor map values must be one of the following:
 
-An ident:: A raw ident should be augmented using `with-actor-class` so that it can work with loads/mutations.
+An ident:: A raw ident is allowed, but should normally be augmented using `with-actor-class` so that it can work with loads/mutations.
 A component class:: In this case the actor is assumed to be a singleton. The ident will be derived by calling
 `(comp/get-ident class {})`.  This actor will work properly with remote return values and loads.
-A component instance (e.g. `this`):: A component instance can be `this`, or can be found using the indexes 
-in the Fulcro indexer (e.g. `(comp/ref->any reconciler [:person/by-id 1])`).  A component instance is 
-sufficient for the state machine to find the corrent ident and query for the UI component, 
+A component instance (e.g. `this`):: A component instance can be `this`, or can be found using Fulcro's live indexes
+(e.g. `(comp/ref->any reconciler [:person/by-id 1])`).  A component instance is
+sufficient for the state machine to find the correct ident _and_ query for the UI component,
 so it will work with loads/mutations.
 
 ==== Example Starts
@@ -8498,7 +8498,7 @@ For example, to start the above state machine with an instance ID of `::loginsm`
 ```
 
 In this example all three of our components are singletons whose idents are constant.  If you are working
-with actors that are live you either need to use a react instance (such as `this`), or an explicit ident:
+with actors that are more dynamic you either need to use a react instance (such as `this`), or an explicit ident:
 
 ```
 (uism/begin! this person-editing-machine ::personsm {:person (uism/with-actor-class [:person/by-id 3] Person)
@@ -8506,24 +8506,21 @@ with actors that are live you either need to use a react instance (such as `this
                                                      :dialog Dialog})
 ```
 
-Failing to associate a class with a raw ident may cause your state machine to misbehave (the state machine may 
-try to derive the class from Fulcro's indexes, but that will only work if the component is on-screen).
-
 === Triggering Events
 
 Now that you have a state machine running it is ready to receive events.  It will have already
-run the initial state handler once, which means it will have already set up the state in such
-a way that it is possible for your UI to look correct.  For example, in our login case the initial
+run the initial state handler. For example, in our login case the initial
 state might show the dialog, clear the input fields, etc.
 
-Forms may commonly want to send a `::uism/value-changed` event to indicate that a value is changing
-in some form field.  Because this is such a common operation there are two helpers for it. For example, to
-update a string from a DOM onChange event or raw string:
+Forms may want to send an event to indicate that a value is changing in some form field.  Because this is
+such a common operation there are two helpers for it. For example, to
+update a string from a DOM `onChange` event or raw string:
 
 `(uism/set-string! component state-machine-id data-alias event-or-string)`:: Puts a string into
-the given data alias (you can pass a string or a DOM onChange event).
+the given data alias (you can pass a string or a DOM onChange event) and
+sends a `::uism/value-changed` event to your machine.
 `(uism/set-value! component state-machine-id data-alias raw-value)`:: Puts a raw (unmodified) value into
-the given data alias.
+the given data alias and sends a `::uism/value-changed` event to your machine.
 
 You can define other "custom" events to stand for whatever you want (and they can include
 aux data that you can pass along to the handlers).  To trigger arbitrary events use:
@@ -8546,7 +8543,7 @@ additional parameter:
 
 === Looking at The Running Instance
 
-For debugging purposes you should just look in Fulcro Inspect at the database.  The active
+For debugging purposes you can just look in Fulcro Inspect at the database.  The active
 state machines are in the `::uism/asm-id` table, with the ID you assigned.
 
 UI code can also look at the state machine's current state:
@@ -8578,7 +8575,7 @@ data.  Including the ident in your query is enough:
 
 Functions are included that allow you to trigger *remote* mutations.  Your state machine handlers are
 already an implementation of the client side operations of a mutation, so really what we need is a way to trigger
-a remote mutation and trigger events based on the outcome.
+a remote mutation and then trigger events based on the outcome.
 
 The `trigger-remote-mutation` function does this. It takes:
 
@@ -8590,11 +8587,11 @@ The `trigger-remote-mutation` function does this. It takes:
 *  `mutation` - The symbol (or mutation declaration) of the *server* mutation to run. This function will *not* run a local
    version of the mutation (nor do you have to write one).
 *  `options-and-params` - The parameters to pass to your mutation. This map can *also* include these additional
-options (which will not show up in the remote):
+options (which will not show up in the remote and are namespaced to avoid collision):
 
 `::m/returning Class` :: Indicate a return value of the remote mutation (for normalizing the returned result). If you
 know the class you can use it. Use `(actor-class actor-name)` to get the correct class for an arbitrary actor, or 
-the `(comp/classname->class component-fully-qualified-symbol)` to look a class up (for avoiding circular requires in Clojure).
+`(comp/classname->class component-fully-qualified-symbol)` to look a class up (for avoiding circular `require`s in Clojure).
 `::targeting/target explicit-target` :: Option for targeting retuned result using data-targeting. Should be used with `::m/returning`.
 `::uism/target-actor actor` :: Helper that can translate an actor name to a target, if returning a result.
 `::uism/target-alias field-alias` :: Helper that can translate a data alias to a target (ident + field).
@@ -8605,50 +8602,34 @@ the `(comp/classname->class component-fully-qualified-symbol)` to look a class u
 `::uism/mutation-remote` :: The keyword name of the Fulcro remote (defaults to :remote)
 
 The mutation response follows the same rules as normal mutations (e.g. `default-result-action`). The result
-*will also be merged* into the `::uism/event-data` under the `::uism/mutation-result` key so that 
-the `ok-event` and `error-event` handlers can simply look in event-data for
-the data sent back from the server.
+will also be in the `::uism/event-data` under the `::uism/mutation-result` key so that
+the `ok-event` and `error-event` handlers can simply look in event-data for the data sent back from the server.
 
-
-
-
-********************************************************************************
-********************************************************************************
-CONTINUE HERE
-********************************************************************************
-********************************************************************************
-
-
-
-
-
-This function does *not* side effect.  It queues the mutation to run after the handler exits."
-
-IMPORTANT: If you need to return a class type that is not one of your actors, then you should add an actor to
-represent it (even if you do no other manipulation for it). That will keep your state machine code decoupled from
-your UI code, which will prevent circular references and state machine code reuse.
+NOTE: In general you should use actors as the mechanism for obtaining a return type's class, since that
+will keep your state machine code decoupled from UI code.
 
 == Loads and State Machines
 
 The API includes these functions for doing loads in the context of a running state
 machine:
 
-`(load env k component-class params)`:: Just like Fulcro's load, but takes a SM env. Use `actor-class` to get a component class of an actor.
+`(load env k component-class params)`:: Just like Fulcro's load, but takes a SM env. Typically you should
+use `actor-class` or the component registry `comp/classname->class` to get the component class so you don't couple
+UI code into your machine.
 `(load-actor env actor-name params)`:: (Re)load the given actor.
 
-The `params` of these functions can include most of the normal Fulcro load options (such as marker, which
-defaults to `false` for state machines), along with these special values:
+The `params` of these functions are the normal Fulcro `load!` options, but can include these additional special items:
 
-`:fulcro.client.primitives/component-class`:: A component class.  Only used on `load-actor`, and
-only if the actor isn't on-screen. Generally do not use. See note below.
+`::uism/ok-event`:: An event to send when the load is done (instead of calling a mutation)
+`::uism/ok-event-data`:: Extra parameters to send as event-data on the post-event.
+`::uism/error-event`:: The event to send if the load triggers a fallback.
+`::uism/error-event-data`:: Extra parameters to send as event-data on a fallback.
+
+DEPRECATED (use the ok/error versions instead):
 `::uism/post-event`:: An event to send when the load is done (instead of calling a mutation)
 `::uism/post-event-params`:: Extra parameters to send as event-data on the post-event.
 `::uism/fallback-event`:: The event to send if the load triggers a fallback.
 `::uism/fallback-event-params`:: Extra parameters to send as event-data on a fallback.
-
-NOTE: The helper function `(uism/actor-class actor-name)` can be used to retrieve the known Fulcro component
-class for an actor (if available). This should always be used in preference to the `component-class` option above
-since the helper function does not couple your state machine code to UI code.
 
 === Dynamic Actor Idents
 
@@ -8659,15 +8640,16 @@ can be used to update an actor.
 Say you start the machine like this, with a (made-up) `:none` marker as an ID.
 
 ```
-(uism/begin! this person-editing-machine ::personsm {:actor/selected-person (uism/with-actor-class [:person/id :none] Person)
-                                                     :actor/list            [:person-list :singleton})
+(uism/begin! this person-editing-machine ::personsm
+  {:actor/selected-person (uism/with-actor-class [:person/id :none] Person)
+   :actor/list            [:person-list :singleton})
 ```
 
-Then you can later set the actor's ident like so:
+You can later set the actor's ident like so:
 
 ```
- ... ;; somewhere in the UI
- (uism/trigger! this ::personsm :event/person-selected {:new-ident [:person/id 33]})
+... ;; somewhere in the UI
+(uism/trigger! this ::personsm :event/person-selected {:new-ident [:person/id 33]})
 
 ...
 
@@ -8679,7 +8661,7 @@ Then you can later set the actor's ident like so:
 
 == Timer Events
 
-Many UI interactions work better with some kind of timeout.  For example, you don't want to issue a load on an
+Many UI interactions require some kind of timeout.  For example, you don't want to issue a load on an
 autocomplete search field until the user stops typing for 300ms, or perhaps you'd like to close a dialog and show
 an error if a data load takes more than 5 seconds.
 
@@ -8689,14 +8671,14 @@ the `event-id` is the invented keyword for the event you want to send, `event-da
 data you'd like to send with the event, and `timeout` is in ms.
 
 The `cancel-on-events` parameter is a function that will be sent the name of any event that occurs while the timeout is
-waiting. If it returns `true` then the timeout will be auto-cancelled.
+waiting. If it returns `true` (not `false` or `nil`) then the timeout will be auto-cancelled.
 
-You can also explcitly cancel a timeout with `(uism/clear-timeout! env timer-id)
+You can cancel a timeout with `(uism/clear-timeout! env timer-id)
 
 == Sending Events from one State Machine to Another
 
-Version 0.0.21+ includes support for sending events from one state machine to another. The mechanism
-for doing so is the `trigger` method (no `!`). It takes and returns a handler `env`, and is composed
+The mechanism for sending events from one state machine to another
+is the `trigger` method (with no `!`). This version takes and returns a handler `env`, and is composed
 into the threading of `env` in your handlers:
 
 ```
@@ -8715,17 +8697,18 @@ The ordering of such a cascade will be that of function call semantics. That is 
 machine A triggers an event on B and D, and B triggers an event on C, then the runtime evaluation
 order will be A, B, C, D.
 
-=== State Machine ID Passing
+=== Leveraging State Machine Local Storage
 
-In order to keep your state machine definition free from coupling, you will not want to embed the ID of
-some state machine into the code of the handler (though you can certainly do so if you wish). It is
-instead recommended that you pass any necessary state machine IDs as event data on `begin!`:
+There are many times that you will want to send in "configuration" information to a state machine that
+should be remembered ov the lifetime of that machine.  For example if you have code that triggers
+events in other state machines you might want to pass the ID of the other state machine as a parameter when
+you start the new one:
 
 ```
 (uism/begin! this SM ::sm-id actor-map {:other-machine :machine-id})
 ```
 
-and add a handler for the `::uism/started` event that extracts this data and stores it in the
+You can then simply add a handler for the `::uism/started` event that extracts this data and stores it in the
 state machine's local store:
 
 ```
@@ -8741,19 +8724,22 @@ state machine's local store:
                                 (uism/store :mid other-machine))))}}}}})
 ```
 
-== Aborting Loads and Mutations
+That value is then available via `(uism/retrieve env key)` for the lifetime of that state machine.
+
+== Aborting Loads and Mutations (TODO: 3.x ABORTS NEED WORK)
 
 The built-in Fulcro support for aborting network requests requires the use of the actual application.  The general
-recommendation is to save your app into an atom via Fulcro's `started-callback`.
+recommendation is to save your app into a `defonce` somewhere that can be required in any other file.
 
 The state machine load/mutation system supports abort IDs by simply adding an `:abort-id` to the options map:
 
 ```
-(uism/load env ::session (uism/actor-class env :session) {:abort-id         :abort/session-load
-                                                          ::uism/post-event :session-checked})
+(uism/load env ::session (uism/actor-class env :session)
+  {:abort-id         :abort/session-load
+   ::uism/post-event :session-checked})
 ```
 
-You can then explicitly cancel such a request in the normal way (via your app atom) inside of your state
+You can then explicitly cancel such a request in the normal way (via your app) inside of your state
 machine handlers:
 
 ```
@@ -8761,16 +8747,13 @@ machine handlers:
   ::uism/handler
     (fn [env]
       (when @my-app
-        (fc/abort-request! @my-app :abort/session-load))
+        (app/abort-request! my-app :abort/session-load))
       env)
 ```
 
 == Full Example
 
-This combination of feature leads to very clean UI code.
-
-See https://github.com/fulcrologic/fulcro-incubator/blob/master/src/workspaces/fulcro/incubator/state_machine_ws.cljs[state_machine_ws.cljs]
-for the full example.
+TODO: Embed live demo.
 
 == Parting Thoughts
 
@@ -8830,12 +8813,19 @@ currently valid.
 Remember:
 
 * The `env` in the state machine handler includes the current Fulcro state map as the key `::uism/state-map`.
-* You can use `db->tree` to convert a state map into a tree based on a component's class.
+* You can use `fdn/db->tree` to convert a state map into a tree using a component's class and ident.
 * You can get an actor's component class with `uism/actor-class`.
+* You can get an actor's ident with `uism/actor->ident`.
 * The form-state support in Fulcro can give you a validity check based on the form props.
 
 You can also pass specific event data when you trigger events, so you can trigger your own state change events
 (instead of using `uism/set-value!`) that include the current validity of the form.
+
+********************************************************************************
+********************************************************************************
+CONTINUE HERE
+********************************************************************************
+********************************************************************************
 
 = Fulcro and GraphQL
 
