@@ -202,6 +202,20 @@ and could potentially return to-many results (if the address field were to-many 
  :person/address [{:address/street "111 Main St."} {:address/street "345 Center Ave."}]}
 ```
 
+For those coming from SQL this roughly equates to a LEFT JOIN from person to address (where the behind-the-scenes join key
+might be converted from `:person/address` to something like `address.person_id`). You could implement this with
+something crude like:
+
+[source,sql]
+-----
+SELECT person.id, person.name, address.id, address.street FROM person, address WHERE address.id = person.address_id
+ORDER BY person.id, address.id;
+-----
+
+and walk the table result with a `reduce` to convert the rows into the graph, but
+fortunately, the Pathom library does most of that "lifting" for you and also includes features that can
+be used to tune for optimal performance (e.g. fixing n+1 query problems, branch caching, parallel operation, etc.).
+
 == Fulcro Client Database
 
 Fulcro does *not* use a component-centric subscription model (though you can get the *actual* "features" you're look for
