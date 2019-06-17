@@ -3,71 +3,81 @@
     [com.fulcrologic.fulcro.dom :as dom :refer [div table td tr th tbody]]
     [com.fulcrologic.fulcro.routing.union-router :as r :refer [defsc-router]]
     [book.elements :as ele]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [taoensso.timbre :as log]))
+
+(defn person? [props] (contains? props :person/id))
+(defn place? [props] (contains? props :place/id))
+(defn thing? [props] (contains? props :thing/id))
 
 (defn item-ident
   "Generate an ident from a person, place, or thing."
-  [props] [(:kind props) (:db/id props)])
+  [props]
+  (cond
+    (person? props) [:person/id (:person/id props)]
+    (place? props) [:place/id (:place/id props)]
+    (thing? props) [:thing/id (:thing/id props)]
+    :else (log/error "Cannot generate a valid ident. Invalid props." props)))
 
 (defn item-key
   "Generate a distinct react key for a person, place, or thing"
-  [props] (str (:kind props) "-" (:db/id props)))
+  [props] (str (item-ident props)))
 
-(defn make-person [id n] {:db/id id :kind :person/by-id :person/name n})
-(defn make-place [id n] {:db/id id :kind :place/by-id :place/name n})
-(defn make-thing [id n] {:db/id id :kind :thing/by-id :thing/label n})
+(defn make-person [id n] {:person/id id :person/name n})
+(defn make-place [id n] {:place/id id :place/name n})
+(defn make-thing [id n] {:thing/id id :thing/label n})
 
-(defsc PersonDetail [this {:keys [db/id person/name] :as props}]
+(defsc PersonDetail [this {:person/keys [id name] :as props}]
   ; defsc-router expects there to be an initial state for each possible target. We'll cause this to be a "no selection"
   ; state so that the detail screen that starts out will show "Nothing selected". We initialize all three in case
   ; we later re-order them in the defsc-router.
   {:ident         (fn [] (item-ident props))
-   :query         [:kind :db/id :person/name]
-   :initial-state {:db/id :no-selection :kind :person/by-id}}
+   :query         [:person/id :person/name]
+   :initial-state {:person/id :no-selection}}
   (dom/div
     (if (= id :no-selection)
       "Nothing selected"
       (str "Details about person " name))))
 
-(defsc PlaceDetail [this {:keys [db/id place/name] :as props}]
+(defsc PlaceDetail [this {:place/keys [id name] :as props}]
   {:ident         (fn [] (item-ident props))
-   :query         [:kind :db/id :place/name]
-   :initial-state {:db/id :no-selection :kind :place/by-id}}
+   :query         [:place/id :place/name]
+   :initial-state {:place/id :no-selection}}
   (dom/div
     (if (= id :no-selection)
       "Nothing selected"
       (str "Details about place " name))))
 
-(defsc ThingDetail [this {:keys [db/id thing/label] :as props}]
+(defsc ThingDetail [this {:thing/keys [id label] :as props}]
   {:ident         (fn [] (item-ident props))
-   :query         [:kind :db/id :thing/label]
-   :initial-state {:db/id :no-selection :kind :thing/by-id}}
+   :query         [:thing/id :thing/label]
+   :initial-state {:thing/id :no-selection}}
   (dom/div
     (if (= id :no-selection)
       "Nothing selected"
       (str "Details about thing " label))))
 
 (defsc PersonListItem [this
-                       {:keys [db/id person/name] :as props}
+                       {:person/keys [id name] :as props}
                        {:keys [onSelect] :as computed}]
   {:ident (fn [] (item-ident props))
-   :query [:kind :db/id :person/name]}
+   :query [:person/id :person/name]}
   (dom/li {:onClick #(onSelect (item-ident props))}
     (dom/a {} (str "Person " id " " name))))
 
 (def ui-person (comp/factory PersonListItem {:keyfn item-key}))
 
-(defsc PlaceListItem [this {:keys [db/id place/name] :as props} {:keys [onSelect] :as computed}]
+(defsc PlaceListItem [this {:place/keys [id name] :as props} {:keys [onSelect] :as computed}]
   {:ident (fn [] (item-ident props))
-   :query [:kind :db/id :place/name]}
+   :query [:place/id :place/name]}
   (dom/li {:onClick #(onSelect (item-ident props))}
     (dom/a {} (str "Place " id " : " name))))
 
 (def ui-place (comp/factory PlaceListItem {:keyfn item-key}))
 
-(defsc ThingListItem [this {:keys [db/id thing/label] :as props} {:keys [onSelect] :as computed}]
+(defsc ThingListItem [this {:thing/keys [id label] :as props} {:keys [onSelect] :as computed}]
   {:ident (fn [] (item-ident props))
-   :query [:kind :db/id :thing/label]}
+   :query [:thing/id :thing/label]}
   (dom/li {:onClick #(onSelect (item-ident props))}
     (dom/a {} (str "Thing " id " : " label))))
 
@@ -77,22 +87,23 @@
   {:router-id      :detail-router
    :ident          (fn [] (item-ident props))
    :default-route  PersonDetail
-   :router-targets {:person/by-id PersonDetail
-                    :place/by-id  PlaceDetail
-                    :thing/by-id  ThingDetail}}
+   :router-targets {:person/id PersonDetail
+                    :place/id  PlaceDetail
+                    :thing/id  ThingDetail}}
   (dom/div "No route"))
 
 (def ui-item-detail (comp/factory ItemDetail))
 
-(defsc ItemUnion [this {:keys [kind] :as props}]
+(defsc ItemUnion [this props]
   {:ident (fn [] (item-ident props))
-   :query (fn [] {:person/by-id (comp/get-query PersonListItem)
-                  :place/by-id  (comp/get-query PlaceListItem)
-                  :thing/by-id  (comp/get-query ThingListItem)})}
-  (case kind
-    :person/by-id (ui-person props)
-    :place/by-id (ui-place props)
-    :thing/by-id (ui-thing props)))
+   :query (fn [] {:person/id (comp/get-query PersonListItem)
+                  :place/id  (comp/get-query PlaceListItem)
+                  :thing/id  (comp/get-query ThingListItem)})}
+  (cond
+    (person? props) (ui-person props)
+    (place? props) (ui-place props)
+    (thing? props) (ui-thing props)
+    :else (dom/div "Invalid ident used in app state.")))
 
 (def ui-item-union (comp/factory ItemUnion {:keyfn item-key}))
 
@@ -106,7 +117,7 @@
                              (make-person 4 "Sally")
                              (make-thing 5 "Pillow")
                              (make-place 6 "Canada")]})
-   :ident         (fn [] [:lists/by-id :singleton])
+   :ident         (fn [] [:lists/id :singleton])
    :query         [{:items (comp/get-query ItemUnion)}]}
   (dom/ul :.ui.list
     (map (fn [i] (ui-item-union (comp/computed i {:onSelect onSelect}))) items)))
