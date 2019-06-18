@@ -628,7 +628,7 @@ $ npm install shadow-cljs react react-dom --save
 Create a `deps.edn` file with this content:
 
 ```
-{:paths   ["src" "resources"]
+{:paths   ["src/main" "resources"]
  :deps    {com.fulcrologic/fulcro {:mvn/version "3.0.0-alpha-6"}}
 
  :aliases {:dev {:extra-paths ["src/dev"]
