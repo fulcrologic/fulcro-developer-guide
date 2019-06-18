@@ -706,7 +706,7 @@ Our directory structure must match this in CLJ(S), so we create `src/main/app/cl
 (defn ^:export refresh
   "During development, shadow-cljs will call this on every hot reload of source. See shadow-cljs.edn"
   []
-  ;; re-mounting will cause forced UI refresh
+  ;; re-mounting will cause forced UI refresh, update internals, etc.
   (app/mount! app Root "app")
   (js/console.log "Hot reload"))
 ```
@@ -2795,59 +2795,57 @@ and returns the data that should actually be merged into app state. This feature
 a complete understanding of normalization and full stack operation, and is covered in a
 <<PreMerge, later chapter>>.
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; CONTINUE HERE
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 === Component Constructor
 
 It is sometimes useful to be able to run some code once on component construction. In React this is particularly useful
 when you want a function for saving off `:ref` or as other callbacks (so the function isn't changing all the time).
 
-There is no *formal* constructor for `defsc`, but you can get *exactly* the effect of a constructor by placing the
-code for it in `:initLocalState`, which is guaranteed to run once and only once per instance construction:
+You can include a constructor which will `this` and `props` as explicit parameters.
 
 ```
 (defsc Component [this props]
-  {:initLocalState (fn [] ;; this is accessible
-                     (set! (.-saveref this) (fn [r] (set! (.-ref this) r)))
-                     ;; just also remember to return something to act as your React component initial local state!
-                     {})}
-  (dom/input {:ref (.-saveref this)}))
+  {:constructor (fn [this props] ...)}
+  ...
 ```
 
+You can also just place code in `initLocalState` before you return a value. Such code will also run on construction.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; CONTINUE
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 === React Lifecycle Methods
 
-The options of defsc allow for React Lifecycle methods to be defined (as lambdas). The `this` parameter of `defsc` is
-in scope for all of them, but *not* `props` or `computed`. You can obtain computed using `comp/get-computed`. This is
-because the lifecycle method may receive prior or next props, and using the top parameter list could be confusing.
+The options of defsc allow for React Lifecycle methods to be defined (as lambdas).
+The first argument of all non-static lifecycle methods is `this`.  The React documentation describes any further
+arguments. Where props or state are expected you will be given Fulcro's version of those (cljs data instead of raw js).
+Where the current props are not an argument you can call `(comp/props this)`  to get them, and
+you can obtain computed using `comp/get-computed`.
 
 The signatures are:
 
 ```
 (defsc Component [this props]
-    ; remember that 'this' is in scope for lifecycle
-    :initLocalState            (fn [] ...)
-    :shouldComponentUpdate     (fn [next-props next-state] ...)
-    :componentWillReceiveProps (fn [next-props] ...)
-    :componentWillUpdate       (fn [next-props next-state] ...)
-    :componentDidUpdate        (fn [prev-props prev-state] ...)
-    :componentWillMount        (fn [] ...)
-    :componentDidMount         (fn [] ...)
-    :componentWillUnmount      (fn [] ...)
+    :initLocalState            (fn [this] ...)
+    :shouldComponentUpdate     (fn [this next-props next-state] ...)
+    :componentWillReceiveProps (fn [this next-props] ...)
+    :componentWillUpdate       (fn [this next-props next-state] ...)
+    :componentDidUpdate        (fn [this prev-props prev-state] ...)
+    :componentWillMount        (fn [this] ...)
+    :componentDidMount         (fn [this] ...)
+    :componentWillUnmount      (fn [this] ...)
 
     ;; Replacements for deprecated methods in React 16.3+
-    :UNSAFE_componentWillReceiveProps (fn [next-props] ...)
-    :UNSAFE_componentWillUpdate       (fn [next-props next-state] ...)
-    :UNSAFE_componentWillMount        (fn [] ...)
+    :UNSAFE_componentWillReceiveProps (fn [this next-props] ...)
+    :UNSAFE_componentWillUpdate       (fn [this next-props next-state] ...)
+    :UNSAFE_componentWillMount        (fn [this] ...)
 
     ;; ADDED for React 16:
-    :componentDidCatch         (fn [error info] ...)
-    :getSnapshotBeforeUpdate   (fn [prevProps prevState] ...)
-    :getDerivedStateFromProps  (fn [props state] ...)
+    :componentDidCatch         (fn [this error info] ...)
+    :getSnapshotBeforeUpdate   (fn [this prevProps prevState] ...)
+    :getDerivedStateFromProps  (fn [props state] ...) ; static
 
     ;; ADDED for React 16.6:
-    :getDerivedStateFromError  (fn [error] ...)  **NOTE**: Sets low-level state, Use get-react-state.
+    :getDerivedStateFromError  (fn [error] ...)  ; static. **NOTE**: Sets low-level state, Use get-react-state.
 ```
 
 See the React documentation for more details on how these work.
@@ -2859,7 +2857,7 @@ arguments to methods like `componentDidUpdate` `prev-state` will be a cljs map, 
 that React uses).
 
 The same is true for the return value of `initLocalState`: You return a CLJS map, and it is safely stored in react
-state and behave just like the native.
+state but otherwise behaves just like the native.
 
 The advantage of this is twofold:
 
@@ -2885,41 +2883,21 @@ case.
 Another (trivial but possibly annoying) workaround is to write a wrapper component that does nothing but deal with errors, so
 that the state is never used for anything *but* error handling.
 
-==== Additional Protocol Support
-
-If you need to include additional protocols (or lifecycle React methods) on the generated class then you can use the
-`:protocols` option. It takes a list of forms that have the same shape as the body of a `defui`, and the `static` qualifier
-is supported. If you supply `Object` methods then they will be properly combined with the generated render:
-
-Here is an example of adding Fulcro CSS using protocols instead of options:
-
-```
-(defsc MyComponent [this props]
-   {:protocols (Object
-                static css/CSS
-                (local-rules [_] [])
-                (include-children [_] []))
-    ...}
-   (dom/div ...))
-```
-
-This gives you the full protocol capabilities of `defui`, but you only need the extra protocol additions when you
-use methods and protocols beyond the central ones.
-
 === Sanity Checking
 
 The sanity checking mentioned in the earlier sections causes compile errors. The errors are intended to be self-explanatory.
-They will catch common mistakes (like forgetting to query for data that you're pulling out of props, or misspelling a property).
+They will catch common mistakes (like forgetting to query for data that you're pulling out of props, or mis-spelling a property).
 
-Feel free to edit the components in this source file and try out the sanity checking. For example, try:
+For example, try:
 
-* Mismatching the name of a prop in options with a destructured name in props.
+* Mismatching the name of a prop in a query with a destructured name in props.
 * Destructuring a prop that isn't in the query
 * Including initial state for a field that is not listed as a prop or child in options.
-* Using a scalar value for the initial value of a child (instead of a map or vector of maps)
-* Forget to query for the ID field of a component that is stored at an ident
+* Using a scalar value for the initial value of a joined child (instead of a map or vector of maps)
+* Forget to query for the ID field of a component that is used in an ident
 
-In some cases the sanity checking is more aggressive that you might desire. To get around it simply use the lambda style.
+In some cases the sanity checking is too aggressive or may mis-detect a problem.
+To get around it simply use the lambda style.
 
 == The Component Registry
 
@@ -2944,37 +2922,36 @@ Factories are how you generate React elements (the virtual DOM nodes) from your 
 `defsc`. You make a new factory using `com.fulcrologic.fulcro.components/factory`:
 
 ```
-(def ui-component (comp/factory MyComponent {:keyfn f :validator v :instrument? true}))
+(def ui-component (comp/factory MyComponent {:keyfn f}))
 ```
 
-There are 3 supported options to a factory:
-
-[horizontal]
-`:keyfn`:: A function from `props` to a React key. Should generally be supplied to ensure React rendering can properly diff.
-`:validator`:: A function from props to boolean. If it returns false then an assertion will be thrown at runtime.
-`:instrument?`:: A boolean. If true, it indicates that instrumentation should be enabled on the component.
-
-Instrumentation is a function you can install on the <<Reconciler,reconciler>> that wraps component `render` allowing you to add
-measurement and debugging code to your component's rendering.
+The `:keyfn` option is a function against `props` to generate a React key. This should be supplied on any component
+that will appear as a to-many child to ensure React rendering can properly diff.
 
 In Fulcro documentation we generally adopt the naming convention for UI factories to be prefixed with `ui-`. This
 is because you often want to name joins the same thing as a component: e.g. your query might be
-`[{:child (comp/get-query Child)}]`, and then when you destructure in render: `(let [{:keys [child]} (comp/props this) ...`
+`[{:ui/child (comp/get-query Child)}]`, and then when you destructure in render: `(let [{:ui/keys [child]} (comp/props this) ...`
 you have local data in the symbol `child`. If your UI factory was also called `child` then it would cause annoying name
-collisions. Prefixing the factories with `ui-` makes it very clear what is data and what is an element factory.
-
+collisions. Prefixing the factories with `ui-` eliminates such collisions.
 
 == Render and Props
 
-Properties are always passed to a component factory as the first argument. The properties can be accessed
-from within `render` by calling `com.fulcrologic.fulcro.components/props` on the parameter passed to `render` (typically named `this`
-to remind you that it is a reference to the instance itself).
+Properties are always passed to a component factory as the first argument and are not optional:
+
+```
+(ui-child child-props)
+```
+
+The properties are available as the second argument to `defsc` for the render body, but can also be accessed
+by calling `com.fulcrologic.fulcro.components/props` on `this`. The latter approach is useful in functions that
+receive the instance as an argument.
 
 In components with queries there is a strong correlation between the query (which must join the child's query),
 props (from which you must extract the child's props), and calling of the child's factory
 (to which you must pass the child's data).
 
-If you are using components that do not have queries, then you may pass whatever properties you deem useful.
+If you are using components that do not have queries, then you may pass whatever properties you deem useful. Such
+components do not take advantage of any other Fulcro advantages, such as render optimizations.
 
 Details about additional aspects of rendering are in the sections that follow.
 
@@ -2995,6 +2972,12 @@ easily become out of sync and lead to more complex logic.
       "All: " (dom/input {:checked all-checked? ...})
     (dom/ul ...))))
 ```
+
+IMPORTANT: There is a significant concern with rendering refresh when computing values in a parent: The rendering
+refresh detection expects queried data to change for a refresh to occur.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; CONTINUE
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ==== General Guidelines for Derived Values
 
