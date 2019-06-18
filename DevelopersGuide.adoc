@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: June 14, 2019
+:revdate: June 17, 2019
 :revnumber: 31
 :lang: en
 :encoding: UTF-8
@@ -2538,7 +2538,7 @@ Assuming `hidden` and `(not tall)` would yield classes "a other hidden short" on
 all of these at once, but supporting them all lets you programmatically combine them when generating props. NOTE: This feature
 does not work on props sent with `#js` notation.
 
-Remember that this (nested) call of functions results in a representation (VDOM) of
+Remember that this (nested) call of functions results in a representation (React Elements) of
 what you'd like to end up on the screen.
 
 The next level of abstraction is simply a function.
@@ -2552,6 +2552,9 @@ re-usable nested DOM:
       (dom/li ...))))
 ```
 
+but remember that a function has no component hooks, so it cannot do things like short-circuit rendering when props
+have not changed.
+
 === Fulcro and React DOM – Notes
 
 Here are some common things you'll want to know how to do that are different when rendering with Fulcro:
@@ -2559,84 +2562,15 @@ Here are some common things you'll want to know how to do that are different whe
 ** `dom/p` is a function for generating p tags for use in React components. There is one of these for every legal HTML tag.
 * Attributes follow the react naming conventions for [Tags and Attributes](https://facebook.github.io/react/docs/tags-and-attributes.html)
 ** As an example - CSS class names are specified with `:className` instead of `:class`.
-* Any time a VDOM includes a collection of elements they should each have a unique `:key`
+* Any time an element includes a collection of children they should each have a unique `:key`
 attribute. This helps the React diff figure out how that collection has changed. You will
 get warnings in the browser console if you fail to do so.
 
-== The Reconciler [[Reconciler]]
-
-When you start a Fulcro application your `:client-did-mount` will get the completed `app` as a parameter.
-
-NOTE: Prior to Fulcro 2.8.1 the client was created with `new-fulcro-client` which had a `:started-callback` option.
-The old method is still available (and unchanged). The new `make-fulcro-client` method changes some defaults,
-and renames `started-callback` to `client-did-mount`.
-
-Inside of this app is a reconciler under the key `:reconciler`. The reconciler is a central component in the system
-that is responsible reconciling the differences between the database and the UI. Therefore it
-is involved in processing the queries, merging novel data into the database, network interactions, and tracking
-mounted components that might need refresh.
-
-You will see it mentioned in many places in this book, and we'll point out where you'll use it directly.
-
-=== Useful Reconciler Options
-
-When you create a new client you can pass options directly to the reconciler with `:reconciler-options`.
-There are a number of options that are used internally by the higher-level layers of Fulcro and should not
-really be used directly, but there are a number of options that can be quite useful.
-
-[horizontal]
-`:shared`::  A map of global (immutable) properties that will be visible to all components. See <<SharedState, Shared State>>.
-`:shared-fn`:: A function to compute shared properties from the root props on UI refresh. *only* recomputed on
-root-level refresh, such as a call to `force-root-render`. See <<SharedState, Shared State>>.
-`:root-render`::  The root render function. Defaults to ReactDOM.render. Useful for switching to React Native.
-`:root-unmount`:: The root unmount function. Defaults to ReactDOM.unmountComponentAtNode. Useful for React Native.
-`:render-mode`::  One of `:normal`, `:keyframe`, or `:brutal`. See below.
-`:lifecycle`::    A function (fn [component event]) that is called when react components either :mount or :unmount. Useful for debugging tools.
-`:tx-listen`::    A function of 2 arguments that will listen to transactions. Called when `transact!` runs. Gets the
-transaction and the environment. The environment includes `:old-state`, `:new-state`, the state atom, etc.
-`:instrument`:: A function that will wrap all rendering. `(fn [{:keys [props children class factory}] )` that
-is called instead of the real factory. You can use this to wrap all UI components for things like performance
-timing, tooling, etc.
-
-=== Rendering Optimizations [[RenderingOptimizations]]
-
-The reconciler does a number of things to optimize rendering beyond the basics of React.
-
-* Fulcro provides a built-in `shouldComponentUpdate` that uses a comparison of the prior props to
-tell React to skip no-op updates that would lead to a useless VDOM diff.
-* When more than one component needs a refresh Fulcro analyzes the tree and only renders the parent of common children
-to to prevent multiple-rendering of children.
-* If a component is the target of a refresh and has an ident then Fulcro will run the query for *just* that component,
-avoiding quite a bit of database processing. This is the biggest performance win in "flame graph" tests.
-** NOTE: a component *without* an ident will *always* trigger a root query/refresh, since there is no way to figure out
-how to run that component's query (queries are relative, and idents give you an anchor point for them).
-
-The `shouldComponentUpdate` optimization reduces the render load by quite a bit, but running the query from root can
-be somewhat costly depending on how well you <<Performance, optimized>> your UI query. Thus, idents become a major
-factor in both normalization and rendering performance since Fulcro relies on them in order to reduce
-the query overhead of UI refresh.  This isn't something you typically need to remember, since you should be using
-idents on *all* components so they are easier to refactor and reuse.
-
-=== Rendering Modes
-
-Version 2.1+ of Fulcro include the ability to tell the reconciler which rendering mode to use.
-
-[[horizontal]]
-`:normal`:: The default mode. Uses all possible optimizations.
-`:keyframe`:: Disables the ident-based targeted refresh. Thus every render is considered a key frame of the DOM.
-This means that every transaction/change will run the root UI query and render from root. The `shouldComponentUpdate`
-optimization is in force and prevents quite a bit of work from React. This mode *can be* plenty fast and has the advantage
-of not needing you to program with follow-on reads.
-`:brutal`:: Disables all optimizations, runs queries from root, runs refresh from root, and forces React to do a full
-DOM diff. Primarily useful to compare how much benefit optimizations are actually giving you beyond React's DOM diff.
-
 == The `defsc` Macro
 
-NOTE: If you're new to Fulcro and started with version 2.0, you can safely ignore most comments about `defui`. The two
-are rougly equivalent, with `defsc` being the newer.
-
-Fulcro's defsc is a front-end to the legacy defui macro. It is sanity-checked for the most common elements: ident (optional), query,
-render, and initial state (optional). The sanity checking prevents a lot of the most common errors when writing a component,
+Fulcro's defsc is the main macro you'll use to create components. It is sanity-checked for the most common elements:
+ident (optional), query, props destructuring, and initial state (optional). The sanity checking prevents a lot of the
+most common errors when writing a component,
 and the concise syntax reduces boilerplate to the essential novelty. The name means "define stateful component" and is
 intended to be used with components that have queries (though that is not a requirement).
 
@@ -2645,12 +2579,13 @@ intended to be used with components that have queries (though that is not a requ
 The primary argument list contains the common elements you might need to use in the body:
 
 ```
-(defsc [this props <optional-computed> <optional-css-map-if-using-css>]
+(defsc [this props <optional-computed> <optional-extensible-arg>]
  { ...options... }
  (dom/div {:onClick (:onClick computed)} (:db/id props)))
 ```
 
-The last parameter will let you destructure fulcro-css names, if and only if you're using the Fulcro CSS library.
+The last parameter is used by libraries to augment `defsc` with any additional data they might want to make
+convenient.  See the `fulcro-garden-css` library for an example.
 
 Only the first two parameters are required, so you can even write:
 
@@ -2662,49 +2597,66 @@ Only the first two parameters are required, so you can even write:
 
 ==== Argument Destructuring
 
-The parameter list fully supports Clojure destructuring on the props, computed, and css-name-map without having to write a
+The parameter list fully supports Clojure destructuring on the props, computed, and "extra map" without having to write a
 separate let:
 
 ```
 (defsc DestructuredExample [this
                             {:keys [db/id] :as props}
-                            {:keys [onClick] :as computed :or {onClick identity}}
-                            {:keys [my-css-class] :as css-name-map}]
+                            {:keys [onClick] :as computed :or {onClick identity}}]
   {:query         [:db/id]
-   :initial-state {:db/id 22}
-   :css           [[:.my-css-class {:color :black}]]}
-  (dom/div {:className my-css-class}
+   :initial-state {:db/id 22}}
+  (dom/div
     (str "Component: " id)))
 ```
 
 === Options – Lambda vs. Template
 
-The core options (`:query`, `:ident`, `:initial-state`, `:css`, and `:css-include`) of `defsc` support both a lambda and a template
+The core options (`:query`, `:ident`, `:initial-state`) of `defsc` are special.  They support both a lambda and a template
 form. The template form is shorter and enables some sanity checks; however, it is not expressive enough to cover all
 possible cases. The lambda form is slightly more verbose, but enables full flexibility at the expense of the sanity checks.
 
-IMPORTANT NOTE: In lambda mode use `this` and `props` from the `defsc` argument list. So, for example, `(fn [] [:x])` is
-valid for query (this is added by the macro), and `(fn [] [:table/id id])` is valid for ident.
+IMPORTANT NOTE: In lambda mode `ident` can use `this` and `props` from the `defsc` argument list. The other two are primarily
+used "statically" and have no sane `this` or `props`.
 
 === Ident Generation
 
-If you include `:ident`, it can take two forms: a template or lambda.
+If you include `:ident`, it can take three possible forms: a template, lambda, or keyword.
+
+==== Keyword Idents
+
+The keyword option is a popular option if you're following the recommended naming conventions.  It means that the table
+name *and* the ID key of the entity are the same.
 
 ==== Template Idents
 
 A template ident is just a vector that patterns what goes in the ident. The first element is always literal, and the
 second is the name of the property to pull from props to get the ID.
 
-This is the most common case, and if you use the template mechanism you get some added sanity checks: it won't compile
+If you use the template mechanism you get some added sanity checks: it won't compile
 if your ID key isn't in your query, eliminating some possible frustration.
+
+So, the following two forms are identical:
+
+```
+(defsc Person [_ _]
+ {:ident :person/id
+  ...
+
+;; OR
+
+(defsc Person [_ _]
+ {:ident [:person/id :person/id]
+  ...
+```
 
 ==== Lambda Idents
 
-Template idents are great for the common case, but they don't work if you have a single instance ever (i.e. you want
+The above options are great for the common cases, but they don't work if you have a single instance ever (i.e. you want
 a literal second element), and they won't work at all for union queries. They also do not support embedded code.
-Therefore, if you want a more advanced ident, you'll need to spell out the code.
+Therefore, if you want a more advanced ident you'll need to spell out the code.
 
-`defsc` at least eliminates some of the boilerplate:
+`defsc` causes an ident lamda to "close over" the `defsc` argument list, which at least eliminates some of the boilerplate:
 
 ```
 (defsc UnionComponent [this {:keys [db/id component/type]}]
@@ -2722,13 +2674,14 @@ The template form is strongly recommended for most cases, because without it man
 
 In template mode, the following sanity checks are enabled:
 
-* The props destructuring
-* The ident's id name is in the query (if ident is in template mode)
-* The initial app state only contains things that are queried for (if it is in template mode as well)
+* The props destructuring can only include things that are in the query.
+* The ident's id propery is checked to make sure it is in the query (if ident is in template mode)
+* The initial app state can only contains things that are also queried for (if it is in template mode as well)
 
 ==== Lambda Query
 
-This mode is necessary if you use more complex queries. The template mode currently does not support union queries.
+This mode is necessary if you use more complex queries. The template mode currently does not support union queries or
+wildcards.  It is also useful when you want to disable the sanity checks for any reason.
 
 To use this mode, specify your query as `(fn [] [:x])`. In lambda mode, `this` comes from the argument list of `defsc`.
 
@@ -2738,7 +2691,7 @@ As with `:query` and `:ident`, `:initial-state` supports a template and lambda f
 
 The template form for initial state is a bit magical, because it tries to sanity check your initial state, but also has
 to support relations through joins. Finally it tries to eliminate typing for you by auto-wrapping nested relation
-initializations in get-initial-state for you by deriving the correct class to use from the query.
+initializations in `get-initial-state` for you by deriving the correct class to use from the query.
 This further reduces the chances of error; however, you may find the terse result more difficult to read and
 instead choose to write it yourself. Both ways are supported:
 
@@ -2823,9 +2776,7 @@ Step (1) means that nesting of param-namespaced keywords is supported, but reali
 
 === Pre-Merge
 
-Available from Fulcro 2.8+.
-
-The `:pre-merge` option offers a hook to manipulate data entering your Fulcro app at component level. The option looks like this:
+The `:pre-merge` option offers a hook to manipulate data entering your Fulcro app at a component level. The option looks like this:
 
 [source,clojure]
 ----
@@ -2835,31 +2786,18 @@ The `:pre-merge` option offers a hook to manipulate data entering your Fulcro ap
 
 The `:pre-merge` lambda receives a single map containing the following keys:
 
-* `:data-tree` - the new data tree entering the database
-* `:current-normalized` - the current entity value (if any), comes normalized from the db (as in `(get-in state ref)`)
-* `:state-map` - the current app state map (you may use to lookup refs).
-* `:query` - the query used to do this request (user may have modified the original using `:focus`, `:without` or `:update-query` during the load call
+* `:data-tree` - the new data tree entering the database (e.g. from a load or explicit `merge-component!`)
+* `:current-normalized` - the current entity value (normalized form in the db)
+* `:state-map` - the current normalized client database (as a map, not an atom)
+* `:query` - the query being used to for this request (user may have modified the original using `:focus`, `:without` or `:update-query` during the load call
 
 and returns the data that should actually be merged into app state. This feature requires
-an more complete understanding of normalization and full stack operation, and is covered in a
+a complete understanding of normalization and full stack operation, and is covered in a
 <<PreMerge, later chapter>>.
 
-=== CSS Support
-
-Support for using `fulcrologic/fulcro-css` is built-in. Before 2.4 it was a dynamic dependency so to use needed to include
-the `fulcrologic/fulcro-css` library in your project dependencies and require the `fulcro-css.css` namespace in any file
-that used this support.
-
-As of version 2.4 it is intregrated with Fulcro, and requires no special dependency.
-
-The keys in the `defsc` options map to leverage co-located CSS are:
-
-* `:css` - The items to put in protocol method css/local-rules. Can be pure garden data, or `(fn [] ...)`
-* `:css-include` - The items to put in protocol method css/include-children. Can be a vector of classes, or `(fn [] ...)`
-
-Both are optional. If you use neither, then your code will not incur a dependency on the fulcro-css library.
-
-See <<ColocatedCSS, Colocated CSS>> for more details.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; CONTINUE HERE
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 === Component Constructor
 
