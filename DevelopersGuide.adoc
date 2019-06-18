@@ -1871,21 +1871,23 @@ and create the file `src/main/parser.clj` with this content:
 (ns app.parser
   (:require
     [com.wsscode.pathom.core :as p]
-    [com.wsscode.pathom.connect :as pc]))
+    [com.wsscode.pathom.connect :as pc]
+    [taoensso.timbre :as log]))
 
-;; For adding resolvers later:
 (def resolvers [])
 
 (def pathom-parser
-  (p/parser {::p/env     {::p/reader [p/map-reader
-                                      pc/reader2
-                                      pc/ident-reader
-                                      pc/index-reader]}
+  (p/parser {::p/env     {::p/reader                 [p/map-reader
+                                                      pc/reader2
+                                                      pc/ident-reader
+                                                      pc/index-reader]
+                          ::pc/mutation-join-globals [:tempids]}
              ::p/mutate  pc/mutate
              ::p/plugins [(pc/connect-plugin {::pc/register resolvers})
                           p/error-handler-plugin]}))
 
 (defn api-parser [query]
+  (log/info "Process" query)
   (pathom-parser {} query))
 ```
 
@@ -1928,6 +1930,8 @@ and then add a `src/main/app/server.clj` namespace:
   (-> not-found-handler                                     ; <1>
     (server/wrap-api {:uri    "/api"
                       :parser api-parser})                  ; <2>
+    (server/wrap-transit-params)
+    (server/wrap-transit-response)
     (wrap-resource "public")                                ; <3>
     wrap-content-type))
 
@@ -1942,7 +1946,7 @@ and then add a `src/main/app/server.clj` namespace:
     (reset! stop-fn nil)))
 ```
 <1> The middleware stack ends at a not found handler
-<2> The `wrap-api` middleware from Fulcro.
+<2> The `wrap-api` middleware from Fulcro, along with transit in/out encode/decode.
 <3> Resource serving (to get our index.html file) and set the content type correctly.
 
 === Running the Server
@@ -2436,18 +2440,7 @@ and then modify `parser.clj` to require and include the mutations in the overall
 
 (def resolvers [app.resolvers/resolvers app.mutations/mutations]) <---- add to this
 
-(def pathom-parser
-  (p/parser {::p/env     {::p/reader [p/map-reader
-                                      pc/reader2
-                                      pc/ident-reader
-                                      pc/index-reader]}
-             ::p/mutate  pc/mutate
-             ::p/plugins [(pc/connect-plugin {::pc/register resolvers})
-                          p/error-handler-plugin]}))
-
-(defn api-parser [query]
-  (log/info "Process" query)
-  (pathom-parser {} query))
+;; no other changes
 ```
 
 Refresh the code on your server with `(restart)` at the REPL; However, don't expect it to work just yet. We have
@@ -2469,7 +2462,7 @@ section to your `defmutation` handler:
 The syntax for the addition is:
 
 ```
-(remote-name [env] boolean-or-ast)
+(remote-name [env] boolean-or-ast-or-env)
 ```
 
 where `remote` is the name of a remote server (the default is `remote`). You can have any number of network remotes.
@@ -2810,9 +2803,6 @@ You can include a constructor which will `this` and `props` as explicit paramete
 
 You can also just place code in `initLocalState` before you return a value. Such code will also run on construction.
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; CONTINUE
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 === React Lifecycle Methods
 
 The options of defsc allow for React Lifecycle methods to be defined (as lambdas).
