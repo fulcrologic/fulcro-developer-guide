@@ -58,7 +58,8 @@
     [com.fulcrologic.fulcro.dom :as dom]
     [book.example-1 :as ex1]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [com.fulcrologic.fulcro.application :as app]))
+    [com.fulcrologic.fulcro.application :as app]
+    [taoensso.encore :as encore]))
 
 (defonce latency (atom 100))
 
@@ -208,3 +209,9 @@
 (defn ^:export init []
   (js/console.log "Init")
   (app/mount! server-control-app ServerControlRoot "server-controls"))
+
+(defn ^:export focus [app-id]
+  (encore/when-let [app        (get @book.macros/app-registry app-id)
+                    state-map  (app/current-state app)
+                    inspect-id (get state-map :fulcro.inspect.core/app-uuid)]
+    (com.fulcrologic.fulcro.inspect.preload/set-active-app inspect-id)))

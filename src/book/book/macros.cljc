@@ -107,12 +107,15 @@
                                     {:example-app (with-meta {} {:app example-app :root root-class})
                                      :title       title})})))
 
+(defonce app-registry (atom {}))
+
 (defmacro defexample [title root-class id & {:as args}]
   (let [app         (with-meta (symbol (str "fulcroapp-" id)) {:extern true})
         example-app (with-meta (symbol (str "example-container-" id)) {:extern true})]
     `(do
        (defonce ~app (app/fulcro-app ~(merge {:id (name app)} args)))
-       (defonce ~example-app (book.macros/new-example {:title ~title :example-app ~app :root-class ~root-class}))
-       (app/mount! ~example-app ExampleRoot ~id))))
+       ;(defonce ~example-app (book.macros/new-example {:title ~title :example-app ~app :root-class ~root-class}))
+       (swap! app-registry assoc ~id ~app)
+       (app/mount! ~app ~root-class ~id))))
 
 

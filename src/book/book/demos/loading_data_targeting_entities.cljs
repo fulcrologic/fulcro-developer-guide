@@ -9,9 +9,10 @@
 
 ;; SERVER
 
-(pc/defresolver random-person-resolver ::person-by-id
-  (value [env id params]
-    {:db/id id :person/name (str "Person " id)}))
+(pc/defresolver random-person-resolver [env {:keys [id]}]
+  {::pc/input [:person/id]
+   ::pc/output [:person/name]}
+  {:person/id id :person/name (str "Person " id)})
 
 ;; CLIENT
 
@@ -55,7 +56,7 @@
                                [:pane/by-id :right :pane/person]))
 
         person-ident [::person-by-id (rand-int 100)]]
-    (df/load component person-ident Person {:target load-target :marker false})))
+    (df/load! component person-ident Person {:target load-target :marker false})))
 
 (defsc Root [this {:keys [root/panel] :as props}]
   {:query         [{:root/panel (comp/get-query Panel)}]

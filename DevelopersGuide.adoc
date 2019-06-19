@@ -30,6 +30,59 @@ ifdef::env-github[]
 toc::[]
 endif::[]
 
+++++
+<style>
+@media screen {
+  button.inspector {
+    float: right;
+    right: 0px;
+    font-size: 10pt;
+    margin-bottom: 6px;
+    padding: 6px;
+    border-radius: 14px;
+  }
+}
+@media print {
+  button.inspector {display: none;}
+}
+.example {
+  clear: both;
+  margin-left: auto;
+  margin-right: auto;
+  position: relative;
+  min-height: 400px;
+  background-color: lightgray;
+  border: 3px groove white;
+  border-radius: 5px;
+  padding: 5px;
+}
+
+.example-title {
+  position: relative;
+  margin-left: auto;
+  margin-right: auto;
+  width: 50%;
+  text-align: center;
+  font-size: 16pt;
+}
+
+.narrow.example {
+  width: 50%;
+}
+
+.wide.example {
+  width: 80%;
+}
+
+.short.example {
+  min-height: 200px;
+}
+.tall.example {
+  min-height: 800px;
+}
+</style>
+++++
+
 = Prologue
 
 == About This Book
@@ -52,8 +105,8 @@ look like this:
 
 ++++
 <div id="server-controls"> </div>
-<div class="example" id="example-1"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.example-1').toggle()">Show/Hide Source</a>
+<div class="example-title">Sample Example <button onClick="book.main.focus('example-1')">Focus Inspector</button></div>
+<div class="short narrow example" id="example-1"> </div>
 ++++
 
 [source,clojure,role="example-1 source"]
@@ -1623,7 +1676,7 @@ So, now that we have the concept and implementation, let's talk about convention
 
 1. Properties should be namespaced: `:person/name`, `:account/email`, etc.
 2. Entities are usually identified by a type-centric ID: `:person/id`, `:account/id`, etc.
-3. Table names in the database are usually ID key of the entities within it (to facilitate some
+3. Table names in the database are usually the same as the ID key of the entities within it (to facilitate some
 nice support in Pathom).
 
 Using these conventions the prior example would have looked like this:
@@ -2057,7 +2110,7 @@ Here is a sample resolver:
   {::pc/input  #{:person/id}
    ::pc/output [:person/name]}
   (let [name (get-name-from-database (:person/id input))]
-    {:person/name "Bob"}))
+    {:person/name name}))
 ```
 
 it declares "Given a `:person/id` as input, I can produce their name". The inputs are written as a set, and the output
@@ -2195,7 +2248,7 @@ Now we will start to see more of the payoff of our UI co-located queries and aut
 so far is quite unrealistic: the lists of people we're showing should be coming from a server-side database, they
 should not be embedded in the code of the client. Let's remedy that.
 
-Fulcro provides a few mechanisms for loading data, but every possible load scenario can be done using
+Fulcro provides a few mechanisms for loading data, but most important load scenarios can be done using
 the `com.fulcrologic.fulcro.data-fetch/load!` function.
 
 It is very important to remember that our application database is completely normalized, so anything we'd want to put
@@ -2207,10 +2260,9 @@ Thus, there really are not very many scenarios!
 
 The three basic scenarios are:
 
-* Load something into the root of the application state
-* Load something into a particular field of an existing thing
-* Load some pile of data, and shape it into the database (e.g. load all of the people, and then separate them into
-a list of friends and enemies).
+* Load something into the root of the application state (root prop).
+* Load a tree and normalize it into tables.
+* Target a loaded tree to "start" at some specific edge in the graph.
 
 Let's try out these different scenarios with our application.
 
@@ -2337,7 +2389,8 @@ So, you could add an arbitrary person the the friends list like this:
 ```
 
 NOTE: Targets are just graph database paths. The `append-to` modifier comes from the `com.fulcrologic.fulcro.algorithms.data-targeting`
-namespace and will append the edge to a to-many relation if (and only if) it isn't already there.
+namespace and will append the edge to a to-many relation if (and only if) it isn't already there. Remember, any edge is
+reachable in our database by a path that is at most three elements long (table, id, field).
 
 ==== Additional Permutations
 
@@ -2774,7 +2827,8 @@ The `:pre-merge` option offers a hook to manipulate data entering your Fulcro ap
 [source,clojure]
 ----
 (defsc Countdown [this props]
-  {:pre-merge (fn [env] ...)}]
+  {:pre-merge (fn [env] ...)}
+  ...)
 ----
 
 The `:pre-merge` lambda receives a single map containing the following keys:
@@ -3217,15 +3271,21 @@ If your component had a property called `editing?` that you made true to indicat
 instead of just a value, then you could write your focus logic based on the transition of your component's props
 from `:editing?` false to `:editing?` true.
 
+.[[Focusing]]<<Focusing, Focusing an input>>
+====
+
 ++++
-<div class="example" id="focus-example"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.focus-example').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('focus-example')">Focus Inspector</button>
+<div class="short narrow example" id="focus-example"> </div>
+<br/>
 ++++
 
 [source,clojure,role="focus-example source"]
 ----
 include::src/book/book/ui/focus_example.cljs[]
 ----
+
+====
 
 NOTE: React documentation encourages a more functional form of `ref` (you supply a function instead of a string).
 This example could also cache that on the component like this:
@@ -12854,26 +12914,6 @@ The complete source for this demo is:
 
 ++++
 <style>
-@media screen {
-  .source-toggle {padding-bottom: 1em;}
-  .source {display: none;
-  margin-left: 2em;}
-}
-@media print {
-  .source-toggle {display:none;}
-  .source {display: block;
-           margin-left: 2em;
-          }
-}
-.example {width: "100vw";
-          height: "100vh";
-          background-color: lightgray;
-          border: 3px groove white;
-          border-radius: 10px;
-          padding: 0;
-          margin: 0;}
-.example-title {
-}
 .com-rigsomelight-rendered-edn .keyval > .keyword {
  color: rgb(196,33,0);
  padding-right: 10px;
