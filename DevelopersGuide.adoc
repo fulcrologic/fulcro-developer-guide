@@ -30,6 +30,8 @@ ifdef::env-github[]
 toc::[]
 endif::[]
 
+= Prologue
+
 ++++
 <style>
 @media screen {
@@ -56,37 +58,15 @@ endif::[]
   border-radius: 5px;
   padding: 5px;
 }
-
-.example-title {
-  position: relative;
-  margin-left: auto;
-  margin-right: auto;
-  width: 50%;
-  text-align: center;
-  font-size: 16pt;
-}
-
-.narrow.example {
-  width: 50%;
-}
-
-.wide.example {
-  width: 80%;
-}
-
-.short.example {
-  min-height: 200px;
-}
-.tall.example {
-  min-height: 800px;
-}
+.narrow.example { width: 50%; }
+.wide.example { width: 80%; }
+.short.example { min-height: 200px; }
+.tall.example { min-height: 800px; }
 </style>
 
 <!-- div for server controls -->
 <div id="server-controls"> </div>
 ++++
-
-= Prologue
 
 == About This Book
 
