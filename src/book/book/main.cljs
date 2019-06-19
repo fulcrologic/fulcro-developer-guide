@@ -13,8 +13,8 @@
     book.queries.recursive-demo-2
     book.queries.recursive-demo-3
     book.queries.recursive-demo-bullets
-    ;book.forms.form-state-demo-1
-    ;book.forms.form-state-demo-2
+    book.forms.form-state-demo-1
+    book.forms.form-state-demo-2
     [book.demos.autocomplete :as autocomplete]
     book.ui-routing
     book.simple-router-1
@@ -22,14 +22,13 @@
     book.tree-to-db
     book.merge-component
     book.html-converter
-    ;book.server.morphing-example
-    ;book.demos.cascading-dropdowns
+    book.server.morphing-example
+    book.demos.cascading-dropdowns
     book.demos.declarative-mutation-refresh
     book.demos.dynamic-ui-routing
     book.demos.initial-app-state
-    ;book.demos.legacy-load-indicators
-    ;book.demos.loading-data-basics
-    ;book.demos.loading-data-targeting-entities
+    book.demos.loading-data-basics
+    book.demos.loading-data-targeting-entities
     ;book.demos.loading-in-response-to-UI-routing
     ;book.demos.loading-indicators
     ;book.demos.paginating-large-lists-from-server
@@ -48,7 +47,7 @@
     ;book.demos.server-return-values-as-data-driven-mutation-joins
     ;book.demos.server-targeting-return-values-into-app-state
     ;book.demos.server-return-values-manually-merging
-    ;[book.server.ui-blocking-example :as ui-blocking]
+    [book.server.ui-blocking-example :as ui-blocking]
 
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [taoensso.timbre :as log]
@@ -65,6 +64,8 @@
 
 (def my-resolvers [autocomplete/list-resolver
                    book.demos.declarative-mutation-refresh/resolvers
+                   book.forms.form-state-demo-2/resolvers
+                   book.demos.loading-data-basics/resolvers
                    #_book.demos.cascading-dropdowns/model-resolver])
 
 (def parser
@@ -137,11 +138,11 @@
 (defexample "Drawing in a Canvas" hover-example/Root "hover-example")
 (defexample "Using External React Libraries" victory-example/Root "victory-example")
 (defexample "Unions to Select Type" union-example-1/Root "union-example-1")
-;#?(:cljs (defexample "UI Blocking" ui-blocking/Root "ui-blocking-example" :remotes book.main/example-server))
+(defexample "UI Blocking" ui-blocking/Root "ui-blocking-example" :remotes book.main/example-server)
 ;
 ;;; Dynamic queries
-;#?(:cljs (defexample "Dynamic Query" book.queries.dynamic-queries/Root "dynamic-queries"))
-;#?(:cljs (defexample "Dyanmic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters"))
+(defexample "Dynamic Query" book.queries.dynamic-queries/Root "dynamic-queries")
+(defexample "Dyanmic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters")
 ;
 (defexample "Routing Demo" book.ui-routing/Root "ui-routing" :remotes book.main/example-server)
 (defexample "Simple Router" book.simple-router-1/Root "simple-router-1")
@@ -151,8 +152,8 @@
 (defexample "HTML Converter" book.html-converter/Root "html-converter")
 ;
 ;;; Forms
-;(defexample "Editing Existing Data" book.forms.form-state-demo-1/Root "form-state-demo-1" :remotes book.main/example-server)
-;(defexample "Network Interactions and Forms" book.forms.form-state-demo-2/Root "form-state-demo-2" :remotes book.main/example-server)
+(defexample "Editing Existing Data" book.forms.form-state-demo-1/Root "form-state-demo-1" :remotes book.main/example-server)
+(defexample "Network Interactions and Forms" book.forms.form-state-demo-2/Root "form-state-demo-2" :remotes book.main/example-server)
 
 (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :remotes book.main/example-server)
 ;(defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :remotes book.main/example-server)

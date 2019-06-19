@@ -21,7 +21,7 @@
   {:initial-state (fn [params] (f/build-form PhoneForm (or params {})))
    :form-fields   [(f/id-field :db/id) (f/text-input :phone/number :className "form-control") (f/dropdown-input :phone/type [(f/option :home "Home") (f/option :work "Work")])]
    :query         (fn [] [:db/id :phone/type :phone/number f/form-key]) ; Don't forget f/form-key!
-   :ident         [:phone/by-id :db/id]}
+   :ident         [:phone/id :db/id]}
   (dom/div :.form-horizontal
     (field-with-label this form :phone/type "Phone type:")  ; Use your own helpers to render out the fields
     (field-with-label this form :phone/number "Number:")))

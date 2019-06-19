@@ -1,10 +1,10 @@
 (ns book.server.morphing-example
-  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-            [com.fulcrologic.fulcro.dom :as dom]
-            [book.macros :refer [defexample]]
-            [fulcro.client.cards :refer [defcard-fulcro]]
-            [com.fulcrologic.fulcro.mutations :refer [defmutation]]
-            [fulcro.client :as fc]))
+  (:require
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [book.macros :refer [defexample]]
+    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
+    [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]))
 
 (defsc CategoryQuery [this props]
   {:query [:db/id :category/name]
@@ -44,7 +44,7 @@
 
 (defmutation group-items-reset [params]
   (action [{:keys [state]}]
-    (reset! state (comp/tree->db component-query sample-server-response true))))
+    (reset! state (fnorm/tree->db component-query sample-server-response true))))
 
 (defn add-to-category
   "Returns a new db with the given item added into that item's category."
@@ -76,5 +76,5 @@
     (dom/ul
       (map ui-toolbar-category categories))))
 
-(defexample "Morphing Data" Toolbar "morphing-example" :initial-state (atom (comp/tree->db component-query sample-server-response true)))
+(defexample "Morphing Data" Toolbar "morphing-example" :initial-state (atom (fnorm/tree->db component-query sample-server-response true)))
 

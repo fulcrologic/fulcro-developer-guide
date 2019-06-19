@@ -7,7 +7,7 @@
 
 (defmutation make-older [{:keys [id]}]
   (action [{:keys [state]}]
-    (swap! state update-in [:person/by-id id :person/age] inc)))
+    (swap! state update-in [:person/id id :person/age] inc)))
 
 ; We use computed to track the depth. Targeted refreshes will retain the computed they got on
 ; the most recent render. This allows us to detect how deep we are.
@@ -20,7 +20,7 @@
                      :person/spouse {:db/id         2 :person/name "Sally"
                                      :person/age    22
                                      :person/spouse {:db/id 1 :person/name "Joe"}}})
-   :ident         [:person/by-id :db/id]}
+   :ident         [:person/id :db/id]}
   (dom/div
     (dom/div "Name:" name)
     (dom/div "Age:" age

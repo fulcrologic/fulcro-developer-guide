@@ -1,21 +1,19 @@
 (ns book.server.ui-blocking-example
-  (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-            [com.fulcrologic.fulcro.dom :as dom]
-            [fulcro.client.cards :refer [defcard-fulcro]]
-            [com.fulcrologic.fulcro.mutations :as m]
-            [fulcro.server :as server]
-            [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-            [book.macros :refer [defexample]]))
+  (:require
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.wsscode.pathom.connect :as pc]))
 
 ;; SERVER
 
-(server/defmutation submit-form [params]
-  (action [env]
-    (if (> 0.5 (rand))
-      {:message "Everything went swell!"
-       :result  0}
-      {:message "There was an error!"
-       :result  1})))
+(pc/defmutation submit-form-mutation [env params]
+  {::pc/sym `submit-form}
+  (if (> 0.5 (rand))
+    {:message "Everything went swell!"
+     :result  0}
+    {:message "There was an error!"
+     :result  1}))
 
 ;; CLIENT
 
@@ -44,8 +42,8 @@
 
 (defmutation submit-form [params]
   (action [{:keys [state]}] (swap! state set-overlay-visible* true))
-  (remote [{:keys [state ast] :as env}]
-    (m/returning ast state MutationStatus)))
+  (remote [env]
+    (m/returning env MutationStatus)))
 
 (defn submit-ok? [env] (= 0 (some-> env :state deref :remote-mutation :status :result)))
 

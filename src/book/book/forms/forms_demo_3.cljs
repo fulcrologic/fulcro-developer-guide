@@ -48,7 +48,7 @@
 (defsc ValidatedPhoneForm [this form]
   {:initial-state (fn [params] (f/build-form this (or params {})))
    :query         [:db/id :phone/type :phone/number f/form-key]
-   :ident         [:phone/by-id :db/id]
+   :ident         [:phone/id :db/id]
    :form-fields   [(f/id-field :db/id)
                    (f/text-input :phone/number :validator `us-phone?) ; Addition of validator
                    (f/dropdown-input :phone/type [(f/option :home "Home") (f/option :work "Work")])]}

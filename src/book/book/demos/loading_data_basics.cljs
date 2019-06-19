@@ -1,69 +1,70 @@
 (ns book.demos.loading-data-basics
   (:require
-    [fulcro.client :as fc]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [book.demos.util :refer [now]]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc InitialAppState initial-state]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [fulcro.server :as server]))
+    [com.wsscode.pathom.connect :as pc]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def all-users [{:db/id 1 :person/name "A" :kind :friend}
-                {:db/id 2 :person/name "B" :kind :friend}
-                {:db/id 3 :person/name "C" :kind :enemy}
-                {:db/id 4 :person/name "D" :kind :friend}])
+(def all-users {1 {:ldb.person/id 1 :ldb.person/name "A" :ldb.person/kind :friend}
+                2 {:ldb.person/id 2 :ldb.person/name "B" :ldb.person/kind :friend}
+                3 {:ldb.person/id 3 :ldb.person/name "C" :ldb.person/kind :enemy}
+                4 {:ldb.person/id 4 :ldb.person/name "D" :ldb.person/kind :friend}})
 
-(server/defquery-entity :load-samples.person/by-id
-  (value [{:keys [] :as env} id p]
-    (let [person (first (filter #(= id (:db/id %)) all-users))]
-      (assoc person :person/age-ms (now)))))
+(pc/defresolver sample-person-resolver [env {:person/keys [id]}]
+  {::pc/input  #{:ldb.person/id}
+   ::pc/output [:ldb.person/age-ms :ldb.person/name :ldb.person/kind]}
+  (when-let [person (get all-users id)]
+    (assoc person :ldb.person/age-ms (now))))
 
-(server/defquery-root :load-samples/people
-  (value [env {:keys [kind]}]
-    (let [result (->> all-users
-                   (filter (fn [p] (= kind (:kind p))))
-                   (mapv (fn [p] (-> p
-                                   (select-keys [:db/id :person/name])
-                                   (assoc :person/age-ms (now))))))]
-      result)))
+(pc/defresolver people-of-some-kind-resolver [env input]
+  {::pc/output [{:ldb/people [:ldb.person/id]}]}
+  (let [{:keys [kind]} (-> env :ast :params)]
+    (let [result (into []
+                   (comp
+                     (filter (fn [p] (= kind (:ldb.person/kind p))))
+                     (map (fn [p] (select-keys p [:ldb.person/id]))))
+                   (vals all-users))]
+      {:ldb/people result})))
+
+(def resolvers [sample-person-resolver people-of-some-kind-resolver])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLIENT:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defsc Person [this {:keys [db/id person/name person/age-ms] :as props}]
-  {:query [:db/id :person/name :person/age-ms :ui/fetch-state]
-   :ident (fn [] [:load-samples.person/by-id id])}
+(defsc Person [this {:ldb.person/keys [id name age-ms] :as props}]
+  {:query [:ldb.person/id :ldb.person/name :ldb.person/age-ms]
+   :ident :ldb.person/id}
   (dom/li
     (str name " (last queried at " age-ms ")")
     (dom/button {:onClick (fn []
                             ; Load relative to an ident (of this component).
                             ; This will refresh the entity in the db. The helper function
                             ; (df/refresh! this) is identical to this, but shorter to write.
-                            (df/load this (comp/ident this props) Person))} "Update")))
+                            (df/load! this (comp/ident this props) Person))} "Update")))
 
 (def ui-person (comp/factory Person {:keyfn :db/id}))
 
-(defsc People [this {:keys [people]}]
-  {:initial-state (fn [{:keys [kind]}] {:people/kind kind})
-   :query         [:people/kind {:people (comp/get-query Person)}]
-   :ident         [:lists/by-type :people/kind]}
+(defsc People [this {:list/keys [people]}]
+  {:initial-state (fn [{:keys [kind]}] {:list/id kind :list/people []})
+   :query         [:list/id {:list/people (comp/get-query Person)}]
+   :ident         :list/id}
   (dom/ul
-    ; we're loading a whole list. To sense/show a loading marker the :ui/fetch-state has to be queried in Person.
-    ; Note the whole list is what we're loading, so the render lambda is a map over all of the incoming people.
-    (df/lazily-loaded #(map ui-person %) people)))
+    (map ui-person people)))
 
 (def ui-people (comp/factory People {:keyfn :people/kind}))
 
-(defsc Root [this {:keys [friends enemies]}]
-  {:initial-state (fn [{:keys [kind]}] {:friends (comp/get-initial-state People {:kind :friends})
-                                        :enemies (comp/get-initial-state People {:kind :enemies})})
-   :query         [{:enemies (comp/get-query People)} {:friends (comp/get-query People)}]}
+(defsc Root [this {:root/keys [friends enemies]}]
+  {:initial-state (fn [{:keys [kind]}] {:root/friends (comp/get-initial-state People {:id :friends})
+                                        :root/enemies (comp/get-initial-state People {:id :enemies})})
+   :query         [{:root/enemies (comp/get-query People)} {:root/friends (comp/get-query People)}]}
   (dom/div
     (dom/h4 "Friends")
     (ui-people friends)
@@ -77,8 +78,8 @@
   ; use of params. The generated network query will result in params
   ; appearing in the server-side query, and :people will be the dispatch
   ; key. The subquery will also be available (from Person). See the server code above.
-  (df/load app :load-samples/people Person {:target [:lists/by-type :enemies :people]
-                                            :params {:kind :enemy}})
-  (df/load app :load-samples/people Person {:target [:lists/by-type :friends :people]
-                                            :params {:kind :friend}}))
+  (df/load! app :ldb/people Person {:target [:list/id :enemies :list/people]
+                                    :params {:kind :enemy}})
+  (df/load! app :ldb/people Person {:target [:list/id :friends :list/people]
+                                    :params {:kind :friend}}))
 

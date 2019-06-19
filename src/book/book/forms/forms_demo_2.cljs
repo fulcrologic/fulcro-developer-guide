@@ -35,7 +35,7 @@
                    (f/text-input :phone/number :validator `us-phone?) ; Addition of validator
                    (f/dropdown-input :phone/type [(f/option :home "Home") (f/option :work "Work")])]
    :query         [:db/id :phone/type :phone/number f/form-key]
-   :ident         [:phone/by-id :db/id]}
+   :ident         [:phone/id :db/id]}
   (dom/div :.form-horizontal
     (field-with-label this form :phone/type "Phone type:")
     ;; One more parameter to give the validation error message:

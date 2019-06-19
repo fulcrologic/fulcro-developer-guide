@@ -48,7 +48,7 @@
     (let [updates (-> p :form/updates)]
       (doseq [[[table id] changes] updates]
         (case table
-          :phone/by-id (update-phone-number id changes)
+          :phone/id (update-phone-number id changes)
           (log/info "Server asked to update unknown entity " table))))))
 
 (defn field-with-label
@@ -64,8 +64,8 @@
 
 (defn phone-ident [id-or-props]
   (if (map? id-or-props)
-    [:phone/by-id (:db/id id-or-props)]
-    [:phone/by-id id-or-props]))
+    [:phone/id (:db/id id-or-props)]
+    [:phone/id id-or-props]))
 
 (defsc PhoneForm [this form]
   {:query       [:db/id :phone/type :phone/number f/form-key]

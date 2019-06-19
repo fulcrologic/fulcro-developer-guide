@@ -22,7 +22,7 @@
                        (make-person 4 "Rae"
                          [(make-person 5 "Ian"
                             [(make-person 6 "Zoe" [])])])]))
-   :ident         [:person/by-id :db/id]}
+   :ident         [:person/id :db/id]}
   (dom/div
     (dom/h4 name)
     (when (seq children)

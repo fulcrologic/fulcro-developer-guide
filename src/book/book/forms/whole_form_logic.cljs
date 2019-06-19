@@ -45,7 +45,7 @@
 (defsc Person [this {:keys [ui/name-status] :as props}]
   {:initial-state (fn [params] (f/build-form this (or params {})))
    :query         [f/form-root-key f/form-key :db/id :person/name :person/age :ui/name-status]
-   :ident         [:person/by-id :db/id]
+   :ident         [:person/id :db/id]
    :form-fields   [(f/id-field :db/id)
                    (f/on-form-change `check-username-available)
                    (f/text-input :person/name)

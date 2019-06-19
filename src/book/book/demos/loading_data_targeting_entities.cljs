@@ -3,13 +3,13 @@
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
-    [fulcro.server :as server]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [com.fulcrologic.fulcro.components :as comp]))
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.wsscode.pathom.connect :as pc]))
 
 ;; SERVER
 
-(server/defquery-entity ::person-by-id
+(pc/defresolver random-person-resolver ::person-by-id
   (value [env id params]
     {:db/id id :person/name (str "Person " id)}))
 

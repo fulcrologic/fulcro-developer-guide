@@ -2949,25 +2949,37 @@ Details about additional aspects of rendering are in the sections that follow.
 
 It is possible that your logic and state will be much simpler if your UI components derive some values at render time.
 A prime example of this is the state of a "check all" button. The state of such a button is dependent on other components
-in the UI, and it is *not* a separate value. Thus, your UI should compute it and not store it else it could
+in the UI, and it is *not* a separate value. Thus, your UI may want to compute it and not store it else it could
 easily become out of sync and lead to more complex logic.
 
 ```
 (defn item-checked? [item] (:checked? item))
 
-(defsc Checkboxes [this {:keys [items]}]
-  {:query [{:items (comp/get-query CheckboxItem)}]}
+(defsc Checkboxes [this {:list/keys [items]}]
+  {:query [{:list/items (comp/get-query CheckboxItem)}]}
   (let [all-checked? (every item-checked? items)]
     (dom/div
       "All: " (dom/input {:checked all-checked? ...})
     (dom/ul ...))))
 ```
 
-IMPORTANT: There is a significant concern with rendering refresh when computing values in a parent: The rendering
-refresh detection expects queried data to change for a refresh to occur.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; CONTINUE
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+There is a problem, though: the rendering refresh algorithms of Fulcro try to avoid rendering things that don't actually
+change.  In this case the thing that is changing is a child (it is being toggled). Technically this changes the parent's
+props (because the child flows through it) but some of Fulcro's rendering optimizations might not see it that way
+(nothing the parent *directly* queried for changed).
+
+If you're using the default ident-optimized render, then you'll want to add a refresh option to the transaction that
+changes the child:
+
+```
+(comp/transact! this [(toggle-checkbox {...})] {:refresh [:list/items]})
+```
+
+The `:refresh` option indicates that the property (or ident) listed changed in a way that any component querying directly
+for it should be refreshed even if the data that the component itself uses did not change.
+
+NOTE: The ident of `this` is always included in the refresh list for you; therefore you can avoid having to deal with
+this additional parameter if you run the toggle against the parent (e.g. via a callback sent to the child).
 
 ==== General Guidelines for Derived Values
 
@@ -2989,7 +3001,6 @@ items. It is possible for your "selected sort order" and list to become out of s
 in the UI are typically high, particularly when pagination is involved and large amounts of data would have
 to be fed to the UI.
 
-
 === Computed Props and Callbacks
 
 Many reusable components will need to tell their parent about some event. For example, a list item generally wants
@@ -3006,11 +3017,12 @@ refreshing a parent. This UI optimization can pull the props directly from the d
 re-feed them to the child.
 
 But this mechanism knows nothing about callbacks, because they are not (and should not be) stored in
-the client database. Such a targeted refresh of a component cannot pass callbacks through the props
-because the parent is where that is coded, but the parent may not be involved in the refresh!
+the client database. Parents should not pass callbacks through the props
+because the parent is where they are created, but the parent may not be involved in the refresh!
 
-So, any value (function or otherwise) that is generated on-the-fly by the parent must be passed via
-`com.fulcrologic.fulcro.components/computed`. This tells the data feed system how to reconstruct the complete data should it do a targeted update.
+So, any value (function or otherwise) that is generated on-the-fly by the parent must be passed by wrapping them in
+`com.fulcrologic.fulcro.components/computed`. This tells the data feed system how to reconstruct the complete data
+should it do a targeted update.
 
 ```
 (defsc Child [this {:keys [y]}]
@@ -3028,7 +3040,24 @@ So, any value (function or otherwise) that is generated on-the-fly by the parent
 WARNING: Not understanding this can cause a lot of head scratching: The initial render will always work perfectly,
 because the parent is involved. All events will be processed, and you'll think everything is fine; however, if you
 have passed a callback incorrectly it will mysteriously stop working after a (possibly unnoticeable) refresh. This
-means you'll "test it" and say it is OK, only to discover you have a bug that shows up during heavier use.
+means you'll "test it" and say it is OK, only to discover you have a bug that shows up during subsequent use.
+
+For convenience there is a function that can generate a factory that accepts computed data as a second argument to
+the factory so you can avoid calling `computed`:
+
+```
+(defsc Child [this {:keys [y]}]
+  {:query [:y]}
+  (let [onDelete (comp/get-computed this :onDelete)]
+    ...))
+
+(def ui-child (comp/computed-factory Child))
+
+(defsc Parent [this {:keys [x child]}]
+  {:query  [:x {:child (comp/get-query Child)}]}
+  (let [onDelete (fn [id] (comp/transact! ...))]
+    (ui-child child {:onDelete onDelete})))
+```
 
 === Children
 
@@ -3038,54 +3067,41 @@ in Fulcro, but can cause confusion when you first try to mix it with the data-dr
 
 ==== Working with Children
 
-Fulcro includes a few functions that are helpful when designing React components that are intended to be nested as direct
-children within a single render:
-
-[horizontal]
-`(comp/children this)`:: Returns the React children of `this`
-`(cutil/react-instance? Component instance)`:: Returns true if the given element is an instance of the given component class. Otherwise `nil`.
-`(cutil/first-node` Component child-seq):: Returns the first of a sequence of elements that has the given component class.
-
-So, say you wanted to create the following kind of rendering scheme:
-
-```
-(defsc Panel ...)
-(def ui-panel (comp/factory Panel))
-(defsc PanelHeader ...)
-(def ui-panel-header (comp/factory PanelHeader))
-(defsc PanelBody ...)
-(def ui-panel-body (comp/factory PanelBody))
-
-(ui-panel {}
-  (ui-panel-header {} "Some Heading Text")
-  (ui-panel-body {}
-     (dom/div "Some sub-DOM")))
-```
-
-The DOM generation for `Panel` will need to find the header and body children:
-
-```
-(defsc Panel [this props]
-  (let [children (comp/children this)
-        header (util/first-node PanelHeader children)
-        body (util/first-node PanelBody children)]
-    (when header
-      (dom/h4 header))
-    (when body
-      (dom/div body))))
-```
-
+If children are passed to your factory they will be available in `(comp/children this)`.
 Basically, the child or children can simply be dropped into the place where they should be rendered.
+
+```
+(defsc Parent [this props]
+  {:query [:x]}
+  (apply dom/div :.ui.grid
+    (comp/children this)))
+
+(def ui-parent (comp/factory Parent))
+
+(defsc Component [this {:keys [parent-props child-props other-child-props]}]
+  {:query [{:parent-props (get-query X)}
+           {:child-props (get-query Y)}
+           {:other-child-props (get-query Z)}]
+   ...}
+  (ui-parent parent-props
+    (ui-child child-props)
+    (ui-child other-child-props)))
+```
+
+The main trick is making sure you get the data feed right.  In this case the data is all obtained by the component
+rendering this custer, even though the UI tree has a slightly different shape.  Technically they are all "data children"
+of `Component`. Often, the `Parent` in this situation is something like a modal or layout component that may or may
+not even need a query.
 
 ==== React 16 Fragments and Returning Multiple Children
 
-Fulcro 2.6+ with React 16 allows you to return a vector of children or a `Fragment` from a component (so you no longer
+React 16 allows you to return a vector of children or a `Fragment` from a component (so you no longer
 are forced to have a single child as a return value). Fulcro DOM namespaces include a `fragment`
 function to wrap elements in a fragment:
 
 ```
 (defsc X [this props]
-  (comp/fragment ; in the prim namespace, because it isn't DOM specific. Could be used with native.
+  (comp/fragment ; in the comp namespace, because it isn't DOM specific. Could be used with native.
     (dom/p "a")
     (dom/p "b")))
 ```
@@ -3095,10 +3111,12 @@ or
 ```
 (defsc X [this props]
   [(dom/p {:key "a"} "a") (dom/p {:key "b"} "b")])
+
+(def ui-x (comp/factory X))
 ```
 
 allows your component to return multiple elements that are spliced into the parent without any "wrapping" elements
-in the DOM. Notice when returning a vector you need to supply React keys.
+in the DOM. If you return a vector then you also need to supply React keys.
 
 ```
 (dom/div (ui-x)) => <div><p>a</p><p>b</p></div>
@@ -3113,9 +3131,9 @@ the query nesting need only mimic the *stateful* portion of the UI tree. This me
 to use React children in a way that looks incorrect from what you've learned so far. On deeper inspection
 it turns out it is alignment with the rules, but it takes a minute on first exposure.
 
-Take the Bootstrap collapse component: It needs state of its own in order to know when it is collapsed,
-and we'd like that to be part of the application database so that the support history viewer can show the
-correct thing. However, the children of the collapse cannot be known in advance when writing the collapse
+Take a collapse component: It needs state of its own in order to know when it is collapsed,
+and we'd like that to be part of the application database.
+However, the children of the collapse cannot be known in advance when writing the collapse
 reusable library component.
 
 The solution is simple once you see it: Query for the collapse component's state and the child state in
@@ -3128,12 +3146,11 @@ should be shown/hidden. The actual DOM elements of those children are immaterial
 
 ```
 (defsc CollapseExample [this {:keys [collapse-1 child]}]
-  {:initial-state (fn [p] {:collapse-1 (comp/get-initial-state b/Collapse {:id 1 :start-open false})})
-   :query [{:collapse-1 (comp/get-query b/Collapse)}
+  {:initial-state (fn [p] {:collapse-1 (comp/get-initial-state Collapse {:id 1 :start-open false})})
+   :query [{:collapse-1 (comp/get-query Collapse)}
            {:child (comp/get-query SomeChild)}]}
   (dom/div
-    (b/button {:onClick (fn [] (comp/transact! this `[(b/toggle-collapse {:id 1})]))} "Toggle")
-    (b/ui-collapse collapse-1
+    (ui-collapse collapse-1
       (ui-child child))))
 ```
 
@@ -3143,9 +3160,9 @@ Form inputs in React can take two possible approaches: controlled and uncontroll
 the value state of inputs for you as mutable data; however, this breaks our overall model of pure rendering! The
 advantage is UI interaction speed: If your UI gets rather large, it is possible that UI updates on keystrokes in
 form inputs may be too slow. This is the same sort of trade-off that we talked about when covering component
-local state for rendering speed with more graphical components. If you follow the basic <<Performance,optimization guidelines>>
+local state for rendering speed with more graphical components. Fulcro is designed to be fast enough that
 then your application should be fast enough to do database updates on every keystroke, and you can keep all input
-changes in your client database.
+changes in your client database. See the <<Performance,optimization guidelines>> if you have problems.
 
 In general it is recommended that you use controlled inputs and retain the benefits of pure rendering: no embedded
 state, your UI exactly represents your data representation, concrete devcards support for UI prototyping, and full
@@ -3170,11 +3187,13 @@ sure that `:checked` is always a boolean, and that other inputs have a valid `:v
 `select` input can be given an "extra" option that stands for "not selected yet" so that you can start its value
 at something valid.
 
+NOTE: Most HTML inputs deal in strings (even date and numeric controls). Be careful when using the value from change
+events in your database, because you may change your data to a string by mistake. A nice way to handle this is to wrap
+inputs with your own components that do data transforms in-between `:value` and `:onChange`.
+
 See https://facebook.github.io/react/docs/forms.html[React Forms] for more details.
 
 == React Lifecycle Examples [[ReactLifecycle]]
-
-NOTE: Fulcro 2.6+ includes React 16.4+ Lifecycle support.
 
 There are some common use-cases that can only be solved by working directly with the React Lifecycle methods.
 
@@ -3187,8 +3206,8 @@ Some topics you should be familiar with in React to accomplish many of these thi
 
 === Focusing an input
 
-Focus is a stateful browser mechanism, and React cannot force the rendering of "focus". As such, when you need
-to deal with UI focus it generally involves some interpretation, and possibly component local state. One way
+Focus is a stateful browser mechanism, and React cannot infer the rendering of "focus" from pure data. As such, when you need
+to deal with UI focus it generally involves some interpretation, and possibly component local state. The most common way
 of dealing with deciding when to focus is to look at a component's prior vs. next properties. This can be
 done in `componentDidUpdate`. For example, say you have an item that renders as a string, but when clicked
 turns into an input field. You'd certainly want to focus that, and place the cursor at the end of the
@@ -8593,6 +8612,16 @@ The following live demo shows dynamic queries in action:
 [source,clojure,role="dynamic-queries source"]
 ----
 include::src/book/book/queries/dynamic_queries.cljs[]
+----
+
+++++
+<div class="example" id="dynamic-query-parameters"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.dynamic-query-parameters').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="dynamic-query-parameters source"]
+----
+include::src/book/book/queries/dynamic_query_parameters.cljs[]
 ----
 
 == Setting a Query
