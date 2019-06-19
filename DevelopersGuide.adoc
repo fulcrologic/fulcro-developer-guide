@@ -103,16 +103,22 @@ Of course fixes to this guide are also appreciated.
 This book includes quite a bit of live code. Live code demos with their source
 look like this:
 
+.[[Example1]]<<Example1,Sample Example>>
+====
+
 ++++
 <div id="server-controls"> </div>
-<div class="example-title">Sample Example <button onClick="book.main.focus('example-1')">Focus Inspector</button></div>
-<div class="short narrow example" id="example-1"> </div>
+<button class="inspector" onClick="book.main.focus('example-1')">Focus Inspector</button>
+<div class="short narrow example" id="example-1"></div>
+<br/>
 ++++
 
 [source,clojure,role="example-1 source"]
 ----
 include::src/book/book/example_1.cljs[]
 ----
+
+====
 
 All of the full stack examples use a mock server embedded in the browser to
 simulate the interaction, but the source that you'll read for the application is
