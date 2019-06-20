@@ -3,6 +3,7 @@
  :deps  {com.fulcrologic/fulcro              {:local/root "/Users/tonykay/fulcrologic/fulcro3"}
          com.fulcrologic/fulcro-garden-css   {:mvn/version "3.0.2"}
          com.fulcrologic/semantic-ui-wrapper {:mvn/version "1.0.0-SNAPSHOT"}
+         gnl/ghostwheel                      {:mvn/version "0.4.0-SNAPSHOT"}
          com.wsscode/pathom                  {:mvn/version "2.2.14"}
          devcards                            {:mvn/version "0.2.6"}
          bidi                                {:mvn/version "2.1.5"},

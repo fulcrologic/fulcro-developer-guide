@@ -3325,15 +3325,24 @@ doesn't allow React to refresh that sub-tree via `shouldComponentUpdate`.
 
 Below is a demo of this:
 
+// D3Example is just invented for asciidoc anchor
+// D3 is the title, which comes from the 1st arg of the defexample in book/main.cljs
+// ui-d3 is the 3rd arg of the defexample
+.[[D3Example]]<<D3Example,D3>>
+====
+
 ++++
-<div class="example" id="ui-d3"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.ui-d3').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('ui-d3')">Focus Inspector</button>
+<div class="short narrow example" id="ui-d3"></div>
+<br/>
 ++++
 
-[source,clojure,role="ui-d3 source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/ui/d3_example.cljs[]
 ----
+
+====
 
 The things to note for this example are:
 
