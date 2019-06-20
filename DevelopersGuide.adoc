@@ -1025,7 +1025,7 @@ Replace your UI content with this:
     (dom/ul
       (map ui-person people))))
 
-(def ui-person-list (comp/factory PersonList))
+(def ui-person-list (comp/factory PersonList {:keyfn :list/label}))
 
 (defsc Root [this {:keys [ui/react-key]}]
   (let [ui-data {:friends {:list/label "Friends" :list/people
