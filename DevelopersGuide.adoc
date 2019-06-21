@@ -1396,7 +1396,7 @@ the parent will need to pass in a function that the child can call to affect the
     (dom/div
       (dom/h4 label)
       (dom/ul
-        (map (fn [p] (ui-person (assoc p :onDelete delete-person))) people))))) ;; <2>
+        (map (fn [p] (ui-person (assoc p :onDelete delete-person))) people))))) ; <2>
 ```
 
 <1> A function acting in as a stand-in for our real delete
@@ -1417,11 +1417,11 @@ such that an optimized refresh will still know them. There is also an additional
 that you can use to deconstruct them:
 
 ```
-(defsc Person [this {:person/keys [name age]} {:keys [onDelete]}] <2>
+(defsc Person [this {:person/keys [name age]} {:keys [onDelete]}] ; <2>
   {:query         [:person/name :person/age]
    :initial-state (fn [{:keys [name age] :as params}] {:person/name name :person/age age})}
   (dom/li
-    (dom/h5 (str name " (age: " age ")") (dom/button {:onClick #(onDelete name)} "X")))) ; <4>
+    (dom/h5 (str name " (age: " age ")") (dom/button {:onClick #(onDelete name)} "X")))) ; <2>
 
 (def ui-person (comp/factory Person {:keyfn :person/name}))
 
