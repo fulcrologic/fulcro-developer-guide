@@ -2028,7 +2028,7 @@ IMPORTANT: This file goes in `src/dev`, not `src/main`.
 (ns user
   (:require
     [app.server :as server]
-    [clojure.tools.namespace.repl :refer [set-refresh-dirs refresh]]))
+    [clojure.tools.namespace.repl :as tools-ns :refer [set-refresh-dirs refresh]]))
 
 ;; Ensure we only refresh the source we care about. This is important
 ;; because `resources` is on our classpath and we don't want to
