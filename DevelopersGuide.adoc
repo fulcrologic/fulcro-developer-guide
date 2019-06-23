@@ -2120,7 +2120,7 @@ chain lookups across resolvers to fulfill a complete query.
 For the sake of our examples we're going to hand-generate a server-side database in simple maps so that you
 can concentrate on the code of interest instead of boilerplate database initialization and queries.
 
-Add a `src/app/resolvers.clj` file with this content:
+Add a `src/main/app/resolvers.clj` file with this content:
 
 ```
 (ns app.resolvers
