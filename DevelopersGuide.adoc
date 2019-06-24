@@ -2602,7 +2602,6 @@ have not changed.
 
 Here are some common things you'll want to know how to do that are different when rendering with Fulcro:
 
-** `dom/p` is a function for generating p tags for use in React components. There is one of these for every legal HTML tag.
 * Attributes follow the react naming conventions for [Tags and Attributes](https://facebook.github.io/react/docs/tags-and-attributes.html)
 ** As an example - CSS class names are specified with `:className` instead of `:class`.
 * Any time an element includes a collection of children they should each have a unique `:key`
@@ -3014,7 +3013,7 @@ easily become out of sync and lead to more complex logic.
     (dom/ul ...))))
 ```
 
-There is a problem, though: the rendering refresh algorithms of Fulcro try to avoid rendering things that don't actually
+There is a problem, though: the rendering refresh algorithms of Fulcro tries to avoid rendering things that don't actually
 change.  In this case the thing that is changing is a child (it is being toggled). Technically this changes the parent's
 props (because the child flows through it) but some of Fulcro's rendering optimizations might not see it that way
 (nothing the parent *directly* queried for changed).
@@ -3147,7 +3146,7 @@ not even need a query.
 ==== React 16 Fragments and Returning Multiple Children
 
 React 16 allows you to return a vector of children or a `Fragment` from a component (so you no longer
-are forced to have a single child as a return value). Fulcro DOM namespaces include a `fragment`
+are forced to have a single child as a return value). Fulcro's `components` namespaces include a `fragment`
 function to wrap elements in a fragment:
 
 ```
@@ -3244,6 +3243,18 @@ inputs with your own components that do data transforms in-between `:value` and 
 
 See https://facebook.github.io/react/docs/forms.html[React Forms] for more details.
 
+=== Advanced Details of Wrapped Inputs
+
+React is actually designed for you to do controlled components via component-local state, and in reality it
+https://stackoverflow.com/questions/28922275/in-reactjs-why-does-setstate-behave-differently-when-called-synchronously/28922465#28922465[doesn't
+deal well] with a behind-the-scenes persistence mechanism tracking the state. Fulcro actually has a wrapper around
+inputs to deal with these complications for you.
+
+If you use any kind of library that provides input-like controls you may experience similar kinds of issues. You have
+two easy options to make them behave correctly: Use component-local state with them, or similarly wrap them using
+Fulcro's pre-built wrapper code. There is a function in the `dom` namespace called `wrap-form-element` that can be used
+to create a factory for input-like controls that misbehave.
+
 == React Lifecycle Examples [[ReactLifecycle]]
 
 There are some common use-cases that can only be solved by working directly with the React Lifecycle methods.
@@ -3284,23 +3295,8 @@ include::src/book/book/ui/focus_example.cljs[]
 
 ====
 
-NOTE: React documentation encourages a more functional form of `ref` (you supply a function instead of a string).
-This example could also cache that on the component like this:
-
-```
-(ns app
-  (:require [goog.object :as gobj]))
-
-(defsc ClickToEditField [this {:keys [value editing?]}]
-  ...
-     (dom/input {:ref (fn [r] (gobj/set this "input-ref" r))})
-  ...
-```
-
-However, The wrapped inputs of Fulcro 2.3.0 and earlier (which fixed a different issue with React) did
-not work with the functional ref technique (use strings and `dom/node`
-instead). *As of 2.3.1 this is fixed*, and while inputs still have the internal wrapping to prevent "lost keys" bugs,
-they work with both the older string support or functional refs.
+NOTE: The older string support for refs is still present, but will not be supported in future versions. Use the
+function-based version of refs and port old code to that to avoid future problems.
 
 === Taking control of the sub-DOM (D3, etc)
 
@@ -3352,34 +3348,21 @@ The things to note for this example are:
    get incoming data changes, and the latter is called on initial mount. Our render method
    delegates all of the hard work to D3.
 
-
 === Dynamically rendering into a canvas
 
 Sometimes you need to use component-local state to avoid the overhead in running a query to feed props. An example
 of this is when handing mouse interactions like drag. You'll typically use React refs to grab the actual low-level canvas.
 
-In Fulcro version *before* 2.6 there are actually two ways to change component-local state.
-One of them defers rendering to the next animation frame,
-but it *also* reconciles the database with the stateful components. This one will not give you as much of a speed boost
-(though it may be enough, since you're not changing the database or recording more UI history).
-
-The other mechanism completely avoids this, and just asks React for an immediate forced update.
-
-In Fulcro 2.6 `set-state!` *is* a Fulcro wrapper of React's `setState`, but it let's you use cljs maps instead of
+The `set-state!` function is a Fulcro wrapper of React's `setState`, but it let's you use cljs maps instead of
 js ones. The shallow merge described by React is honored as if you used an updater function (there is no need
 for an updater function). The `set-state!` also allows a callback to give you full React compatibility. Note, however,
-that React 16's `setState` schedule a state update and render. It is not guaranteed to be immediate.
+that React 16's `setState` schedules a state update and render. It is not guaranteed to be immediate.
 
 The `update-state!` function in Fulcro is like Clojurescripts `swap!` function, and uses `set-state!` behind the
 scenes.
 
-In older versions of Fulcro:
-
-* `(set-state! this data)` and `(update-state! this data)` - trigger a reconcile against the database at the next animation frame. Limits frame rate to 60 fps (in 2.6+ is identical to React `setState` with an `updater` and optional `callback`, but you
-just supply the map that will be merged. Use `update-state!` if you need more functional control.
-* `(react-set-state! this data)` - triggers a React render according to React's `setState` documentation.
-
-In this example we're using `set-state!`, and you can see it is still plenty fast (in 2.6 there is no difference)!
+The following code is an example using component local state to render a box that follows the hover position
+of the mouse.
 
 ++++
 <div class="example" id="hover-example"> </div>
@@ -3391,29 +3374,30 @@ In this example we're using `set-state!`, and you can see it is still plenty fas
 include::src/book/book/ui/hover_example.cljs[]
 ----
 
-The component receives mouse move events to show a hover box. To make this move in real-time we use component
-local state. Clicking to set the box, or resize the container are real transactions, and will actually cause
+The component receives mouse move events to show a hover box. In this case we really don't care to take the overhead
+to track the cursor position in real app state, so we leverage component local state instead.
+Clicking to save the box position and resizing the container are real transactions, and will actually cause
 a refresh from application state to update the rendering.
 
 == Using Javascript React Components
 
-One of the great parts about React is the ecosystem. There are some great libraries out there.
-However, the interop story isn't always straight forward. The goal of this section is to make that story a little clearer.
+One of the great parts about React is the ecosystem. There are some great libraries out there. Many libraries
+will work without issue as long as you're using shadow-cljs as your compiler;
+However, the interop story isn't always that easy. The goal of this section is to make that story a little clearer.
 
 === Factory Functions for JS React Components
 
-Integrating React components is fairly straightforward if you have used React from JS before. The curve comes having
-spent time with libraries or abstractions like Om and friends. JSX will also abstract some of this away, so it's not
-just the cljs wrappers. For a good article explaining some of the concepts read, React Elements The take-aways here are:
+You must understand React and the ecosystem. This book is not a tutorial on the fundamental js ecosystem.
+Some important points to understand:
 
 . If you are importing third party components, you should be importing the class, not a factory.
-. You need to explicitly create the react elements with factories. The relevant js functions are React.createElement, and React.createFactory.
+. You need to explicitly create react elements with factories. The relevant js functions are React.createElement,
+and React.createFactory.
+- Children. JS does not have a built in notion of lazy sequences. Clojurescript does. This can create subtle bugs
+when evaluating the children of a component. `com.fulcrologic.fulcro.algorithms.misc/force-children` helps us in this
+regard by taking a seq and returning a vector.
 
-It is very important to consider when using any of these functions - the children. JS does not have a built in notion
-of lazy sequences. Clojurescript does. This can create subtle bugs when evaluating the children of a component.
-
-`com.fulcrologic.fulcro.algorithms.misc/force-children` helps us in this regard by taking a seq and returning a vector. We can use this to
-create our own factory function, much like React.createFactory:
+We can use this to create our own factory function, much like React.createFactory:
 
 ```
 (defn factory-force-children
@@ -3442,7 +3426,7 @@ as well as the issue with lazy sequences.
 
 Now that we have some background on creating React Elements it's pretty simple to implement something.
 Let' look at making a chart using Victory. We are going to make a simple line chart, with an X axis that contains
-years, and a Y axis that contains dollar amounts. Really the data is irrelavent, it's the implementation we care about.
+years, and a Y axis that contains dollar amounts. Really the data is irrelevant, it's the implementation we care about.
 
 The running code and source are below:
 
@@ -3461,7 +3445,7 @@ include::src/book/book/ui/victory_example.cljs[]
 A common pattern in React libraries is to use a function as a single child instead of an actual element. This
 is an accepted and widely used pattern, but you need to do a simple extra step for it to work properly with
 Fulcro. You see, Fulcro components use some behind-the-scenes bindings to allow for targeted UI rendering 
-optimizations, and when you embed them in a function that is invoked from external JS out of that context, things
+optimizations, and when you embed them in a function that is invoked from external JS out of that context things
 won't work correctly.
 
 For example, the `react-motion` library gives you React tools that can animate DOM motion. It animates variables
@@ -3477,7 +3461,6 @@ libraries):
             [goog.object :as gobj]))
 
 (def ui-motion (factory-apply Motion))
-
 
 (defsc Demo [this {:keys [ui/slid? block]}]
   {:query         [:ui/slid? {:block (comp/get-query Block)}]
