@@ -2505,8 +2505,9 @@ section to your `defmutation` handler:
 
 ```
 (defmutation delete-person
-  "Mutation: Delete the person with person-id from the list with list-id"
-  [{:keys [list-id person-id]}]
+  "Mutation: Delete the person with `:person/id` from the list with `:list/id`"
+  [{list-id :list/id
+    person-id :person/id}]
   (action [{:keys [state]}] ...)
   (remote [env] true)) ; This one line is it!!!
 ```
