@@ -2221,7 +2221,7 @@ to your `resolvers.clj` file:
   {:friends {:list/id :friends}})
 
 (pc/defresolver enemies-resolver [env input]
-  {::pc/output [{:friends [:list/id]}]}
+  {::pc/output [{:enemies [:list/id]}]}
   {:enemies {:list/id :enemies}})
 
 ;; Make sure you add the two resolvers into the list
