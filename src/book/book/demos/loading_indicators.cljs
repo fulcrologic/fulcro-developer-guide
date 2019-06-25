@@ -2,34 +2,11 @@
   (:require
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [fulcro.logging :as log]
-    [fulcro.client :as fc]
-    [fulcro.server :as server]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; SERVER:
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(server/defquery-entity :lazy-load/ui
-  (value [env id params]
-    (case id
-      :panel {:child {:db/id 5 :child/label "Child"}}
-      :child {:items [{:db/id 1 :item/label "A"} {:db/id 2 :item/label "B"}]}
-      nil)))
-
-(server/defquery-entity :lazy-load.items/by-id
-  (value [env id params]
-    (log/info "Item query for " id)
-    {:db/id id :item/label (str "Refreshed Label " (rand-int 100))}))
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]] ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLIENT:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def initial-state {:ui/react-key "abc"
-                    :panel        {}})
-
-(defonce app (atom (fc/make-fulcro-client {:initial-state initial-state})))
 
 (declare Item)
 
@@ -59,7 +36,7 @@
       (dom/p "Child Label: " label)
       (if (seq items)
         (map ui-item items)
-        (dom/button {:onClick #(df/load-field this :items :marker :child-marker)} "Load Items")))))
+        (dom/button {:onClick #(df/load-field! this :items {:marker :child-marker})} "Load Items")))))
 
 (def ui-child (comp/factory Child {:keyfn :child/label}))
 
@@ -76,11 +53,11 @@
         (dom/h4 "Loading child...")
         (if child
           (ui-child child)
-          (dom/button {:onClick #(df/load-field this :child :marker :child-marker)} "Load Child"))))))
+          (dom/button {:onClick #(df/load-field! this :child {:marker :child-marker})} "Load Child"))))))
 
 (def ui-panel (comp/factory Panel))
 
-; Note: Kinda hard to do idents/lazy loading right on root...so generally just have root render a div
+; Note: Kinda hard to do idents/lazy loading right on root...so generally just have root render simple layout
 ; and then render a child that has the rest.
 (defsc Root [this {:keys [panel] :as props}]
   {:initial-state (fn [params] {:panel (comp/get-initial-state Panel nil)})

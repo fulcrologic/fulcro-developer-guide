@@ -3,20 +3,19 @@
     [com.fulcrologic.fulcro.routing.union-router :as r]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc InitialAppState initial-state]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [fulcro.server :as server]))
+    [com.wsscode.pathom.connect :as pc]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(server/defquery-root :all-settings
-  "This is the only thing we wrote for the server...just return some value so we can see it really talked to the server for this query."
-  (value [env params]
-    [{:id 1 :value "Gorgon"}
-     {:id 2 :value "Thraser"}
-     {:id 3 :value "Under"}]))
+(pc/defresolver all-settings-resolver [env input]
+  {::pc/output [{:all-settings [:id :value]}]}
+  {:all-settings [{:id 1 :value "Gorgon"}
+                  {:id 2 :value "Thraser"}
+                  {:id 3 :value "Under"}]})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLIENT:
@@ -39,17 +38,21 @@
    :query         [:kind :settings-content {:settings (comp/get-query SomeSetting)}]}
   (dom/div nil
     settings-content
-    (df/lazily-loaded (fn [] (map ui-setting settings)) settings)))
+    (if (seq settings)
+      (map ui-setting settings)
+      (dom/div "No settings."))))
 
 (defsc MainTab [this {:keys [main-content]}]
   {:initial-state {:kind :main :main-content "Main Tab"}
    :query         [:kind :main-content]}
   (dom/div nil main-content))
 
-(r/defrouter UITabs :ui-router
-  (ident [this {:keys [kind]}] [kind :tab])
-  :main MainTab
-  :settings SettingsTab)
+(r/defsc-router UITabs [this props]
+  {:router-id      :ui-router
+   :ident          (fn [] [(:kind props) :tab])
+   :default-route  MainTab
+   :router-targets {:main     MainTab
+                    :settings SettingsTab}})
 
 (def ui-tabs (comp/factory UITabs))
 
@@ -73,14 +76,12 @@
       (and (vector? settings) (empty? settings)))))
 
 (m/defmutation lazy-load-tab [{:keys [tab]}]
-  (action [{:keys [state] :as env}]
+  (action [{:keys [app state] :as env}]
     ; Specify what you want to load as one or more calls to load-action (each call adds an item to load):
     (when (missing-tab? state tab)
-      (df/load-action env :all-settings SomeSetting
+      (df/load! app :all-settings SomeSetting
         {:target  [:settings :tab :settings]
-         :refresh [:settings]})))
-  (remote [{:keys [state] :as env}]
-    (df/remote-load env)))
+         :refresh [:settings]}))))
 
 (defsc Root [this {:keys [current-tab] :as props}]
   ; Construction MUST compose to root, just like the query. The resulting tree will automatically be normalized into the

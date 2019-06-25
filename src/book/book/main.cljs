@@ -1,5 +1,6 @@
 (ns book.main
   (:require
+    [book.database :as db]
     [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
     [book.macros :refer [defexample]]
@@ -25,13 +26,12 @@
     book.html-converter
     book.server.morphing-example
     book.demos.cascading-dropdowns
-    book.demos.declarative-mutation-refresh
     book.demos.dynamic-ui-routing
     book.demos.initial-app-state
     book.demos.loading-data-basics
     book.demos.loading-data-targeting-entities
-    ;book.demos.loading-in-response-to-UI-routing
-    ;book.demos.loading-indicators
+    book.demos.loading-in-response-to-UI-routing
+    book.demos.loading-indicators
     ;book.demos.paginating-large-lists-from-server
     ;book.demos.parallel-vs-sequential-loading
     book.demos.parent-child-ownership-relations
@@ -64,7 +64,8 @@
 
 (defonce latency (atom 100))
 
-(def my-resolvers [autocomplete/list-resolver
+(def my-resolvers [db/general-resolvers
+                   autocomplete/list-resolver
                    book.demos.declarative-mutation-refresh/resolvers
                    book.forms.form-state-demo-2/resolvers
                    book.demos.loading-data-basics/resolvers
@@ -166,12 +167,11 @@
 (defexample "Recursive Demo 2" book.queries.recursive-demo-2/Root "recursive-demo-2")
 (defexample "Recursive Demo 3" book.queries.recursive-demo-3/Root "recursive-demo-3")
 (defexample "Recursive Demo 4" book.queries.recursive-demo-bullets/Root "recursive-demo-bullets")
-(defexample "Declarative Mutation Refresh" book.demos.declarative-mutation-refresh/Root "declarative-mutation-refresh" :remotes book.main/example-server)
 ;
 ;#?(:cljs (defexample "Loading Data Basics" book.demos.loading-data-basics/Root "loading-data-basics" :remotes book.main/example-server :started-callback book.demos.loading-data-basics/initialize))
 ;#?(:cljs (defexample "Loading Data and Targeting Entities" book.demos.loading-data-targeting-entities/Root "loading-data-targeting-entities" :remotes book.main/example-server))
-;#?(:cljs (defexample "Loading In Response To UI Routing" book.demos.loading-in-response-to-UI-routing/Root "loading-in-response-to-UI-routing" :remotes book.main/example-server))
-;#?(:cljs (defexample "Loading Indicators" book.demos.loading-indicators/Root "loading-indicators" :remotes book.main/example-server))
+(defexample "Loading In Response To UI Routing" book.demos.loading-in-response-to-UI-routing/Root "loading-in-response-to-UI-routing" :remotes book.main/example-server)
+(defexample "Loading Indicators" book.demos.loading-indicators/Root "loading-indicators" :remotes book.main/example-server)
 (defexample "Initial State" book.demos.initial-app-state/Root "initial-app-state" :remotes book.main/example-server)
 ;#?(:cljs (defexample "Legacy Load Indicators" book.demos.legacy-load-indicators/Root "legacy-load-indicators" :remotes book.main/example-server))
 ;#?(:cljs (defexample "Paginating Lists From Server" book.demos.paginating-large-lists-from-server/Root "paginating-large-lists-from-server"
@@ -209,7 +209,9 @@
 
 (defn ^:export init []
   (js/console.log "Init")
-  (app/mount! server-control-app ServerControlRoot "server-controls"))
+  (app/mount! server-control-app ServerControlRoot "server-controls")
+  (js/console.log "Seeding demo database")
+  (db/seed-database))
 
 (defn ^:export focus [app-id]
   (encore/when-let [app        (get @book.macros/app-registry app-id)

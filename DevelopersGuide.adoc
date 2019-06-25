@@ -132,7 +132,9 @@ code. This book adopts the following general set of requires and aliases:
 ----
 (ns your-ns
   (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+            [com.fulcrologic.fulcro.application :as app]
             [com.fulcrologic.fulcro.dom :as dom]
+            [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
             [com.fulcrologic.fulcro.algorithms.misc :as util]
             [com.fulcrologic.fulcro.algorithms.merge :as merge]
             [com.fulcrologic.fulcro.algorithms.data-targeting :as target]
@@ -2946,11 +2948,11 @@ application will appear in a global component registry.  You can look up such co
 that matches the fully namespace-qualified name of the component:
 
 ```
-(comp/classname->class `app.ui/Root)
+(comp/registry-key->class `app.ui/Root)
 
 ;; OR
 
-(comp/classname->class :app.ui/Root)
+(comp/registry-key->class :app.ui/Root)
 ```
 
 This comes in handy for things like code splitting (where the dynamically loaded code will appear in the registry),
@@ -4340,48 +4342,31 @@ To add initial state, follow these steps:
 
 That's it! Fulcro will automatically detect initial state on the root, and use it for the application!
 
-NOTE: Pulling the initial state from a component should be done with `fulcro.core/get-initial-state`. Calling a static
-protocol cannot work on the server, so this helper method makes server-side rendering possible for your components.
-
 ```
-(defui Child
-  static fulcro.core/InitialAppState
-  (initial-state [cls params] { :x 1 }) ; set :x to 1 for this component's state
-  static comp/IQuery
-  (query [this] [:x]) ; query for :x
-  static comp/Ident
-  (ident [this props] ...) ; how to normalize
-  Object
-  (render [this]
-    (let [{:keys [x]} (comp/props this)] ; pull x from props
-      ...)))
+(defsc Child [this props]
+  {:initial-state (fn [params] {:child/id 1})
+   :ident :child/id
+   :query [:child/id]}
+  ...)
 
-(defui Parent
-  static fulcro.core/InitialAppState
-  (initial-state [cls params] { :y 2 :child (comp/get-initial-state Child {}) }) ; set y, and compose in child's state
-  static comp/IQuery
-  (query [this] [:y {:child (comp/get-query Child)}]) ; query for :y and compose child's query
-  static comp/Ident
-  (ident [this props] ...) ; how to normalize
-  Object
-  (render [this]
-    (let [{:keys [y child]} (comp/props this)] ; pull y and child from props
-      ...)))
+(defsc Parent [this props]
+  {:initial-state (fn [params] {:parent/id 1 {:parent/child (comp/get-initial-state Child)}})
+   :ident :parent/id
+   :query [:parent/id {:parent/child (comp/get-query Child)}]}
+  ...)
 
 ...
 ```
 
 Notice the nice symmetry here. The initial state is (usually) a map that represents (recursively) the entity and
 its children. The query is a vector that lists the "scalar" props, and joins as maps.  So, in `Child` we have
-initial state for `:x` and a query for `:x`. In the parent we have a query for the property `:y` and a join to
-the child, and initial state for the scalar value of `:y` and the composed initial state of the `Child`. Render has
-the same thing: the things you pull out of props will be the things for which you queried. Thus, all three essentially
-list the same things, but in slightly different forms.
+initial state and a query for its ID. In the parent we have a query for the parent's data with a join to
+the child, and initial state mirrors that with an identical structure pulling the child state.
 
 === Initial State and Alternate Branches of Unions
 
 The one "extra" feature that initial state support does for you is to initialize *alternate branches* of components that
-have to-one <<Unions, union query>>. Remember that a to-one relation from a union could be to any number of alternates.
+have a to-one <<Unions, union query>>. Remember that a to-one relation from a union could be to any number of alternates.
 
 Take this union query: `{:person (comp/get-query Person) :place (comp/get-query Place)}`
 
@@ -4397,23 +4382,18 @@ initial state tree at startup!
 If you look at a proposed initial state, it will make the problem more clear:
 
 ```
-(defui Person
-  static comp/InitialAppState
-  (initial-state [c {:keys [id name]}] {:id id :name name :type :person})
+(defsc Person [this props]
+  {:initial-state (fn [{:keys [id name]}] {:id id :name name :type :person})
+   ...)
+
+(defsc PersonPlaceUnion [this props]
+  {:initial-state (fn [p] (comp/get-initial-state Person {:id 1 :name "Joe"})) ; I can only put in one of them!
+   :query {:person (comp/get-query Person) :place (comp/get-query Place)})
   ...)
 
-(defui PersonPlaceUnion
-  static comp/InitialAppState
-  (initial-state [c p] (comp/get-initial-state Person {:id 1 :name "Joe"})) ; I can only put in one of them!
-  static comp/IQuery
-  (query [this] {:person (comp/get-query Person) :place (comp/get-query Place)})
-  ...)
-
-(defui Parent
-  static comp/InitialAppState
-  (initial-state [c p] {:person-or-place (comp/get-initial-state PersonPlaceUnion)})
-  static comp/IQuery
-  (query [this] [{:person-or-place (comp/get-query PersonPlaceUnion)}]))
+(defsc Parent [this props]
+  {:initial-state (fn [p] {:person-or-place (comp/get-initial-state PersonPlaceUnion)}))
+   :query [{:person-or-place (comp/get-query PersonPlaceUnion)}]))
 ```
 
 This would result in a person in the initial state, but not a place.
@@ -4421,11 +4401,10 @@ This would result in a person in the initial state, but not a place.
 Fulcro solves this at startup in the following manner: It pulls the query from root and walks it. If it finds
 a union component, then *for each branch* it sees if that component (via the query metadata) has initial state. If
 it does, it places it in the correct table in app state. This does *not*, of course, join it to anything in the graph
-since it isn't the "default branch" that was explicitly listed (in `PersonPlaceUnion`'s `InitialAppState`).
+since it isn't the "default branch" that was explicitly listed.
 
 This behavior is critical when using unions to handle UI routing, which is in turn essential for good application
 performance.
-
 
 === Initial State Demo
 
@@ -4444,12 +4423,13 @@ include::src/book/book/demos/initial_app_state.cljs[]
 
 == Initial State and State Progressions
 
-If you remember from the <<PureRenderingDiagram, diagram>> about pure rendering, then you'll also note that this step
-generates the *first state* in that progression. Rendering any state results in the UI for that state.
+Since our rendering via React is a pure function of state you think about your application as a sequence of states
+that are rendered in time (like a movie), and the initial
+state just generates the first state for that progression.
 
 An interesting note is that this model also results in a really useful property: You can take the initial state,
 run it though the implementation of one or more mutations, and end up with any other state. This means you can
-easily reason about initializing your application into *any* state, which is useful for things like testing and server-side rendering.
+easily reason about initializing your application *into any* state, which is useful for things like testing and server-side rendering.
 
 There are all sorts of very useful features that fall out of this. For example, it is also possible to record a series
 of "user interactions" (which can be recorded as a list of the mutations that ran) and replay those. This could be used
@@ -4457,8 +4437,7 @@ to send a tester a sequence of steps to show recent development work, run automa
 environment to a specific page, etc.
 
 Writing tests against the state model and mutation implementations is a great way to *unit test* your application
-without needing to involve the UI itself at all! You can read more about that in the section on
-<<VisualRegression, Visual Regression Testing>>
+without needing to involve the UI itself at all.
 
 = Normalization [[Normalization]]
 
@@ -4468,7 +4447,7 @@ your normalized graph database.
 
 == Internals
 
-The function `comp/tree->db` is the workhorse that turns an incoming tree of data into normalized data (which can then
+The function `fnorm/tree->db` is the workhorse that turns an incoming tree of data into normalized data (which can then
 be merged into the overall database).
 
 Imagine an incoming tree of data:
@@ -4508,15 +4487,16 @@ compose the queries correctly.
 
 The process described above is how most data interactions occur. At startup the `:initial-state` supplies data that
 exactly matches the tree of the UI. This gives your UI some initial state to render. The normalization mechanism
-described above is exaclty what happens to that initial tree when it is detected by Fulcro at startup.
+described above is what happens to that initial tree when it is detected by Fulcro at startup (with the addition
+of the alternate union merging, described earlier).
 
-Network interactions send a UI-based query (which remember is annotated with the components). The query is
+Network interactions send a UI-based query (which is annotated with the components). The query is
 remembered and when a response tree of data is received (which must match the tree structure of the query), the
 normalization process is applied and the resulting normalized data is merged with the database.
 
-If using websockets, it is the same thing: A server push gives you a tree of data. You could hand-normalize that data,
+It is the same thing when using websockets: A server push gives you a tree of data. You could hand-normalize that data,
 but actually if you know the structure of the incoming data you can easily generate a client-side query (using
-`defsc` or `defui`) that can be used in conjunction with `comp/tree->db` to normalize that incoming data.
+`defsc`) that can be used in conjunction with `fnorm/tree->db` to normalize that incoming data.
 
 Mutations can do the same thing. If a new instance of some entity is being generated by the UI as a tree of data, then
 the query for that UI component can be used to turn it into normalized data that can be merged into the state
@@ -4524,87 +4504,73 @@ within the mutation.
 
 Some useful functions to know about:
 
-- `comp/merge-component` - A utility function for merging new instances of a (possibly recursive) entity state into
+- `merge/merge-component` - A utility function for merging new instances of a (possibly recursive) entity state into
 the normalized database. Usable from within mutations.
-- `comp/merge-state!` - A utility function for merging out-of-band (e.g. push notification) data into your application.
+- `merge/merge-state!` - A utility function for merging out-of-band (e.g. push notification) data into your application.
 Includes ident integration options, and honors the Fulcro merge clobbering algorithm (if the query doesn't ask for it,
 then merge doesn't affect it). Also queues rendering for affected components (derived from integration of idents). Generally
 *not* used within mutations (use `merge-component` and `integrate-ident*` instead).
-- `comp/tree->db` - General utility for normalizing data via a query and chunk of data.
-- `com.fulcrologic.fulcro.mutations/integrate-ident*` - A utility for adding an ident into existing to-one and to-many relations in your database.
+- `fnorm/tree->db` - General utility for normalizing data via a query and chunk of data.
+- `merge/integrate-ident*` - A utility for adding an ident into existing to-one and to-many relations in your database.
 Can be used within mutations.
-- `com.fulcrologic.fulcro.algorithms.misc/deep-merge` - An implementation of merge that is recursive
+- `misc/deep-merge` - A simple implementation of merge that is recursive.
 
 = Handling Mutations [[MutationsChapter]]
 
-Mutations are known by their symbol and are dispatched to the internal multimethod
+Mutations are known by their symbol and are dispatched to the internal multi-method
 `com.fulcrologic.fulcro.mutations/mutate`. To handle a mutation you can do two basic things: use `defmethod`
-to add a mutation support, or use the macro `defmutation`. The macro is recommended for most cases
-because it namespaces the mutation, prevents some common errors, and works better with IDEs.
+to add a mutation, or use the macro `defmutation` to handle this for you.
+
+The macro is *highly recommended* for all but the most advanced cases because:
+
+- Your editor/IDE can treat it like `defn` for better navigation and support.
+- It is where the default remote response handling is "plugged in".
+- It prevents certain implementation errors.
+- It isolates you from any internal changes to Fulcro.
+- It auto-namespaces the mutation to the namespace of declaration without the need to quote.
+- It adds support to *use* the mutation in a transaction without syntax quoting.
+
+You might use the internal multi-method directly for more advanced things like:
+
+- You're writing your own `defmutation` wrapper to change some global behavior for your application (note, though, that
+the built-in `defmutation` has an extension point).
+- You want to dynamically affect mutation support at runtime.
+
+IMPORTANT: The internals of mutations changed drastically between version 2 and 3 of Fulcro. The low-level multimethod
+requires a different return value in version 3, and mutations also directly handle network results.
 
 == Stages of Mutation
 
-There are multiple passes on a mutation: one local, and one for each possible remote. It is
-technically the job of the mutation handler to return a lambda for the local pass, and a boolean (or AST)
-for each remote. Returning `nil` from any pass means to not do anything for that concern.
+A mutation expresses the local effects, outgoing remote request(s), and network result processing for a given abstract
+operation in a Fulcro application.
 
-For example, say you have three remotes: one for normal API, one that hits a REST API, and one for
-file uploads. Each would have a name, and each pass of the mutation handling would be interested
-in knowing what you'd like to do for the local or remote.
+The local effects are applied first, the remote requests are queued, and the responses are processed as they
+arrive.
 
-The mutation environment (`env` in the examples) contains a target that is set to a remote's name when
-the mutation is being asked for details about how to handle the mutation with respect to that remote.
-
-For each pass the mutation is supposed to return a map whose key is `:action` or the name of the remote, and
-whose value is the thing to do (a lambda for `:action`, and AST or true/false for remotes).
-
-Summary:
-
-1. You `transact!` somewhere in the UI
-2. The internals call your mutation with `:target` set to nil in `env`. You return a map with an `:action` key
-whose value is the function to run.
-3. The internals call your mutation once for each remote, with `:target` set. You return a map with
-that remote's keyword as the key, and either a boolean or AST as the remote action. (true means send the
-AST for the expression sent in (1) to the remote)
-
-== Using the Multimethod Directly [[MutationMultimethod]]
-
-Typically the multipass nature is ignored by the mutation itself, and it just returns a map
-containing all of the possible things that should be done. This looks like:
+The default behavior of the transaction processing system is to process *all* of the local effects of a given
+transaction first, then submit all of the network requests later. This "optimistic" processing mode can be toggled
+with an option to the top-level `transact!`:
 
 ```
-(defmethod com.fulcrologic.fulcro.mutations/mutate `mutation-symbol [{:keys [state ast target] :as env} k params]
-   {:action (fn [] ...)
-    :rest-api true ; trigger this remotely on the rest API AND the normal one.
-    :remote true })
+(comp/transact! this [(f) (g) (h)] {:optimistic? false})
 ```
 
-Since the action is just data, it doesn't matter that we "generate" it for the multiple passes. Same for
-the remotes.
+This would run the optimistic actions of `f`, wait for any network results, then run the optimistic actions of `g`, etc.
 
-.Reminder
-****
-The example above uses syntax quoting on the symbol which will add the current
-namespace to it. In any case the symbol is just that: a symbol (data) that acts as the dispatch
-key for the multimethod. If you use a plain quote (`'`) then you should manually namespace the symbol.
-****
+whereas
 
-Some common possible mistakes are:
+```
+(comp/transact! this [(f) (g) (h)])
+```
 
-1. You side-effect. Your mutation will be called at least two times so this is a bad idea.
-Side effects should be wrapped in the action.
-2. You assume that the remote expression "sees" the old state (e.g. you might build an AST based on
-what is in app state). The local action is usually run before the remote passes, meaning the state has already changed
-and the remote logic is seeing the "new" client database state.
-3. You forget to return a map with the correct keys (usually if you made mistake 1).
+will cause the optimistic actions of `f`, `g`, and `h` to all run, and then submit the network actions.
 
-There is no guaranteed order to evaluation. Therefore if you need a value from state as it was seen
-when the mutation was triggered: *send it as a _parameter_ to the mutation* from the UI (where you knew the old value).
-That way the call itself has captured the old value.
+In Fulcro 3 each stage of the mutation is implemented as a lambda, and each stage receives an environment that
+describes the state of the app (and even what the state looked like before the mutation started).
 
 == Using `defmutation`
 
-`defmutation` is a macro that writes the multimethod for you. It looks like this:
+Using `defmutation` looks like this:
 
 ```
 (defmutation mutation-symbol
@@ -4616,41 +4582,43 @@ That way the call itself has captured the old value.
   (remote [env] true))
 ```
 
-Thus it ends up looking more like a function definition. IDE's like Cursive can be told how to resolve
+It intentionally looks a bit like a function definition so that IDE's like Cursive can be told how to resolve
 the macro (as `defn` in this case) and will then let you read the docstrings and navigate to the definition
-from the usage site in transact. This makes development a lot easier.
+from the usage sites. This makes development a lot easier.
 
-Another advantage is that the symbol is placed into the namespace in which it is declared (not interned,
-just given the namespace...it is still just symbol data). Syntax quoting can expand aliasing, which means
-you get a very nice tool experience at usage site:
+The symbol itself does get interned into the local namespace as a function-like thing that will return
+the call itself as data (i.e. running `(f {:x 1})` in a REPL returns the list `(the.ns/f {:x 1})`). This allows you
+to use the mutation unquoted in most situations (except where there are circular references and you cannot require it):
 
 ```
 (ns app
   (:require [app.mutations :as am]))
 
 ...
-   (comp/transact! this `[(am/mutation-symbol {})]) ; am gets expanded to app.mutations
+   (comp/transact! this [(am/mutation-symbol {})])
 ```
 
-The final advantage is it is harder to accidentally side-effect. The `action` section of `defmutation`
-will wrap the logic in a lambda, meaning that it can read as-if you're side-effecting, but in fact
-will do the right thing.
+NOTE: You can get the "quoteless" feature <<CircularRefs, using the `m/declare-mutation`>> function as well.
 
-In general these advantages mean you should generally use the macro to define mutations, but it is good
-to be aware that underneath is just a multimethod.
+== The `env`
 
-== Refreshing Non-local UI
+Each stage of the mutation will receive an environment parameter the has a number of things in it that can be
+used to accomplish the real work of the mutation:
 
-In the default rendering mode Fulcro is capable of optimizing your rendering refresh so that the bare
-minimum amount of activity happens in the query engine and React. The basic rules are as follows:
+`app`:: The application itself. Can be used to do things like call `transact!`, etc.
+`component`:: Will be the component (if any) that ran the transaction
+`ref`:: Will be the ident of the component (if any) that ran the transaction
+`state`:: The atom holding the state database. Optimistic actions `swap!` on this.
+`state-before-action`:: (in remotes) A map holding the value of the state database before the `:action` ran.
+`ast`:: The AST of the mutation node that is running.
+`com.fulcrologic.fulcro.algorithms.tx-processing/options`:: The map of options that was passed to `transact!` (if using
+the default built-in transaction processing).
 
-. Refresh the subtree starting at the component that ran `transact!`. If it was the reconciler, run from root.
-. Refresh any components that share the same `ident` with the component that ran the transaction.
-. Refresh any component that *queries* for any of the data that was indicated in "follow-on" reads.
 
-=== Parent-Child Relationships
+== Ownership Mutations
 
-The most common case of non-local UI refresh comes up with parent-child relationships. In these cases, the parent can
+A common case that causes some confusion is working with mutations that affect the ownership of some child in the
+In these cases, the parent can
 be seen as a UI component in control of the children (it is responsible for telling them to render). In such cases it is
 usually better to reason about the *management* logic (i.e. deleting, reordering, etc) from the parent; however,
 it is commonly the case the you want the *child* to render some controls, such as a delete button. Thus, the control
@@ -4659,22 +4627,6 @@ that wants to modify the state (the delete button on the item) is not local to t
 
 The solution is simple: create a callback in the parent that can run the delete transaction and pass it through
 as a computed value.
-
-In our example, we'll assume the delete is global (removes the item from the list and the normalized table):
-
-```
-(m/defmutation delete-item
-  "Mutation: Delete an item from a list"
-  [{:keys [id]}]
-  (action [{:keys [state]}]
-    (swap! state
-      (fn [s]
-        (-> s
-          (update :items dissoc id) ; remove the item from the db (optional)
-          (m/remove-ident* [:lists 1 :list/items] [:items id])))))) ; remove the item from the list of idents
-```
-
-The source of the components for this demo are below. Make note of the use of `computed`.
 
 ++++
 <div class="example" id="parent-child-ownership-relations"> </div>
@@ -4685,122 +4637,39 @@ The source of the components for this demo are below. Make note of the use of `c
 ----
 include::src/book/book/demos/parent_child_ownership_relations.cljs[]
 ----
+<1> The item uses the computed callback
+<2> The list creates a lambda that closes over the list id
 
-=== Follow-on Reads
+== Mutations Without Quoting or Circular References [[CircularRefs]]
 
-A *follow-on read* is a property listed in a transaction:
-
-```
-(transact! this `[(f) :person/name])
-```
-
-It indicates that the given data will have changed, and therefore any on-screen component that queries for
-that particular data should also be refreshed when the transaction completes the optimistic update (and again
-after the remote interaction, if there is one).
-
-Follow-on reads allow the developer to reason more abstractly about non-local UI refresh. They need only
-think about what data is changing, and not about what components might be displaying it. This allows the UI
-to evolve without additional concerns that refresh will be slow (due to expensive data analysis) or will become
-broken (because you didn't know a component needed refresh).
+There are times when  you need to use a component in a mutation (for a merge, for example), but the component is also
+using mutations. You can easily end up with circular references in your code which Clojure does not allow.
+Of course since mutations are just data you can just quote the fully-qualified mutation name in
+the UI, but that is inconvenient because the names get rather long.
 
 ```
-(defsc Right [this {:keys [db/id right/value]}]
-  {:query         [:db/id :right/value]}
-  (dom/div
-    ; needs a follow-on read because it is updating something that is queried elsewhere...
-    (dom/button {:onClick #(comp/transact! this `[(ping-left {}) :left/value])} "Ping Left")
-    value))
+(comp/transact! this '[(some.namespace.that.is.long/f params)])
 ```
 
-This model was inherited from Om Next, and it is the correct model to use when the transaction might, for example,
-modify opaque data that is not directly queried but which would cause a component to need a refresh; however,
-since most transactions run a mutation that is really more aware of what data is changing
-it makes quite a bit of sense for you to be able to declare this *on the mutation itself*.
-
-=== Declarative Refresh
-
-Fulcro 2.0+ supports a way of declaring follow-on reads that allows for better local reasoning: co-locate the
-follow-on reads with the mutation itself. The mechanism is quite simple: add a `refresh` section on your mutation
-and return the list of keywords for the data that changed:
+and it also leads to another problem:  Did you notice the error in that last expression?  `params` wasn't *un*-quoted!:
 
 ```
-(defmutation ping-left [params]
-  (action [{:keys [state]}]
-    (swap! state update-in [:left/id 5 :left/value] inc))
-  (refresh [env] [:left/value]))
+(comp/transact! this '[(some.namespace.that.is.long/f ~params)])
 ```
 
-The above mutation just indicates what it changed: `:left/value`.
+=== Declare Your Mutations Elsewhere
 
-The UI can then drop the follow-on reads:
-
-```
-(defsc Right [this {:keys [db/id right/value]}]
-  {:query         [:db/id :right/value] }
-  (dom/div
-    ; no longer need the :left/value as a follow-on read
-    (dom/button {:onClick #(comp/transact! this `[(ping-left {})])} "Ping Left")
-    value))
-```
-
-In this case the transaction is running on a component that doesn't query for the data being changed (it is pinging the
-Left component). The built-in refresh list on the mutation takes care of the update!
-
-The live example below is a full-stack demo of this. The buttons update data that the other button displays.
-The `transact!`s on these would normally require follow-on reads or a callback to the parent to refresh properly.
-With the refresh list on the mutation itself the UI designer is freed from this responsibility.
-
-The right button uses data from the server in a pessimistic fashion (it does no optimistic update, and you can
-increase the simulated delay on the server), so pinging it from the left actually reads a value from the server.
-This demonstrates that the refresh is working for full-stack operations.
-
-++++
-<div class="example" id="declarative-mutation-refresh"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.declarative-mutation-refresh').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="declarative-mutation-refresh source"]
-----
-include::src/book/book/demos/declarative_mutation_refresh.cljs[]
-----
-
-== Mutations Without Quoting or Circular References
-
-There are times when using just `defmutation` is inconvenient.  If you need to use a component in a mutation (for a merge, for example),
-then you can easily end up with circular references in your code.  You could just use the fully-qualified mutation name in
-the UI, but that is quite inconvenient (we'd rather alias it, but circular refs are not allowed).
-
-Another inconvenience is quoting.  It is very easy to foget to unquote values in a tx.
-
-What if you could write your transactions "as-if" they were functions, but have them work as data?  Well, we live in
-Clojure-land, so that is not only possible, but relatively easy.
-
-Fulcro Incubator now includes suppport for declaring mutations in any namespace (think of it like an interface
-namespace), and those declarations can be used quote-free!
-
-To use this support, add Fulcro Incubator to your project:
-
-```
-[fulcrologic/fulcro-incubator "0.0.2"]
-```
-
-and then declare your mutations together in some namespace:
+The `defmutation` macro creates a version of itself that is actually a mutation declaration. You can use that same
+feature to put *delcarations* of your mutations in a namespace *different from* the mutation itself. Thus, you can
+code up a mutation "interface" namespace that won't generate circular references with the UI:
 
 ```
 (ns my-mutations
-  (:require [fulcro.incubator.mutation-interface :as mi :refer [declare-mutation]]
-            [cljs.spec.alpha :as s])
+  (:require [com.fulcrologic.fulcro.mutations :as m :refer [declare-mutation]])
 
-(s/def ::a string?)
-(s/def ::b pos-int?)
-
-(declare-mutation boo
-  "Mutation to do blah" ; doc string optional
-  'real-ns.of.mutations/boo
-  (s/keys :req-un [::a ::b])) ; spec not currently optional, probably should be :)
+(declare-mutation boo 'real-ns.of.mutations/boo)
 ```
-
-and now you can use `boo` without quoting!
+and now you can use this new `boo` in place of the real one without quoting:
 
 ```
 (ns real-ui
@@ -4814,7 +4683,7 @@ and now you can use `boo` without quoting!
 ```
 
 There's really not much to the magic.  `boo` becomes a function-like thing that just returns a list with the proper
-stuff in it:
+symbols and data in it:
 
 ```
 (boo {:a "hello"}) => '(real-ns.of.mutations/boo {:a "hello"})
@@ -4827,42 +4696,26 @@ without causing circular references.
 
 This requires an extra namespace and a little extra declaration work, but cleans up the UI and ns requires quite well.
 
-Fulcro 2.8.8 includes a global component registry. Any component that is (transitively) required in your application will
-appear in the registry, which makes it possible to track component classes in app state (since the name is serializable)
-and also look up a component class for merges from within mutations:
+=== Use the Component Registry
+
+There is also a global component registry that can help with this problem. Any component that is (transitively) required
+in your application will appear in the registry. This makes it possible to track component classes in app state
+(since the name is serializable) and also look up a component class for merges from within mutations:
 
 ```
 (defmutation f [params]
   (action [{:keys [state]}]
-    (let [todo-list-class (comp/classname->class :com.company.app/TodoList)]
+    (let [todo-list-class (comp/registry-key->class :com.company.app/TodoList)]
       (swap! comp/merge-component todo-list-class {:list/id ...}))))
 ```
 
-=== Parameter specs
-
-Currently the specs are not enforced unless `*checked-mutations*` is bound to true in the context they are used:
-
-```
-(binding [mi/*checked-mutations* true]
-  (comp/transact! this [(boo {:a 22})]))
-```
-
-should throw an exception.
-
-This should be considered an experimental part of the API.  Feedback is welcome.
-
-=== IDE Integration
+== IDE Integration
 
 The syntax of `defmutation` and `declare-mutation` are both intentionally "shaped" like `defn` and `def` so that you
 can tell your IDE how to resolve them.  In IntelliJ, you can do this by clicking on the macro name (e.g. `defmutation`)
 and waiting for the light bulb.  Then select "Resolve as" and then `defn` for `defmutation` and `def` for `delcare-mutation`.
 
 You may not need to do this for `defmutation`, as IntelliJ does have some predefined resolutions for Fulcro built-in.
-
-=== Future Status of `declare-mutation`
-
-Expect this to make it into Fulcro proper in the near future, but for now we've got it in incubator while we work
-on refining the API.
 
 == Recommendations About Writing Mutations
 
@@ -4872,15 +4725,14 @@ and you will often benefit from writing low-level functions that represent the g
 you move towards higher-level abstractions you'll want to compose those lower-level functions. As such, it pays
 to think a little about how this will look over time.
 
-If you write the *actual logic* of a mutation into a `defmutation`, then composition is difficult because the
-model does not encourage recursive calls to `transact!`. This will either lead to code duplication or other bad
-practices.
+If you write the *actual logic* of a mutation into a `defmutation`, then composition is difficult because mutations
+are not functions, and wont' compose as functions.
 
 To maximize code reuse, local reasoning, and general readability it pays to think about your mutations in the following manner:
 
-1. A mutation is a function that changes the state of the application: `state -> mutation -> state'`
+1. A mutation is a function that changes the state of the application: `state -> state'`
 2. Within a mutation, you are essentially doing operations to a graph, which means you have operations that
-work on some node in the graph: `node -> op -> node'`. These operations may modifiy a scalar or an edge to another node.
+work on some node in the graph: `node -> node'`. These operations may modifiy a scalar or an edge to another node.
 
 === Node-Specific Mutation
 
@@ -4963,8 +4815,8 @@ Once you have your general operations written as basic functions on either the e
 targeted to nodes or the state map itself (like `add-friend*`), then it becomes much easier to create mutations that
 compose together operations to accomplish any higher-level task.
 
-For example, the `com.fulcrologic.fulcro.routing.union-router/update-routing-links` function takes a state map, and changes all of the routers
-in the application state to show that particular screen. So, say you wanted add-friend to also
+For example, the `com.fulcrologic.fulcro.routing.union-router/update-routing-links` function takes a state map and
+changes all of the routers in the application state to show that particular screen. So, say you wanted add-friend to also
 take you to the screen that shows the details of that particular person. The top-level abstract mutation in the UI
 might still be called `add-friend`, but the internals now have two things to do.
 
@@ -5003,55 +4855,82 @@ how you want to deal with remote mutations.
 == Advanced Mutation Topics
 
 This section covers a number of additional mutation techniques that arise in more advanced situations.
-Almost all of these circumstances arise
-from needing to modify your application database *outside* of the normal `comp/transact!` mechanism at the UI layer.
 
 A lot of these things are handled for you with normal <<FullStack,full-stack operations>>, so you might want to skip this
 section until you're comfortable with that material.
 
-=== Saving a Reconciler
+=== Using the Multimethod Directly [[MutationMultimethod]]
 
-The first note is that `comp/transact!` can be used on the <<Reconciler,reconciler>>. If you've saved your Fulcro Application
-in a top-level atom then you can run a transaction "globally" like this:
+The multi-method approach just requires you to return a map containing all of the things that should be done.
+This looks somewhat similar to `defmutation` in structure:
 
 ```
-(comp/transact! (:reconciler @app) ...)
+(defmethod com.fulcrologic.fulcro.mutations/mutate `mutation-symbol [params]
+   {:action (fn [env] ...)
+    :result-action (fn [env] ...)
+    :remote (fn [env] true)})
 ```
 
-This should generally be used in cases where there is an abstract operation (e.g. you want `setTimeout` to update
-a js/Date to the current time and have the screen refresh). Using `(comp/transact! (:reconciler @app) '[(update-time) :current-time])` is
-much clearer and in the spirit of the framework than any other low-level data tweaking. That could also be done in
-the context of a component to prevent an overall root re-render, though you'd want to be careful to use both sides of
-the component lifecycle to install *and* remove a timer that triggers such an update.
+.Reminder
+****
+The example above uses syntax quoting on the symbol which will add the current
+namespace to it. In any case the symbol is just that: a symbol (data) that acts as the dispatch
+key for the multimethod. If you use a plain quote (`'`) then you should manually namespace the symbol.
+****
+
+The biggest trick to this technique is the `result-action` key. Any remote results will be passed, unprocessed, to this
+handler *and only this handler*.  The `defmutation` macro provides a default implementation of this action
+that merges results, checks for errors, calls other handlers, etc. If you make a multimethod, then you will not
+get *any* of that built-in behavior. If all you want to do is change the result
+action, then look into setting the `default-result-action` option when you create your application.
+
+If you would like your multimethod mutation to work like `defmutation` then you should do the following in your
+`:result-action`:
+
+```
+(defmethod m/mutate `mutation-symbol [params]
+   {...
+    :result-action (fn [env]
+                     (when-let [default-action (ah/app-algorithm (:app env) :default-result-action)]
+                       (default-action env)))
+    ...
+    })
+```
+
+=== Using `app` Directly
+
+When you set up your application it is best to save it in a global place so that you can use it outside of the normal
+flow of things (e.g. a websocket push notification):
+
+```
+(comp/transact! app ...)
+```
 
 === Swapping on the State Atom?
 
-Yes. There is a watch on Fulcro's state atom. Doing so will cause a refresh from the root of your UI.
+You can technically tweak the database atom in the application directly, but that side-steps all of the internals
+of Fulcro including UI refresh. It can be handy in limited cases, but generally we recommend you use
+`transact!`.
 
-`(let [{:keys [reconciler]} @app
-       state-atom (comp/app-state reconciler)]
-  (swap! state-atom ...))`
+NOTE: Fulcro 3 does *not* watch the state atom (though Inspect does).
 
-=== Leveraging `com.fulcrologic.fulcro.components/tree->db`
+```
+(let [{::app/keys [state-atom]} app]
+  (swap! state-atom ...))
+```
 
-In some cases you will have obtained some data (or perhaps invented it) and you need to integrate that data into the
-database. If the data matches your UI structure (as a tree) and you have proper `Ident` declarations on those components
-then you can simply transform the data into the correct shape via the `tree->db` function using a component's
-query.
+If you do such a change then you are responsible for triggering a UI refresh (if you want one).  You can schedule a
+render by calling `(app/schedule-render! app)`.
 
-Unfortunately, you would then need to follow that transform by a sequence of operations on app state to merge those
-various bits.
+=== Leveraging `tree->db` and `db->tree`
 
-The function also requires a query in order to do normalization (split the tree into tables).
-
-IMPORTANT: The general interaction with the world requires integration of external data (often in a tree format) with
-your app database (normalized graph of maps/vectors). As a result, you almost always want a component-based query when
-integrating data so that the result is normalized.
+It is sometimes useful to convert a bit of the database to a tree for manipulation in a mutation, or the other
+way around. Remember that these utility functions exist as part of the toolbox.
 
 ===  Using `integrate-ident`
 
 When in a mutation you very often need to place an ident in various spots in your graph database. The helper
-function `com.fulcrologic.fulcro.mutations/integrate-ident*` can by used from within mutations to help you do this. It accepts
+function `merge/integrate-ident*` can by used from within mutations to help you do this. It accepts
 any number of named parameters that specify operations to do with a given ident:
 
 ```
@@ -5111,7 +4990,7 @@ Fulcro includes a function that takes care of the rest of these bits for you. It
 as we mentioned earlier can be obtained from the Fulcro App). The arguments are similar to `tree->db`:
 
 ```
-(comp/merge! (:reconciler @app) ROOT-data ROOT-query)
+(merge/merge! (:reconciler @app) ROOT-data ROOT-query)
 ```
 
 The same things apply as `tree->db` (idents especially), however, the result of the transform will make it's way into
@@ -5121,12 +5000,12 @@ the app state (which is owned by the reconciler).
 from the ROOT of the database! That is sometimes perfectly fine, but our next section talks about a helper that
 might be easier to use.")
 
-=== Using `com.fulcrologic.fulcro.components/merge-component!`
+=== Using `merge/merge-component!`
 
 There is a common special case that comes up often: You want to merge something that is in the context of some particular UI component.
 
 ```
-(comp/merge-component! app ComponentClass ComponentData)
+(merge/merge-component! app ComponentClass ComponentData)
 ```
 
 Think of this case as: I have some data for a given component (which MUST have an ident). I want to merge into that
@@ -5161,14 +5040,14 @@ We'll want to:
 
 (defn add-counter
   "Merge the given counter data into app state and append it to our list of counters"
-  [reconciler counter]
-  (comp/merge-component! reconciler Counter counter
+  [app counter]
+  (comp/merge-component! app Counter counter
     :append [:panels/by-kw :counter :counters]))
 
 ...
 (defsc Root ...
-  (let [reconciler (comp/get-reconciler this)]  ; one way to get to the reconciler
-    (dom/button {:onClick #(add-counter reconciler {:counter/id 4 :counter/n 22})} "Simulate Data Import")
+  (let [app (comp/any->app this)]  ; another way to get to the app
+    (dom/button {:onClick #(add-counter app {:counter/id 4 :counter/n 22})} "Simulate Data Import")
    ...
 ```
 
@@ -5183,6 +5062,10 @@ Here is the full running example with source:
 ----
 include::src/book/book/merge_component.cljs[]
 ----
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; CONTINUE HERE
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 = Full Stack Operation [[FullStack]]
 
@@ -8361,7 +8244,7 @@ options (which will not show up in the remote and are namespaced to avoid collis
 
 `::m/returning Class` :: Indicate a return value of the remote mutation (for normalizing the returned result). If you
 know the class you can use it. Use `(actor-class actor-name)` to get the correct class for an arbitrary actor, or 
-`(comp/classname->class component-fully-qualified-symbol)` to look a class up (for avoiding circular `require`s in Clojure).
+`(comp/registry-key->class component-fully-qualified-symbol)` to look a class up (for avoiding circular `require`s in Clojure).
 `::targeting/target explicit-target` :: Option for targeting retuned result using data-targeting. Should be used with `::m/returning`.
 `::uism/target-actor actor` :: Helper that can translate an actor name to a target, if returning a result.
 `::uism/target-alias field-alias` :: Helper that can translate a data alias to a target (ident + field).
@@ -8384,7 +8267,7 @@ The API includes these functions for doing loads in the context of a running sta
 machine:
 
 `(load env k component-class params)`:: Just like Fulcro's load, but takes a SM env. Typically you should
-use `actor-class` or the component registry `comp/classname->class` to get the component class so you don't couple
+use `actor-class` or the component registry `comp/registry-key->class` to get the component class so you don't couple
 UI code into your machine.
 `(load-actor env actor-name params)`:: (Re)load the given actor.
 
