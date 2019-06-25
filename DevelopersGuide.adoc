@@ -1746,7 +1746,7 @@ The program will now look like this:
 the `defsc` argument list is "in scope" for `ident`.
 <2> We will be using IDs now, so we need to add them to the query (and props destructuring).
 <3> The state of the entity will also need the ID
-<4> The callback can now delete people by their ID, which is more reliable.
+<4> The callback will now be able to delete people by their ID (see below)
 <5> The list will have an ID, and an Ident as well
 
 If you reload the web page (needed to reinitialize the database state), then you can look at the newly normalized
@@ -2287,7 +2287,6 @@ First, get rid of the application's initial state
    :ident (fn [] [:list/id (:list/id props)])}
   (let [delete-person (fn [person-id] (comp/transact! this [(api/delete-person {:list/id id :person/id person-id})]))] ; <2>
     (dom/div
-      (dom/h4 label)
       (dom/ul
         (map #(ui-person (comp/computed % {:onDelete delete-person})) people)))))
 
