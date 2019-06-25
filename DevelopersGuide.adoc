@@ -1917,7 +1917,7 @@ Add this to your deps:
 com.wsscode/pathom     {:mvn/version "2.2.15"}
 ```
 
-and create the file `src/main/parser.clj` with this content:
+and create the file `src/main/app/parser.clj` with this content:
 
 ```
 (ns app.parser
