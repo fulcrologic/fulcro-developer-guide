@@ -12079,106 +12079,50 @@ See the section on <<DevCards, Dev Cards>> for more information.
 
 = Logging
 
-Fulcro's internal logging on the client and server are handled by a small set of logging functions. The
-logging itself can be modified to use any logging system that you wish to integrate, or you could choose
-to use the internal facility.
+Fulcro 3 uses https://github.com/ptaoussanis/timbre[Timbre]. Read the documentation on that website for changing
+logging levels, eliding logging statements, etc.
 
-The internal facility is meant to be used for Fulcro and related libraries so that no external logging \
-dependency is necessary.
+== Logging Helpers
 
-You can plug in your own output function (which can format and send log messages however you wish).
+The logging output of errors in CLJS leaves something to be desired when used with stock Timbre. Fortunately, this
+is quite configurable, and Fulcro provides a couple of useful helpers that can make the js console error messages
+much more useful and readable.
 
-The basic API is (assume cljc file):
+If you use https://github.com/gnl/ghostwheel[Ghostwheel] to spec and instrument your functions, then problems with
+parameters and return values will have much better error messages (see also https://github.com/bhb/expound[expount],
+which ghostwheel will help configure).  Unfortunately the logging defaults in cljs will munge these nice error messages
+into a very poorly wrapped string format.
 
-```
-(ns app
-  (:require [fulcro.logging :as log]))
+The `com.fulcrologic.fulcro.algorithms.timbre-support` namespace includes functions that will make this better.
 
-(log/set-level! :error) ; prevent any logging messages except :error and :fatal
-(log/set-logger! (fn [source-location log-level & args] (apply println args))) ; change the function that outputs the messages
+The recommended use of these functions is as follows:
 
-(log/fatal "PROBLEM!") ; log a fatal error.
-(log/debug "Doing something." [1 2 3] #{1 2} 22 "Hello" (ex-info "error" {})) ; log a debug message with a bunch of data
-```
-
-WARNING: Fulcro includes a legacy namespace (`fulcro.client.logging`) that should not be used.
-
-== Making Fulcro Log Through External Libraries
-
-You can make this logging facility delegate to another via `set-logger!`. It's as simple as something like:
+- Make sure you're using Binaryage devtools (on classpath. shadow-cljs will auto-add it when detected).
+- IMPORTANT: Enable custom formatters in console settings for Chrome. This will print cljs data as cljs (instead of raw js).
+- Make a development preload cljs file, and tell shadow-cljs to preload it.
+- In the preload file, add something like this:
 
 ```
-(ns startup
-  (:require [taoensso.timbre :as timbre
-             fulcro.logging :as log]))
+(ns app.development-preload
+  (:require
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.algorithms.timbre-support :refer [console-appender prefix-output-fn]))
 
-(log/set-logger!
-  (fn [{:keys [file line] :as location} level & args]
-    (timbre/log! level :p [args] {:?ns-str file :?line line})))
+(log/set-level! :debug)
+(log/merge-config! {:output-fn prefix-output-fn
+                    :appenders {:console (console-appender)}})
 ```
 
-Be sure you're using your loggers low-level logging function, and not the macros. The macros will typically try
-to extract the location using compile-time info, and the compile-time info of your call to `set-logger!` is of
-little use in your actual logs. The macros in Fulcro's internal logging will have already extracted the relevant
-information into the location argument.
+and you'll get much more readable error messages in the js console.
 
-== Eliding Logging Code
-
-The `set-level!` function changes runtime behavior of logging statements in the code base; however, you may wish
-to completely remove logging statements from your production code below certain levels like debug.
-
-The logging library will remove logging statements from code if you specify the JVM argument `-Dfulcro.logging=<level>`,
-where `<level>` is a level like `debug` or `error`. Logging *statements* below that level will not generate code
-in the resulting compiled program.
-
-Of course, if you've removed logging statements this way then `set-level!` cannot magically re-add them. Therefore
-using `-Dfulcro.logging=error` and doing `(set-level! :debug)` at runtime is not going to suddenly re-add the debug
-logging statements.
-
-= Deploying to Heroku
-
-As an example of sending a complete Fulcro application to the cloud we'll walk you through the steps
-to put an application up on Heroku.
-
-Here are the things you need to do:
-
-- Set up server to pull the web port from the PORT environment variable (using EDN)
-- Make sure `:min-lein-version` is in your project file
-- Include a Procfile
-- Use the clojure build pack (should be auto-detected)
-
-== Setting PORT
-
-Fulcro server's PORT can be configured from the environment as follows:
+NOTE: when logging errors, be sure to log the exception first. This is documented in timbre, but easy to miss:
 
 ```
-{ :port :env.edn/PORT }
+(try
+  ...
+  (catch :default ex
+    (log/error ex ...))
 ```
-
-place that in a file on your classpath, such as `src/config/prod.edn` (if `src` is your base source code directory). You
-could also use `resources` (which is technically more correct).
-
-== Minimum lein version
-
-Heroku (at the time of this writing) defaults to lein version 1.7.x. This is almost certainly *not* what you want.
-
-== Include a Profile
-
-If you're building an uberjar from one of our template projects, using Fulcro Server, and you've set up a config
-file as described above, then the following Procfile should work for you:
-
-```
-web: java $JVM_OPTS -Dconfig=config/prod.edn -jar target/uberjar-name.jar\n
-```
-
-== Use a Clojure Build Pack
-
-Just follow the directions when adding a project. We've only used the git deployment method. Make sure you don't have
-a generated `pom.xml` as well as a `project.clj` file, or your project might get built using Maven instead of Lein.
-
-== Sample Project
-
-The http://github.com/fulcrologic/fulcro-template[fulcro-template] is pre-configured for easy deployment to Heroku.
 
 = Converting HTML to Fulcro
 
@@ -12288,28 +12232,6 @@ The running demo (with source) is below:
 [source,clojure,role="autocomplete-demo source"]
 ----
 include::src/book/book/demos/autocomplete.cljs[]
-----
-
-== Using Unions to Switch out UI Elements
-
-This demo is similar to the example in the section on <<Unions,unions>>. In fact, the two could be combined to make
-this one polymorphic as well, but the primary interest in this demo is to show swapping between an editor
-and a list (or table).
-
-This example uses <<Forms,forms support>> with a custom submit and cancel mutation.
-It is instructive to see how entities could be loaded (simulated in the client-did-mount) as pristine entities
-and augmented with form support through mutations that have a nice clear meaning (to both front and back-end).
-
-See the comments on the source for more details.
-
-++++
-<div class="example" id="union-example-2"></div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.union-example-2').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="union-example-2 source"]
-----
-include::src/book/book/queries/union_example_2.cljs[]
 ----
 
 == Cascading Dropdowns

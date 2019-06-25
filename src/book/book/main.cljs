@@ -1,5 +1,6 @@
 (ns book.main
   (:require
+    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
     [book.macros :refer [defexample]]
     [book.ui.d3-example :as d3-example]
@@ -214,4 +215,4 @@
   (encore/when-let [app        (get @book.macros/app-registry app-id)
                     state-map  (app/current-state app)
                     inspect-id (get state-map :fulcro.inspect.core/app-uuid)]
-    (com.fulcrologic.fulcro.inspect.preload/set-active-app inspect-id)))
+    (inspect/set-active-app inspect-id)))
