@@ -66,7 +66,6 @@
 
 (def my-resolvers [db/general-resolvers
                    autocomplete/list-resolver
-                   book.demos.declarative-mutation-refresh/resolvers
                    book.forms.form-state-demo-2/resolvers
                    book.demos.loading-data-basics/resolvers
                    #_book.demos.cascading-dropdowns/model-resolver])
