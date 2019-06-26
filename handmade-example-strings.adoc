@@ -38,7 +38,7 @@ include::src/book/book/example_1.cljs[]
 
 
 
-.[[]]<<,Input Focus and React Refs/Lifecycle>>
+.[[InputFocusAndReactRefs]]<<InputFocusAndReactRefs,Input Focus and React Refs/Lifecycle>>
 ====
 
 ++++
@@ -56,7 +56,7 @@ include::src/book/book/ui/focus_example.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Drawing in a Canvas>>
+.[[DrawingCanvas]]<<DrawingCanvas,Drawing in a Canvas>>
 ====
 
 ++++
@@ -74,7 +74,7 @@ include::src/book/book/ui/hover_example.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Using External React Libraries>>
+.[[UsingExternalReactLibraries]]<<UsingExternalReactLibraries,Using External React Libraries>>
 ====
 
 ++++
@@ -92,7 +92,7 @@ include::src/book/book/ui/victory_example.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Unions to Select Type>>
+.[[UnionsToSelectType]]<<UnionsToSelectType,Unions to Select Type>>
 ====
 
 ++++
@@ -110,7 +110,7 @@ include::src/book/book/queries/union_example_1.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,UI Blocking>>
+.[[UIBlocking]]<<UIBlocking,UI Blocking>>
 ====
 
 ++++
@@ -128,7 +128,7 @@ include::src/book/book/server/ui_blocking_example.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Dynamic Query>>
+.[[DynamicQuery]]<<DynamicQuery,Dynamic Query>>
 ====
 
 ++++
@@ -146,7 +146,7 @@ include::src/book/book/queries/dynamic_queries.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Dynamic Query Parameters>>
+.[[DynamicQueryParameters]]<<DynamicQueryParameters,Dynamic Query Parameters>>
 ====
 
 ++++
@@ -164,7 +164,7 @@ include::src/book/book/queries/dynamic_query_parameters.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Routing Demo>>
+.[[RoutingDemo]]<<RoutingDemo,Routing Demo>>
 ====
 
 ++++
@@ -182,7 +182,7 @@ include::src/book/book/ui_routing.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Simple Router>>
+.[[SimpleRouter]]<<SimpleRouter,Simple Router>>
 ====
 
 ++++
@@ -200,7 +200,7 @@ include::src/book/book/simple_router_1.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Nested Router>>
+.[[NestedRouter]]<<NestedRouter,Nested Router>>
 ====
 
 ++++
@@ -218,7 +218,7 @@ include::src/book/book/simple_router_2.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Tree to DB with Queries>>
+.[[TreeToDBWithQueries]]<<TreeToDBWithQueries,Tree to DB with Queries>>
 ====
 
 ++++
@@ -236,7 +236,7 @@ include::src/book/book/tree_to_db.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Merging with a Component>>
+.[[MergingWithAComponent]]<<MergingWithAComponent,Merging with a Component>>
 ====
 
 ++++
@@ -254,7 +254,7 @@ include::src/book/book/merge_component.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,HTML Converter>>
+.[[HTMLConverter]]<<HTMLConverter,HTML Converter>>
 ====
 
 ++++
@@ -272,7 +272,7 @@ include::src/book/book/html_converter.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Editing Existing Data>>
+.[[EditingExistingData]]<<EditingExistingData,Editing Existing Data>>
 ====
 
 ++++
@@ -290,7 +290,7 @@ include::src/book/book/forms/form_state_demo_1.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Network Interactions and Forms>>
+.[[NetworkInteractionsAndForms]]<<NetworkInteractionsAndForms,Network Interactions and Forms>>
 ====
 
 ++++
@@ -308,7 +308,7 @@ include::src/book/book/forms/form_state_demo_2.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Autocomplete>>
+.[[Autocomplete]]<<Autocomplete,Autocomplete>>
 ====
 
 ++++
@@ -326,7 +326,7 @@ include::src/book/book/demos/autocomplete.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Dynamic UI Routing>>
+.[[DynamicUIRouting]]<<DynamicUIRouting,Dynamic UI Routing>>
 ====
 
 ++++
@@ -344,7 +344,7 @@ include::src/book/book/demos/dynamic_ui_routing.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Recursive Demo 1>>
+.[[RecursiveDemo1]]<<RecursiveDemo1,Recursive Demo 1>>
 ====
 
 ++++
@@ -362,7 +362,7 @@ include::src/book/book/queries/recursive_demo_1.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Recursive Demo 2>>
+.[[RecursiveDemo2]]<<RecursiveDemo2,Recursive Demo 2>>
 ====
 
 ++++
@@ -380,7 +380,7 @@ include::src/book/book/queries/recursive_demo_2.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Recursive Demo 3>>
+.[[RecursiveDemo3]]<<RecursiveDemo3,Recursive Demo 3>>
 ====
 
 ++++
@@ -398,7 +398,7 @@ include::src/book/book/queries/recursive_demo_3.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Recursive Demo 4>>
+.[[RecursiveDemo4]]<<RecursiveDemo4,Recursive Demo 4>>
 ====
 
 ++++
@@ -416,7 +416,7 @@ include::src/book/book/queries/recursive_demo_bullets.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Loading In Response To UI Routing>>
+.[[LoadingInResponseToUIRouting]]<<LoadingInResponseToUIRouting,Loading In Response To UI Routing>>
 ====
 
 ++++
@@ -434,7 +434,7 @@ include::src/book/book/demos/loading_in_response_to_UI_routing.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Loading Indicators>>
+.[[LoadingIndicators]]<<LoadingIndicators,Loading Indicators>>
 ====
 
 ++++
@@ -452,7 +452,7 @@ include::src/book/book/demos/loading_indicators.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Initial State>>
+.[[InitialState]]<<InitialState,Initial State>>
 ====
 
 ++++
@@ -470,7 +470,7 @@ include::src/book/book/demos/initial_app_state.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 
-.[[]]<<,Parent-Child Ownership>>
+.[[ParentChildOwnership]]<<ParentChildOwnership,Parent-Child Ownership>>
 ====
 
 ++++
@@ -488,8 +488,7 @@ include::src/book/book/demos/parent_child_ownership_relations.cljs[]
 
 ;;;;;;;;;;;;;;;;;
 TODO
-
-.[[]]<<,Pre merge - using post mutations>>
+.[[PreMergePostMutations]]<<PreMergePostMutations,Pre merge - using post mutations>>
 ====
 
 ++++
@@ -507,8 +506,7 @@ include::src/book/book/
 
 ;;;;;;;;;;;;;;;;;
 TODO
-
-.[[]]<<,Pre merge - using post mutations to many>>
+.[[PreMergeUsingPostMutationsToMany]]<<PreMergeUsingPostMutationsToMany,Pre merge - using post mutations to many>>
 ====
 
 ++++
@@ -526,8 +524,7 @@ include::src/book/book/
 
 ;;;;;;;;;;;;;;;;;
 TODO
-
-.[[]]<<,Pre merge>>
+.[[PreMerge]]<<PreMerge,Pre merge>>
 ====
 
 ++++
@@ -546,7 +543,7 @@ src/book/book/demos/pre_merge/countdown.cljs
 
 ;;;;;;;;;;;;;;;;;
 TODO
-.[[]]<<,Pre merge - to many>>
+.[[PreMergeToMany]]<<PreMergeToMany,Pre merge - to many>>
 ====
 
 ++++
@@ -564,7 +561,7 @@ include::src/book/book/
 
 ;;;;;;;;;;;;;;;;;
 TODO
-.[[]]<<,Pre merge - with initial>>
+.[[PreMergeWithInitial]]<<PreMergeWithInitial,Pre merge - with initial>>
 ====
 
 ++++
@@ -582,7 +579,7 @@ include::src/book/book/
 
 ;;;;;;;;;;;;;;;;;
 TODO
-.[[]]<<,Pre merge - extracted ui>>
+.[[PreMergeExtractedUI]]<<PreMergeExtractedUI,Pre merge - extracted ui>>
 ====
 
 ++++
@@ -600,7 +597,7 @@ include::src/book/book/
 
 ;;;;;;;;;;;;;;;;;
 TODO
-.[[]]<<,Pre merge - initial state>>
+.[[PreMergeInitialState]]<<PreMergeInitialState,Pre merge - initial state>>
 ====
 
 ++++
@@ -618,7 +615,7 @@ include::src/book/book/
 
 ;;;;;;;;;;;;;;;;;
 TODO
-.[[]]<<,Pre merge - mutation>>
+.[[PreMergeMutation]]<<PreMergeMutation,Pre merge - mutation>>
 ====
 
 ++++
@@ -636,46 +633,3 @@ include::src/book/book/
 
 
 
-;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;
-
-src/book/book/forms/forms_demo_3.cljs
-src/book/book/forms/forms_demo_2.cljs
-src/book/book/forms/whole_form_logic.cljs
-src/book/book/forms/full_stack_forms_demo.cljs
-src/book/book/forms/forms_demo_1.cljs
-src/book/book/elements.cljs
-src/book/book/queries/parsing_simple_join.cljs
-src/book/book/queries/parsing_parameters.cljs
-src/book/book/queries/naive_read.cljs
-src/book/book/queries/parsing_recursion_two.cljs
-src/book/book/queries/simple_property_read.cljs
-src/book/book/queries/parsing_trace_example.cljs
-src/book/book/queries/parsing_key_trace.cljs
-src/book/book/queries/parsing_recursion_one.cljs
-src/book/book/queries/parse_runner.cljs
-src/book/book/server/morphing_example.cljs
-src/book/book/database.cljs
-src/book/book/demos/declarative_mutation_refresh.cljs
-src/book/book/demos/component_localized_css.cljs
-src/book/book/demos/loading_data_basics.cljs
-src/book/book/demos/loading_data_targeting_entities.cljs
-src/book/book/demos/legacy_load_indicators.cljs
-src/book/book/demos/dynamic_ui_main.cljs
-src/book/book/demos/parallel_vs_sequential_loading.cljs
-src/book/book/demos/server_return_values_manually_merging.cljs
-src/book/book/demos/cascading_dropdowns.cljs
-src/book/book/demos/util.cljs
-src/book/book/demos/server_query_security.cljs
-src/book/book/demos/paginating_large_lists_from_server.cljs
-src/book/book/demos/server_return_values_as_data_driven_mutation_joins.cljs
-src/book/book/demos/airports.cljs
-src/book/book/demos/server_error_handling.cljs
-src/book/book/demos/server_targeting_return_values_into_app_state.cljs
-src/book/book/demos/pre_merge/countdown_initial_state.cljs
-src/book/book/demos/pre_merge/post_mutation_countdown.cljs
-src/book/book/demos/pre_merge/countdown_with_initial.cljs
-src/book/book/demos/pre_merge/countdown_extracted.cljs
-src/book/book/demos/pre_merge/post_mutation_countdown_many.cljs
-src/book/book/demos/pre_merge/countdown_mutation.cljs
-src/book/book/demos/pre_merge/countdown_many.cljs
