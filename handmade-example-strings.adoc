@@ -49,8 +49,7 @@ include::src/book/book/example_1.cljs[]
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/ui/focus_example.cljs
+include::src/book/book/ui/focus_example.cljs[]
 ----
 
 ====
@@ -68,8 +67,7 @@ src/book/book/ui/focus_example.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/ui/hover_example.cljs
+include::src/book/book/ui/hover_example.cljs[]
 ----
 
 ====
@@ -87,8 +85,7 @@ src/book/book/ui/hover_example.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/ui/victory_example.cljs
+include::src/book/book/ui/victory_example.cljs[]
 ----
 
 ====
@@ -106,8 +103,7 @@ src/book/book/ui/victory_example.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/queries/union_example_1.cljs
+include::src/book/book/queries/union_example_1.cljs[]
 ----
 
 ====
@@ -125,8 +121,7 @@ src/book/book/queries/union_example_1.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/server/ui_blocking_example.cljs
+include::src/book/book/server/ui_blocking_example.cljs[]
 ----
 
 ====
@@ -144,8 +139,7 @@ src/book/book/server/ui_blocking_example.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/queries/dynamic_queries.cljs
+include::src/book/book/queries/dynamic_queries.cljs[]
 ----
 
 ====
@@ -163,8 +157,7 @@ src/book/book/queries/dynamic_queries.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/queries/dynamic_query_parameters.cljs
+include::src/book/book/queries/dynamic_query_parameters.cljs[]
 ----
 
 ====
@@ -182,8 +175,7 @@ src/book/book/queries/dynamic_query_parameters.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/ui_routing.cljs
+include::src/book/book/ui_routing.cljs[]
 ----
 
 ====
@@ -201,8 +193,7 @@ src/book/book/ui_routing.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/simple_router_1.cljs
+include::src/book/book/simple_router_1.cljs[]
 ----
 
 ====
@@ -220,8 +211,7 @@ src/book/book/simple_router_1.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/simple_router_2.cljs
+include::src/book/book/simple_router_2.cljs[]
 ----
 
 ====
@@ -239,8 +229,7 @@ src/book/book/simple_router_2.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/tree_to_db.cljs
+include::src/book/book/tree_to_db.cljs[]
 ----
 
 ====
@@ -258,8 +247,7 @@ src/book/book/tree_to_db.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/merge_component.cljs
+include::src/book/book/merge_component.cljs[]
 ----
 
 ====
@@ -277,8 +265,7 @@ src/book/book/merge_component.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/html_converter.cljs
+include::src/book/book/html_converter.cljs[]
 ----
 
 ====
@@ -296,8 +283,7 @@ src/book/book/html_converter.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/forms/form_state_demo_1.cljs
+include::src/book/book/forms/form_state_demo_1.cljs[]
 ----
 
 ====
@@ -315,8 +301,7 @@ src/book/book/forms/form_state_demo_1.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/forms/form_state_demo_2.cljs
+include::src/book/book/forms/form_state_demo_2.cljs[]
 ----
 
 ====
@@ -334,8 +319,7 @@ src/book/book/forms/form_state_demo_2.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/demos/autocomplete.cljs
+include::src/book/book/demos/autocomplete.cljs[]
 ----
 
 ====
@@ -353,8 +337,7 @@ src/book/book/demos/autocomplete.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/demos/dynamic_ui_routing.cljs
+include::src/book/book/demos/dynamic_ui_routing.cljs[]
 ----
 
 ====
@@ -372,8 +355,7 @@ src/book/book/demos/dynamic_ui_routing.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/queries/recursive_demo_1.cljs
+include::src/book/book/queries/recursive_demo_1.cljs[]
 ----
 
 ====
@@ -391,8 +373,7 @@ src/book/book/queries/recursive_demo_1.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/queries/recursive_demo_2.cljs
+include::src/book/book/queries/recursive_demo_2.cljs[]
 ----
 
 ====
@@ -410,8 +391,7 @@ src/book/book/queries/recursive_demo_2.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/queries/recursive_demo_3.cljs
+include::src/book/book/queries/recursive_demo_3.cljs[]
 ----
 
 ====
@@ -429,8 +409,7 @@ src/book/book/queries/recursive_demo_3.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/queries/recursive_demo_bullets.cljs
+include::src/book/book/queries/recursive_demo_bullets.cljs[]
 ----
 
 ====
@@ -448,8 +427,7 @@ src/book/book/queries/recursive_demo_bullets.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/demos/loading_in_response_to_UI_routing.cljs
+include::src/book/book/demos/loading_in_response_to_UI_routing.cljs[]
 ----
 
 ====
@@ -467,8 +445,7 @@ src/book/book/demos/loading_in_response_to_UI_routing.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/demos/loading_indicators.cljs
+include::src/book/book/demos/loading_indicators.cljs[]
 ----
 
 ====
@@ -486,8 +463,7 @@ src/book/book/demos/loading_indicators.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/demos/initial_app_state.cljs
+include::src/book/book/demos/initial_app_state.cljs[]
 ----
 
 ====
@@ -505,8 +481,7 @@ src/book/book/demos/initial_app_state.cljs
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
-src/book/book/demos/parent_child_ownership_relations.cljs
+include::src/book/book/demos/parent_child_ownership_relations.cljs[]
 ----
 
 ====
