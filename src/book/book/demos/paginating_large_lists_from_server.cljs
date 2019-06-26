@@ -3,21 +3,19 @@
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
-    [fulcro.server :as server]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [fulcro.client :as fc]
-    [com.fulcrologic.fulcro.components :as comp]))
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.wsscode.pathom.connect :as pc]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(server/defquery-root :paginate/items
-  "A simple implementation that can generate any number of items whose ids just match their index"
-  (value [env {:keys [start end]}]
-    (when (> 1000 (- end start))
-      (vec (for [id (range start end)]
-             {:item/id id})))))
+(pc/defresolver infinite-pages [env input]
+  {::pc/output [{:paginate/items [:item/id]}]}
+  (let [params (-> env :ast :params)
+        {:keys [start end]} params]
+    {:paginate/items (mapv (fn [id] {:item/id id}) (range start end))}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLIENT:
@@ -62,12 +60,13 @@
 
 (declare ListItem)
 
-(defn load-if-missing [{:keys [reconciler state] :as env} page-number]
+(defn load-if-missing [{:keys [app state] :as env} page-number]
   (when-not (page-exists? @state page-number)
     (let [start (inc (* 10 (dec page-number)))
           end   (+ start 9)]
-      (df/load reconciler :paginate/items ListItem {:params {:start start :end end}
-                                                    :target [:page/by-number page-number :page/items]}))))
+      (df/load! app :paginate/items ListItem {:params {:start start :end end}
+                                              :marker :page
+                                              :target [:page/by-number page-number :page/items]}))))
 
 (m/defmutation goto-page [{:keys [page-number]}]
   (action [{:keys [state] :as env}]
@@ -76,10 +75,7 @@
                    (-> s
                      (init-page page-number)
                      (set-current-page page-number)
-                     (gc-distant-pages page-number)))))
-  (remote [{:keys [state] :as env}]
-    (when (not (page-exists? @state page-number))
-      (df/remote-load env))))
+                     (gc-distant-pages page-number))))))
 
 (defsc ListItem [this {:keys [item/id]}]
   {:query [:item/id :ui/fetch-state]
@@ -88,13 +84,17 @@
 
 (def ui-list-item (comp/factory ListItem {:keyfn :item/id}))
 
-(defsc ListPage [this {:keys [page/number page/items]}]
+(defsc ListPage [this {:keys [page/number page/items] :as props}]
   {:initial-state {:page/number 1 :page/items []}
-   :query         [:page/number {:page/items (comp/get-query ListItem)}]
+   :query         [:page/number {:page/items (comp/get-query ListItem)}
+                   [df/marker-table :page]]
    :ident         [:page/by-number :page/number]}
-  (dom/div
-    (dom/p "Page number " number)
-    (df/lazily-loaded #(dom/ul nil (mapv ui-list-item %)) items)))
+  (let [status (get props [df/marker-table :page])]
+    (dom/div
+      (dom/p "Page number " number)
+      (if (df/loading? status)
+        (dom/div "Loading...")
+        (dom/ul (mapv ui-list-item items))))))
 
 (def ui-list-page (comp/factory ListPage {:keyfn :page/number}))
 
@@ -117,5 +117,5 @@
 
 (defn initialize
   "To be used as started-callback. Load the first page."
-  [{:keys [reconciler]}]
-  (comp/transact! reconciler `[(goto-page {:page-number 1})]))
+  [{:keys [app]}]
+  (comp/transact! app `[(goto-page {:page-number 1})]))
