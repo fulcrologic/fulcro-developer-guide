@@ -1,3 +1,4 @@
+src/book/book/demos/pre_merge/countdown.cljs
 src/book/book/forms/forms_demo_3.cljs
 src/book/book/forms/forms_demo_2.cljs
 src/book/book/forms/whole_form_logic.cljs
@@ -31,10 +32,5 @@ src/book/book/demos/server_return_values_as_data_driven_mutation_joins.cljs
 src/book/book/demos/airports.cljs
 src/book/book/demos/server_error_handling.cljs
 src/book/book/demos/server_targeting_return_values_into_app_state.cljs
-src/book/book/demos/pre_merge/countdown_initial_state.cljs
 src/book/book/demos/pre_merge/post_mutation_countdown.cljs
-src/book/book/demos/pre_merge/countdown_with_initial.cljs
-src/book/book/demos/pre_merge/countdown_extracted.cljs
 src/book/book/demos/pre_merge/post_mutation_countdown_many.cljs
-src/book/book/demos/pre_merge/countdown_mutation.cljs
-src/book/book/demos/pre_merge/countdown_many.cljs

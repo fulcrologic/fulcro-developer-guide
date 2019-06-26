@@ -487,7 +487,7 @@ include::src/book/book/demos/parent_child_ownership_relations.cljs[]
 ====
 
 ;;;;;;;;;;;;;;;;;
-TODO
+
 .[[PreMergePostMutations]]<<PreMergePostMutations,Pre merge - using post mutations>>
 ====
 
@@ -499,13 +499,13 @@ TODO
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
+include::src/book/book/demos/pre_merge/post_mutation_countdown.cljs
 ----
 
 ====
 
 ;;;;;;;;;;;;;;;;;
-TODO
+
 .[[PreMergeUsingPostMutationsToMany]]<<PreMergeUsingPostMutationsToMany,Pre merge - using post mutations to many>>
 ====
 
@@ -517,7 +517,7 @@ TODO
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
+include::src/book/book/demos/pre_merge/post_mutation_countdown_many.cljs
 ----
 
 ====
@@ -536,13 +536,12 @@ TODO
 [source,clojure,role="source"]
 ----
 include::src/book/book/
-src/book/book/demos/pre_merge/countdown.cljs
 ----
 
 ====
 
 ;;;;;;;;;;;;;;;;;
-TODO
+
 .[[PreMergeToMany]]<<PreMergeToMany,Pre merge - to many>>
 ====
 
@@ -554,13 +553,13 @@ TODO
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
+include::src/book/book/demos/pre_merge/countdown_many.cljs
 ----
 
 ====
 
 ;;;;;;;;;;;;;;;;;
-TODO
+
 .[[PreMergeWithInitial]]<<PreMergeWithInitial,Pre merge - with initial>>
 ====
 
@@ -572,13 +571,13 @@ TODO
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
+include::src/book/book/demos/pre_merge/countdown_with_initial.cljs
 ----
 
 ====
 
 ;;;;;;;;;;;;;;;;;
-TODO
+
 .[[PreMergeExtractedUI]]<<PreMergeExtractedUI,Pre merge - extracted ui>>
 ====
 
@@ -590,13 +589,13 @@ TODO
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
+include::src/book/book/demos/pre_merge/countdown_extracted.cljs
 ----
 
 ====
 
 ;;;;;;;;;;;;;;;;;
-TODO
+
 .[[PreMergeInitialState]]<<PreMergeInitialState,Pre merge - initial state>>
 ====
 
@@ -608,13 +607,13 @@ TODO
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
+include::src/book/book/demos/pre_merge/countdown_initial_state.cljs
 ----
 
 ====
 
 ;;;;;;;;;;;;;;;;;
-TODO
+
 .[[PreMergeMutation]]<<PreMergeMutation,Pre merge - mutation>>
 ====
 
@@ -626,7 +625,7 @@ TODO
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
+include::src/book/book/demos/pre_merge/countdown_mutation.cljs
 ----
 
 ====
