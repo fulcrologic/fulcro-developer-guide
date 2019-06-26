@@ -523,7 +523,7 @@ include::src/book/book/demos/pre_merge/post_mutation_countdown_many.cljs
 ====
 
 ;;;;;;;;;;;;;;;;;
-TODO
+
 .[[PreMerge]]<<PreMerge,Pre merge>>
 ====
 
@@ -535,7 +535,7 @@ TODO
 
 [source,clojure,role="source"]
 ----
-include::src/book/book/
+include::src/book/book/demos/pre_merge/countdown.cljs
 ----
 
 ====
