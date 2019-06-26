@@ -152,7 +152,7 @@
 ;
 ;;; Dynamic queries
 (defexample "Dynamic Query" book.queries.dynamic-queries/Root "dynamic-queries")
-(defexample "Dyanmic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters")
+(defexample "Dynamic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters")
 ;
 (defexample "Routing Demo" book.ui-routing/Root "ui-routing" :remotes book.main/example-server)
 (defexample "Simple Router" book.simple-router-1/Root "simple-router-1")
