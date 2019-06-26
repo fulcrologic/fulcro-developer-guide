@@ -1,13 +1,12 @@
 (ns book.demos.pre-merge.countdown-with-initial
   (:require
-    [fulcro.client :as fc]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [book.demos.util :refer [now]]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc InitialAppState initial-state]]
-    [com.fulcrologic.fulcro.data-fetch :as df]
-    [fulcro.server :as server]))
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.wsscode.pathom.connect :as pc]
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -19,9 +18,11 @@
    {::counter-id 3 ::counter-label "C" ::counter-initial 2}
    {::counter-id 4 ::counter-label "D"}])
 
-(server/defquery-root ::all-counters
-  (value [_ _]
-    all-counters))
+(pc/defresolver counter-resolver [env _]
+  {::pc/output [{::all-counters [::counter-id ::counter-label ::counter-initial]}]}
+  {::all-counters all-counters})
+
+(def resolvers [counter-resolver])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLIENT:
@@ -36,7 +37,7 @@
    :pre-merge (fn [{:keys [current-normalized data-tree]}]
                 (merge
                   ; <1>
-                  {:ui/count (or (comp/nilify-not-found (::counter-initial data-tree)) default-count)}
+                  {:ui/count (or (merge/nilify-not-found (::counter-initial data-tree)) default-count)}
                   current-normalized
                   data-tree))}
   (dom/div
@@ -56,7 +57,7 @@
     (if (seq all-counters)
       (dom/div {:style {:display "flex" :alignItems "center" :justifyContent "space-between"}}
         (mapv ui-countdown all-counters))
-      (dom/button {:onClick #(df/load this ::all-counters Countdown)}
+      (dom/button {:onClick #(df/load! this ::all-counters Countdown)}
         "Load many counters"))))
 
 (defn initialize

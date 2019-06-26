@@ -1,13 +1,11 @@
 (ns book.demos.pre-merge.post-mutation-countdown-many
   (:require
-    [fulcro.client :as fc]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [book.demos.util :refer [now]]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc InitialAppState initial-state]]
-    [com.fulcrologic.fulcro.data-fetch :as df]
-    [fulcro.server :as server]))
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.wsscode.pathom.connect :as pc]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -19,9 +17,11 @@
    {::counter-id 3 ::counter-label "C"}
    {::counter-id 4 ::counter-label "D"}])
 
-(server/defquery-root ::all-counters
-  (value [_ _]
-    all-counters))
+(pc/defresolver counter-resolver [env _]
+  {::pc/output [{::all-counters [::counter-id ::counter-label]}]}
+  {::all-counters all-counters})
+
+(def resolvers [counter-resolver])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLIENT:
@@ -58,10 +58,6 @@
     (if (seq all-counters)
       (dom/div {:style {:display "flex" :alignItems "center" :justifyContent "space-between"}}
         (mapv ui-countdown all-counters))
-      (dom/button {:onClick #(df/load this ::all-counters Countdown
+      (dom/button {:onClick #(df/load! this ::all-counters Countdown
                                {:post-mutation `initialize-counters})}
         "Load many counters"))))
-
-(defn initialize
-  "To be used in :started-callback to pre-load things."
-  [app])

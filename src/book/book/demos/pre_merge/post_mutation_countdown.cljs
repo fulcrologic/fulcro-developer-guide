@@ -1,13 +1,12 @@
 (ns book.demos.pre-merge.post-mutation-countdown
   (:require
-    [fulcro.client :as fc]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [book.demos.util :refer [now]]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc InitialAppState initial-state]]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.data-fetch :as df]
-    [fulcro.server :as server]))
+    [com.wsscode.pathom.connect :as pc]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -16,9 +15,13 @@
 (def all-counters
   [{::counter-id 1 ::counter-label "A"}])
 
-(server/defquery-entity ::counter-id
-  (value [_ id _]
+(pc/defresolver counter-resolver [env {::keys [counter-id]}]
+  {::pc/input  #{::counter-id}
+   ::pc/output [::counter-id ::counter-label]}
+  (let [{:keys [id]} (-> env :ast :params)]
     (first (filter #(= id (::counter-id %)) all-counters))))
+
+(def resolvers [counter-resolver])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLIENT:
@@ -48,7 +51,7 @@
     (dom/h3 "Counters")
     (if (seq counter)
       (ui-countdown counter)
-      (dom/button {:onClick #(df/load this [::counter-id 1] Countdown
+      (dom/button {:onClick #(df/load! this [::counter-id 1] Countdown
                                {:target               [:counter]
                                 :post-mutation        `initialize-counter
                                 :post-mutation-params {::counter-id 1}})}

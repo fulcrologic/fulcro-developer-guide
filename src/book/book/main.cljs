@@ -35,14 +35,15 @@
     ;book.demos.paginating-large-lists-from-server
     ;book.demos.parallel-vs-sequential-loading
     book.demos.parent-child-ownership-relations
-    ;book.demos.pre-merge.post-mutation-countdown
-    ;book.demos.pre-merge.post-mutation-countdown-many
-    ;book.demos.pre-merge.countdown
-    ;book.demos.pre-merge.countdown-many
-    ;book.demos.pre-merge.countdown-with-initial
-    ;book.demos.pre-merge.countdown-initial-state
-    ;book.demos.pre-merge.countdown-extracted
-    ;book.demos.pre-merge.countdown-mutation
+    book.demos.pre-merge.post-mutation-countdown
+    book.demos.pre-merge.post-mutation-countdown-many
+    book.demos.pre-merge.countdown
+    book.demos.pre-merge.countdown-many
+    book.demos.pre-merge.countdown-with-initial
+    book.demos.pre-merge.countdown-initial-state
+    book.demos.pre-merge.countdown-extracted
+    book.demos.pre-merge.countdown-mutation
+
     ;book.demos.server-error-handling
     ;book.demos.server-query-security
     ;book.demos.server-return-values-as-data-driven-mutation-joins
@@ -68,18 +69,25 @@
                    autocomplete/list-resolver
                    book.forms.form-state-demo-2/resolvers
                    book.demos.loading-data-basics/resolvers
+                   book.demos.pre-merge.post-mutation-countdown/resolvers
+                   book.demos.pre-merge.post-mutation-countdown-many/resolvers
+                   book.demos.pre-merge.countdown/resolvers
+                   book.demos.pre-merge.countdown-many/resolvers
+                   book.demos.pre-merge.countdown-with-initial/resolvers
+                   book.demos.pre-merge.countdown-initial-state/resolvers
+                   book.demos.pre-merge.countdown-extracted/resolvers
                    #_book.demos.cascading-dropdowns/model-resolver])
 
 (def parser
   (p/parallel-parser
     {::p/env     {::p/reader [p/map-reader
                               pc/parallel-reader
-                              pc/open-ident-reader
-                              p/env-placeholder-reader]}
+                              pc/open-ident-reader]}
      ::p/mutate  pc/mutate-async
      ::p/plugins [(pc/connect-plugin {::pc/register my-resolvers})
-                  (p/post-process-parser-plugin p/elide-not-found)
-                  p/error-handler-plugin]}))
+                  p/error-handler-plugin
+                  p/request-cache-plugin
+                  (p/post-process-parser-plugin p/elide-not-found)]}))
 
 (defmutation set-server-latency [{:keys [delay]}]
   (action [{:keys [app state]}]
@@ -181,14 +189,14 @@
 (defexample "Parent-Child Ownership" book.demos.parent-child-ownership-relations/Root "parent-child-ownership-relations" :remotes book.main/example-server)
 
 ;
-;#?(:cljs (defexample "Pre merge - using post mutations" book.demos.pre-merge.post-mutation-countdown/Root "pre-merge-postmutations" :remotes book.main/example-server))
-;#?(:cljs (defexample "Pre merge - using post mutations to many" book.demos.pre-merge.post-mutation-countdown-many/Root "pre-merge-postmutations-many" :remotes book.main/example-server))
-;#?(:cljs (defexample "Pre merge" book.demos.pre-merge.countdown/Root "postmutations-single" :remotes book.main/example-server))
-;#?(:cljs (defexample "Pre merge - to many" book.demos.pre-merge.countdown-many/Root "postmutations-many" :remotes book.main/example-server))
-;#?(:cljs (defexample "Pre merge - with initial" book.demos.pre-merge.countdown-with-initial/Root "postmutations-with-initial" :remotes book.main/example-server))
-;#?(:cljs (defexample "Pre merge - extracted ui" book.demos.pre-merge.countdown-extracted/Root "postmutations-extracted" :remotes book.main/example-server))
-;#?(:cljs (defexample "Pre merge - initial state" book.demos.pre-merge.countdown-initial-state/Root "postmutations-initial-state" :remotes book.main/example-server))
-;#?(:cljs (defexample "Pre merge - mutation" book.demos.pre-merge.countdown-mutation/Root "postmutations-mutation" :remotes book.main/example-server))
+(defexample "Pre merge - using post mutations" book.demos.pre-merge.post-mutation-countdown/Root "pre-merge-postmutations" :remotes book.main/example-server)
+(defexample "Pre merge - using post mutations to many" book.demos.pre-merge.post-mutation-countdown-many/Root "pre-merge-postmutations-many" :remotes book.main/example-server)
+(defexample "Pre merge" book.demos.pre-merge.countdown/Root "countdown-single" :remotes book.main/example-server)
+(defexample "Pre merge - to many" book.demos.pre-merge.countdown-many/Root "countdown-many" :remotes book.main/example-server)
+(defexample "Pre merge - with initial" book.demos.pre-merge.countdown-with-initial/Root "countdown-with-initial" :remotes book.main/example-server)
+(defexample "Pre merge - extracted ui" book.demos.pre-merge.countdown-extracted/Root "countdown-extracted" :remotes book.main/example-server)
+(defexample "Pre merge - initial state" book.demos.pre-merge.countdown-initial-state/Root "countdown-initial-state" :remotes book.main/example-server)
+(defexample "Pre merge - mutation" book.demos.pre-merge.countdown-mutation/Root "countdown-mutation" :remotes book.main/example-server)
 ;
 ;#?(:cljs (defexample "Error Handling" book.demos.server-error-handling/Root "server-error-handling"
 ;           :remotes book.main/example-server))

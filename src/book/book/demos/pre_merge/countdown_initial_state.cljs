@@ -1,13 +1,13 @@
 (ns book.demos.pre-merge.countdown-initial-state
   (:require
-    [fulcro.client :as fc]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [book.demos.util :refer [now]]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc InitialAppState initial-state]]
-    [com.fulcrologic.fulcro.data-fetch :as df]
-    [fulcro.server :as server]))
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.wsscode.pathom.connect :as pc]
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -19,9 +19,11 @@
    {::counter-id 3 ::counter-label "C" ::counter-initial 2}
    {::counter-id 4 ::counter-label "D"}])
 
-(server/defquery-root ::all-counters
-  (value [_ _]
-    all-counters))
+(pc/defresolver counter-resolver [env _]
+  {::pc/output [{::all-counters [::counter-id ::counter-label]}]}
+  {::all-counters all-counters})
+
+(def resolvers [counter-resolver])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLIENT:
@@ -51,7 +53,7 @@
    :query     [::counter-id ::counter-label ::counter-initial
                {:ui/counter (comp/get-query CountdownButton)}]
    :pre-merge (fn [{:keys [current-normalized data-tree]}]
-                (let [initial (comp/nilify-not-found (::counter-initial data-tree))]
+                (let [initial (merge/nilify-not-found (::counter-initial data-tree))]
                   (merge
                     {:ui/counter (cond-> {} initial (assoc :ui/count initial))}
                     current-normalized
@@ -64,11 +66,11 @@
 
 (defsc Root [this {::keys [all-counters]}]
   {:initial-state (fn [_] {::all-counters
-                           [{::counter-id    (comp/tempid)
+                           [{::counter-id    (tempid/tempid)
                              ::counter-label "X"}
-                            {::counter-id    (comp/tempid)
+                            {::counter-id    (tempid/tempid)
                              ::counter-label "Y"}
-                            {::counter-id      (comp/tempid)
+                            {::counter-id      (tempid/tempid)
                              ::counter-label   "Z"
                              ::counter-initial 9}]})
    :query         [{::all-counters (comp/get-query Countdown)}]}
@@ -77,9 +79,5 @@
     (if (seq all-counters)
       (dom/div {:style {:display "flex" :alignItems "center" :justifyContent "space-between"}}
         (mapv ui-countdown all-counters))
-      (dom/button {:onClick #(df/load this ::all-counters Countdown)}
+      (dom/button {:onClick #(df/load! this ::all-counters Countdown)}
         "Load many counters"))))
-
-(defn initialize
-  "To be used in :started-callback to pre-load things."
-  [app])

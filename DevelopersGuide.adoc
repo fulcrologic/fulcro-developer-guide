@@ -5063,10 +5063,6 @@ Here is the full running example with source:
 include::src/book/book/merge_component.cljs[]
 ----
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; CONTINUE HERE
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 = Full Stack Operation [[FullStack]]
 
 One of the most interesting and powerful things about Fulcro is that the model for server interaction is unified into
@@ -5076,12 +5072,10 @@ a clean data-driven structure. At first the new concepts can be challenging, but
 In fact, now that you've completed the materials of this guide on the graph database, queries, idents, and
 normalization, it turns out that the server interactions become nearly trivial!
 
-Not only is the *structure* of server interaction well-defined, Fulcro come with pre-written server-side code
-that handles all of the Fulcro plumbing for you. You can choose to provide as little or as much as you like. The easy
-server code provides everything in a Ring-based stack, and you can also choose to hand-build your server using
-a simple API handler for the Fulcro API route.
+Not only is the *structure* of server interaction well-defined, Fulcro come with pre-written middleware
+to handle plumbing for you.
 
-Even then, there are a lot of possible pitfalls when writing distributed applications. People often underestimate just how hard
+However, there are a lot of possible pitfalls when writing distributed applications. People often underestimate just how hard
 it is to get web applications right because they forget that.
 
 So, while the *API and mechanics* of how you write Fulcro server interactions are as simple as possible there is no getting
@@ -5091,21 +5085,20 @@ pulling out your hair.
 
 Here are some of the basics:
 
-* Networking is provided.
+* The Network protocol is included (and extensible))
  ** The protocol is EDN on the wire (via transit), which means you just speak Clojure data on the wire, and can
  easily extend it to encode/decode new types.
 * All network requests (queries and mutations) are processed sequentially unless you specify otherwise. This allows you
 to reason about optimistic updates (Starting more than one at a time via async calls could
 lead to out-of-order execution, and impossible-to-reason-about recovery from errors).
-* You may provide fallbacks that indicate error-handling mutations to run on failures.
-* Writes and reads that are enqueued together will always be performed in write-first order. This ensures that remote reads are
-as current as possible.
+* You can provide error handling for remote problems at a global or mutation-local level.
+* You can interact directly with the network result or use default result processing.
 * Any `:ui/` namespaced query elements are automatically elided when generating a query from the UI to a server, allowing you
-to easily mix UI concerns with server concerns in your component queries. You can also globally modify queries via load's
-`:update-query` option, and even set it to a global default via an option to `make-fulcro-client`.
-* Normalization of a remote query result is automatic.
-* Deep merge of query results uses <<ResultMerge,intelligent overwrite>> for properties that are already present in the client database.
-* Any number of remotes can be defined (allowing you to easily integrate with microservices).
+to easily mix UI concerns with server concerns in your component queries. You can also change the global rewrite
+logic to elide other local props from remote queries.
+* Normalization of a remote query result is automatic when using `defmutation`, but customizable.
+** Query results use <<ResultMerge,intelligent overwrite>> for properties that are already present in the client database.
+* Any number of remotes can be defined
 * Protocol and communication is strictly constrained to the networking layer and away from your application's core structure,
 meaning you can actually speak whatever and however you want to a remote. In fact
 the concept of a remote is just "something you can talk to via queries and mutations".
@@ -5114,7 +5107,7 @@ local storage or a Datascript database in the browser. This is an extremely powe
 side-effect code from your UI.
 
 NOTE: To those of you with REST or GraphQL APIs: See the Pathom library for ways of converting those services
-into custom client remotes that isolate the specific of those APIs to the networking layers of your client.
+into custom client remotes that isolate those APIs to the networking layers of your client.
 
 == General Theory of Operation
 
@@ -5127,7 +5120,8 @@ There are only a few general kinds of interactions with a server:
 
 In standard Fulcro networking, *all* of the above have the following similarities:
 
-* A component-based graph query needs to be involved to enable auto-normalization. This is true even for a server push (though in that case the client needs to know what **implied** question the server is sending data about).
+* A component-based graph query needs to be involved to enable auto-normalization. This is true even for a server push
+(though in that case the client needs to know what **implied** query the server is sending data about).
 * The data from the server will be a tree that has the same shape as the query.
 * The data needs to be normalized into the client database.
 * Optionally: after integrating new data there may be some need to transform the result to a form the UI needs
@@ -5147,14 +5141,13 @@ can be used to normalize the result. Finally, the normalized result can be merge
 Query --> Server --> Response + Original Query w/Idents --> Normalized Data --> Database Merge --> New Database
 ----
 
-Any other kind of external data integration just starts at the "Response" step by manually providing the query that
-is annotated with components/idents:
+Any other kind of external data integration just starts at the "Response" step by manually providing the query:
 
 ----
 New External Data + Query w/Idents --> Normalized Data --> Database Merge --> New Database
 ----
 
-There is a primitive function `merge!` function that implements this, so that you can simplify the picture to:
+There is a primitive function `merge/merge!` function that implements this, so that you can simplify the picture to:
 
 ----
 Tree of Data + Query --> merge! --> New Database
@@ -5163,16 +5156,16 @@ Tree of Data + Query --> merge! --> New Database
 === The Central Functions: `transact!` and `merge!`
 
 The two core functions that allow you to trigger abstract operations or data merges externally
-(via a <<Reconciler,reconciler>>) are:
+(via your `app`) are:
 
 [Horizontal]
 `comp/transact!`:: The central function for running abstract changes in the application. Can be run with a component
-_or_ reconciler. If run with the reconciler, will typically cause a root re-render.
-`comp/merge!`:: A function that can be run against the reconciler to merge a tree of data via a UI query. This is
-the primary function that is used to integrate data in response to things like websocket server push.
+_or_ app. If run with the app, will typically cause a root re-render.
+`merge/merge!`:: A function that can be run against the app to merge a tree of data via a UI query.
+`merge/merge-component!`:: Like `merge!`, but can be passed a component instead of a query.
+`merge/merge*`:: `merge!`, but in a mutation via `swap!`
 
-These (and related/derived helpers) are the primary tools to use when trying to make your application respond to
-external stimuli that is not triggered from the UI.
+These (and related/derived helpers) are the primary tools used to put new data into your client's database.
 
 === Query Mismatch
 
@@ -5182,30 +5175,23 @@ our database.
 
 In general, there are a few approaches to resolving our graph differences:
 
-. Use a query parser on the server to piece together data based on the graph of the query.
+. Use a query parser on the server to piece together data based on the graph of the query (preferred).
 . Ask the server for exactly what you want, using an invented well-known "root" keyword, and hand-code the database
 code to create the UI-centric view.
-. Ask the server for the data in a format it can easily provide and morph it on the client.
+. Ask the server for the data in a format it can provide and morph it on the client.
 
 The first two have the advantage of making the client blissfully unaware of the server schema. It just asks for what
-it needs, and someone on the server programming team is stuck with satisfying the query. This is the down-side: the number
-of possible UI-centric queries could become quite large. Theoretically a parser solution makes this *more* tractable
-than a hand-coded variant, but in practice the parser is hard to make general in a way that allows UI developers to just
-run willy-nilly queries and get what they want.
+it needs, and someone on the server programming team makes it happen. Fortunately, pathom makes this approach
+quite tractable and good.
 
-In the example of "people who've had a particular phone number", the graph would be phone-number centric. Maybe
-`[:db/id :phone/number {:phone/historical-owners (comp/get-query Person)}]`. There probably isn't a graph edge in the
-real database called `:phone/historical-owners`.  One could write parser code that understood this particular edge,
-and did the logic. In this case, that really isn't even that hard and may be a good choice.
-
-Fulcro gives you another easy-to-access option: morph something the server can easily provide (on the
-real graph without custom code). We'll show you an example of this as we explore the data fetch options.
+In some cases, though, you'd like to morph it a bit on the client-side. We'll show you an example of this
+as we explore the data fetch options.
 
 === Server Interaction Order
 
-Fulcro will serialize requests unless you mark queries as parallel (an option you can specify on `load`). Two different
+Fulcro will serialize requests unless you mark queries as parallel (an option you can specify with `df/load!`). Two different
 *events* that queue mutations or loads will be processed in order. For example, if the user clicks on something and you trigger two loads
-during *that event*, then both of those will be combined (if they don't conflict by querying for the same thing)
+during *that event*, then both of those *may* be combined (if they don't conflict by querying for the same thing)
 and sent as one network request. If the user clicks on something else and that handler queues two more loads, then the latter two
 loads will not start over the network until the first load sequence has completed.
 
@@ -5214,17 +5200,15 @@ server execution. This is a distributed system, so it is possible for a second r
 than the first and get processed out of order. That would hurt your ability to reason about your program, so the default behavior in
 Fulcro is to ensure that server interactions happen on the server in the same order as they do on the client.
 
-If you combine mutations and reads in the same event processing (before giving up the thread), then Fulcro *also* ensures
-that remote *mutations* go over the wire and complete *before* reads. The idea being that you don't want to fetch data
-and then immediately make it stale through mutations. This additional detail is also aimed at preventing subtle classes
-of application bugs.
+Fulcro will also try to reorder writes that are submitted alongside reads so that the writes appear on the server first,
+giving you the best possible chance that the reads get the most up-to-date versions of data.
 
 In Summary:
 
-- Loads/transactions queued while "holding the UI thread" will be joined together in a single network request.
-- Remote writes go before reads
-- Loads/transactions queued at a later event "new UI thread event" are guaranteed to be processed after ones queued earlier.
-- You can override this behavior with the `parallel` option of `load`.
+- Loads/transactions queued while "holding the UI thread" may be joined together in a single network request.
+- Remote writes go before reads (for a given processing event)
+- Loads/transactions queued at a later event (new UI thread event) are guaranteed to be processed after ones queued earlier.
+- You can override this behavior with the `parallel` option of `load!`.
 
 === Server Result Query Merging [[ResultMerge]]
 
@@ -5259,9 +5243,9 @@ this "state of Person" has never existed in the server's timeline, but from a us
 the phone number disappearing.
 
 In practice this isn't that big of a deal; however, if you are switching the UI to an edit mode it is generally a good practice to
-on-demand load the entity being edited to help prevent user confusion and accidental overwrite based on stale values.
+on-demand (re)load the entity being edited to help prevent user confusion.
 
-=== React Lifecycle and Load
+== React Lifecycle and Load
 
 React lifecycle and Load may not mix well. It is technically legal to issue transactions and loads from React Lifecycle,
 methods, but it is recommended that you carefully check the state of the system in said mutations before actually
@@ -5269,7 +5253,19 @@ queuing network traffic.
 Perhaps you wish to ensure something is loaded. To do that: trigger a mutation that checks state and optionally
 submits a load. You'll learn how to do this in the sections on the <<DataFetch, data fetch API>>.
 
-== The Data Fetch API: `load` [[DataFetch]]
+== Implementing Server APIs
+
+Most of your server API should be written with something like https://wilkerlucio.github.io/pathom/#Connect[Pathom Connect].
+There are also ways to adapt to GraphQL servers, REST APIs, etc.  The remainder of this chapter assumes you have read
+and understood the Pathom Connect documentation.
+
+The examples in this chapter simulate a server by using a "loopback" remote that talks to a cljs pathom parser. We use
+a naive database ...
+
+TODO: complete implementation for examples
+
+
+== The Data Fetch API: `load!` [[DataFetch]]
 
 Let's say we want to load all of our friends from the server. A query has to be rooted somewhere, so we'll invent
 a root-level keyword, `:all-friends`, and join it to the UI query for a `Person`:
@@ -5281,16 +5277,16 @@ a root-level keyword, `:all-friends`, and join it to the UI query for a `Person`
 What we'd like to see then from the server is a return value with the shape of the query:
 
 ```
-{ :all-friends [ {:db/id 1 ...} {:db/id 2 ...} ...] }
+{ :all-friends [ {:person/id 1 ...} {:person/id 2 ...} ...] }
 ```
 
 If we combine that query with that tree result and were to manually call `merge!` we'd end up with this:
 
 ```
 { :all-friends [ [:person/id 1] [:person/id 2] ...]
-  :person/id { 1 { :db/id 1 ...}
-                  2 { :db/id 2 ...}
-                  ...}}
+  :person/id { 1 { :person/id 1 ...}
+               2 { :person/id 2 ...}
+               ...}}
 ```
 
 The data fetch API has a simple function for this that will do all of these together (query derivation, server
@@ -5302,10 +5298,10 @@ interaction, and merge):
 
 ...
 
-  (df/load comp-reconciler-or-app :all-friends Person)
+  (df/load! comp-or-app :all-friends Person)
 ```
 
-An important thing to notice is that `load` can be thought of as a function that loads normalized data into the
+An important thing to notice is that `load!` can be thought of as a function that loads normalized data into the
 root node of your graph (`:all-friends` appears in your root node).
 
 This is sometimes what you want, but more often you really want data loaded at some other spot in your graph. We'll
@@ -5313,99 +5309,45 @@ talk about this more in a moment, first, let's see how to handle that on the ser
 
 === Handling a Root Query
 
-NOTE: The `defquery*` macros are meant as a quick entry point.  Once inside you'll have access to the subquery in
-the `env` as `:query`. It is highly recommended that you use https://github.com/wilkerlucio/pathom[pathom] to further
+It is highly recommended that you use https://github.com/wilkerlucio/pathom[pathom] to further
 process queries.  Specifically, we recommend using the "Connect" functionality of Pathom.
 
-If you're using the standard server support of Fulcro, then the API hooks are already predefined for you and you
-can use helper macros to generate handlers for queries. If your `load` specified a keyword then this is seen by
-the server as a load targeted to your root node. Thus, the server macro is called `defquery-root`:
-
-```
-(ns api
-(:require [fulcro.server :refer [defquery-root defquery-entity defmutation]]))
-
-(defquery-root :all-friends
-   "optional docstring"
-   (value [env params]
-      [{:db/id 1 :person/name ....} {:db/id 2 ...} ...]))
-```
-
-It's as simple as that! Write a function that returns the correct value for the query. The query itself will be available
-in the `env`, and you can use libraries like `pathom`, `Datomic`, and `fulcro-sql` to parse those queries into the proper tree
-result from various data sources. See the <<QueryParsing,Query Parsing>> chapter.
+TODO: Rewrite with pathom
 
 === Entity Queries
 
-You can also ask to load a specific entity. You do this simply by telling load the ident of the thing you'd like to
-load:
-
-```
-(load this [:person/id 22] Person)
-```
-
-Such a load will send a query to the server that is a join on that ident. The helper macro to handle those
-is `defquery-entity`, and is dispatched by the table name:
-
-```
-(defquery-entity :person/id
-   "optional docstring"
-   (value [env id params]
-      {:db/id id ...}))
-```
-
-Note that this call gets an `id` in addition to parameters (in the above call, `id` would be 22). Again, the full query
-is in `env` so you can process the data driven response properly.
+TODO: Rewrite with pathom
 
 === A Loading Example
 
 This example shows two very common ways that data is loaded (or reloaded) in an application.
 
-On startup, the following loads are run via the started callback:
+On startup, the following loads data after the client has mounted:
 
 ```
-(fc/make-fulcro-client
+(app/fulcro-app
   {:client-did-mount
     (fn [app]
-      (df/load app :load-samples/people Person {:target [:lists/by-type :enemies :people]
-                                                :params {:kind :enemy}})
-      (df/load app :load-samples/people Person {:target [:lists/by-type :friends :people]
-                                                :params {:kind :friend}}))})
+      (df/load! app :people/enemies Person {:target [:lists/by-type :enemies :list/people]})
+      (df/load! app :people/friends Person {:target [:lists/by-type :friends :list/people]}))})
 ```
 
-In this demo we're loading lists of people (thus the keyword's name). There are two kinds of people available from the
-server: friends and enemies. We use the `:params` config parameter to add a map of parameters to the network request
-to specify what we want. The `:target` key is the path to the (normalized) entity's property under which the response
-should be stored once received.
+In this demo we're loading lists of people. There are two kinds of people available from the
+server: friends and enemies. We use the a namespaced keyword for an unambiguous "root key", but we do not intend
+for these lists to populate keys at the root of the client database.
+The `:target` key is the path in which to store the result. In this case to a (normalized) entity's property.
 
 Since all components should be normalized, this target path is almost always 2 (loading a whole component into a table)
 or 3 elements (loading one or more things into a property of an existing component).
 
-The server-side code for handling these queries uses a global table on the server, and is:
-
-```
-(def all-users [{:db/id 1 :person/name "A" :kind :friend}
-                {:db/id 2 :person/name "B" :kind :friend}
-                {:db/id 3 :person/name "C" :kind :enemy}
-                {:db/id 4 :person/name "D" :kind :friend}])
-
-; incoming param (kind) is destructured from third arg
-(server/defquery-root :load-samples/people
-  (value [env {:keys [kind]}]
-    (let [result (->> all-users
-                   (filter (fn [p] (= kind (:kind p))))
-                   (mapv (fn [p] (-> p
-                                   (select-keys [:db/id :person/name])
-                                   (assoc :person/age-ms (now))))))]
-      result)))
-```
+FIXME: write for pathom
 
 Once started, any given person can be refreshed at any time. Timeouts, user event triggers, etc. There are two ways
-to refresh a given entity in a database. In the code of `Person` below you'll see that we are using `load` again, but
+to refresh a given entity in a database. In the code of `Person` below you'll see that we are using `load!` again, but
 this time with an `ident`:
 
 ```
-(df/load this (comp/ident this props) Person)
+(df/load! this (comp/get-ident this) Person)
 ```
 
 All of the parameters of this call can be easily derived when calling it from the component needing refreshed, so
@@ -5413,15 +5355,6 @@ there is a helper function called `refresh!` that makes this a bit shorter to ty
 
 ```
 (df/refresh! this)
-```
-
-The server-side implementation of refresh for person looks like this:
-
-```
-(server/defquery-entity :load-samples.person/id
-  (value [{:keys [] :as env} id p]
-    (let [person (first (filter #(= id (:db/id %)) all-users))]
-      (assoc person :person/age-ms (now))))) ; include a timestamp so we can see refreshes change something
 ```
 
 ++++
@@ -5463,17 +5396,14 @@ a to-one edge is an ident, and a to-many edge is a vector of idents):
 ```
 
 Since the graph database is just nodes and edges, there really aren't many more operations to worry about!
-You've essentially got to *normalize a tree*, *merge normalized data*, and *move graph edges*.
+You've essentially got to *normalize a tree*, *merge normalized data*, and *move/invent graph edges*.
 
 The load API supports several kinds of graph edge targeting to allow you to put data where you want it in your
 graph.
 
-WARNING: Technically data is always loaded into the root, then relocated. So, be careful not to name your top-level
-edge after something that already exists there!
-
 ==== Simple Targeting
 
-The simplest targeting is to just relocate an edge from the root to somewhere else. The `load` function can do
+The simplest targeting is to put it somewhere besides root. The `load!` function can do
 that with a simple additional parameter:
 
 ```
@@ -5483,30 +5413,32 @@ that with a simple additional parameter:
 So, the server will still see the well-known query for `:all-friends`, but your local UI graph will end up seeing the
 results in the list on the friends screen.
 
+Using a plain target is equivalent to full replacement of the edge.
+
 ==== Advanced Targets
 
 You can also ask the target parameter to modify to-many edges instead of replacing them. For example, say you
 were loading one new person, and wanted to append it to the current list of friends:
 
 ```
-(df/load comp :best-friend Person {:target (df/append-to [:screens/by-type :friends :friends/list])})
+(df/load comp :best-friend Person {:target (targeting/append-to [:screens/by-type :friends :friends/list])})
 ```
 
-The `append-to` function in the `data-fetch` namespace augments the target to indicate that the incoming items
+The `append-to` function in the `targeting` namespace augments the target to indicate that the incoming items
 (which will be normalized) should have their idents appended onto the to-many edge found at the given location.
 
 NOTE: `append-to` will not create duplicates.
 
-The other available helper is `prepend-to`. Using a plain target is equivalent to full replacement.
+There is also `prepend-to`.
 
 You may also ask the targeting system to place the result(s) at more than one place in your graph. You do this
 with the `multiple-targets` wrapper:
 
 ```
-(df/load comp :best-friend Person {:target (df/multiple-targets
-                                              (df/append-to [:screens/by-type :friends :friends/list])})
+(df/load comp :best-friend Person {:target (targeting/multiple-targets
+                                              (targeting/append-to [:screens/by-type :friends :friends/list])})
                                               [:other-spot]
-                                              (df/prepend-to [:screens/by-type :summary :friends]))})
+                                              (targeting/prepend-to [:screens/by-type :summary :friends]))})
 ```
 
 Note that `multiple-targets` can use plain target vectors (replacement) or any of the special wrappers.
@@ -5528,16 +5460,10 @@ The main loader looks like this (and is called from root):
                                [:pane/id :left :pane/person]
                                [:pane/id :right :pane/person]))
         person-ident [:person/id (rand-int 100)]]
-    (df/load component person-ident Person {:target load-target})))
+    (df/load! component person-ident Person {:target load-target})))
 ```
 
-The server is rather simple. It just makes up a person for any given ID:
-
-```
-(server/defquery-entity :person/id
-  (value [env id params]
-    {:db/id id :person/name (str "Person" id)}))
-```
+The server is rather simple. It just makes up a person for any given random ID.
 
 ++++
 <div class="example" id="loading-data-targeting-entities"> </div>
@@ -5549,18 +5475,6 @@ The server is rather simple. It just makes up a person for any given ID:
 include::src/book/book/demos/loading_data_targeting_entities.cljs[]
 ----
 
-=== Refreshing the UI After Load
-
-The component that issued the load will automatically be refreshed when the load completes. You may use the data-driven
-nature of the app to request other components refresh as well. The `:refresh` option tells the system what data has
-changed due to the load. It causes all live components that have queried those things to refresh.
-You can supply keywords and/or idents:
-
-```
-; load my best friend, and re-render every live component that queried for the name of a person
-(df/load comp :best-friend Person {:refresh [:person/name]})
-```
-
 === Other Load Options [[LoadOptions]]
 
 Loads allow a number of additional arguments. Many of these are discussed in more detail in later sections:
@@ -5568,20 +5482,18 @@ Loads allow a number of additional arguments. Many of these are discussed in mor
 [horizontal]
 `:post-mutation` and `:post-mutation-params`:: A mutation to run once the load is complete (local data transform only).
 `:remote`:: The name of the remote you want to load from.
-`:refresh`:: A vector of keywords and idents. Any component that queries these will be re-rendered once the load completes.
 `:parallel`:: Boolean. Defaults to false. When true, bypasses the sequential network queue. Allows multiple loads to run at once, but causes you to lose any guarantees about ordering since the server might complete them out-of-order.
 `:fallback`:: A mutation to run if the server throws an error during the load.
 `:focus`:: A subquery to filter from your component query. Covered in Incremental Loading.
 `:without`:: A set of keywords to elide from the query. Covered in Incremental Loading.
 `:update-query`:: A function that will take the component original query and should return a query that will be sent to the remote
 `:params`:: A map. If supplied the params will appear as the params of the query on the server.
-`:initialize bool|map`:: If true, uses component's initial state as a basis for incoming merge. If a map, uses the map as the basis for incoming merge.
 
 ==== Parallel vs. Sequential Loading
 
 The `:parallel` option of `load` bypasses the normal network sequential queue. Below is a simple live
 example that shows off the difference between regular loads and those marked parallel. In
-order to see the effect increase your server latency to something like 5 seconds.
+order to see the effect increase your server latency to a large value.
 
 Normally, Fulcro runs separate event-based loads in sequence, ensuring that your reasoning can be synchronous;
 however, for loads that might take some time to complete, and for which you can guarantee order of
@@ -5602,29 +5514,11 @@ If you rapidly click the parallel buttons, then the loads will not be sequenced 
 include::src/book/book/demos/parallel_vs_sequential_loading.cljs[]
 ----
 
-==== Initializing Loaded Items
+== Initializing Loaded Items
 
-WARNING: This support is not complete yet (in version 2.0.0). It should be considered ALPHA and subject to change.
+See the section on <<PreMerge, Pre-merge>>.
 
-On occasion you may find that your entities have `:ui/???` attributes that you would like to
-default to something on a loaded entity. This is the purpose of the `:initialize` option to load.
-If it is set to `true`, then `load` will call `get-initial-state` on the component of the
-load, and merge the return value from the server into that before merging it to app state.
-
-Alternatively, you can pass `:initialize` a map, and that will be used as the target for
-the server response merge before normalizing the result into app state.
-
-NOTE: The value of `:initialize` must either be `true` or a map *that matches the correct
-shape of the component's sub-tree of data*. It must *not* be a normalized database fragment.
-
-The steps are:
-
-. Send the request
-. Merge the response into the basis defined by `:initialize`.
-. Merge the result of (2) into the database using the component's query (auto-normalize)
-
-
-==== Post Mutations – Morphing Loaded Data
+=== Post Mutations – Morphing Loaded Data
 
 The targeting system that we discussed in the prior section is great for cases where your data-driven query gets you
 exactly what you need for the UI. In fact, since you can process the query on the server it is entirely possible that
@@ -5636,13 +5530,9 @@ from the server from the perspective of a list of items, but let's say that each
 group the items by category in the UI.
 
 The data-driven way to handle that is to make the server understand the UI query that has them grouped by category; however,
-that implies that you might end up embedding code on your server to handle a way of looking at data that is really
-specific to one kind of UI. That tends to push us back toward a proliferation of code on the server that was a nightmare
-in REST.
+that may not be possible if you're using something less powerful than Pathom.
 
-Another way of handling this is to accept the fact that our data-driven queries have some natural limits: If the
-database on the server can easily produce the graph, then we should let it do so from the data-driven query; however,
-in some cases it may make more sense to let the UI morph the incoming data into a shape that makes more sense to that
+Another way of handling this is to let the client morph the incoming data into a shape that makes more sense to the
 UI.
 
 [ditaa,target=server-interactions]
@@ -5679,7 +5569,7 @@ distinct advantages:
 * Simple layout in resulting UI database (normalized into tables and a graph)
 * Straightforward data transform into what we want to show
 
-===== Using `defsc` For Server Queries
+==== Using `defsc` For Server Queries
 
 It is perfectly legal to use `defsc` to define a graph query (and normalization) for something like this that doesn't exactly
 exist on your UI. This can be quite useful in the presence of post mutations that can re-shape the data.
@@ -5693,16 +5583,14 @@ Simply code your (nested) queries using `defsc`, and skip writing the body:
 ```
 
 ```
-(df/load this :all-items ItemQuery {:post-mutation `group-items})
+(df/load! this :all-items ItemQuery {:post-mutation `group-items})
 ```
 
-NOTE: We know that the name `defsc` seems a bit of a misnomer for this, so feel free to create an alias for it.
-
-===== Live Demo of Post Mutations
+==== Live Demo of Post Mutations
 
 The example below simulates post mutations to show how a load of simple data could be morphed into something
 that the UI wants to display. In  this case we're pretending that the load has brought in a number of items
-(as a collection) and normalized it, but we'd prefer to show the items organized by category..
+(as a collection) and normalized it, but we'd prefer to show the items organized by category.
 
 You can interact with it and view the database to A/B compare the before/after state.
 
@@ -5716,35 +5604,29 @@ You can interact with it and view the database to A/B compare the before/after s
 include::src/book/book/server/morphing_example.cljs[]
 ----
 
-=== Pre-Merge [[PreMerge]]
+== Pre-Merge [[PreMerge]]
 
-Available from Fulcro 2.8+.
+Pre merge offers hook to manipulate data entering your Fulcro app at component level.
 
-Pre merge offers a hook to manipulate data entering your Fulcro app at component level.
-
-During the lifetime of a Fulcro application data will enter the system, the most common are:
+During the lifetime of a Fulcro application data will enter the system:
 
 1. During app initialization
-2. New data loaded from remote
-3. Data add via mutations
+2. When loaded from a remote
+3. By being added via mutations
 
-In the first case the data comes from the component initial state or user provided initial state,
-these usually include both domain and ui initialized data.
+In the first case the data comes from the component initial state or user-provided initial state. Such pre-supplied
+data usually includes both domain and ui-centric data.
 
-In the second case the data comes from a remote and contain domain data, but not UI data since
-it's not a concern from the remote to know about then, but the UI might still need to
-do some type of initialization when creating data for new entities in the local database. Before
-pre hooks the only way to populate these UI specific data was to use a `:post-mutation` with
-the load call to manually populate it. This solution is powerful because it allows any changes
-to be done at any part of the DB, but using it offers some challanges:
+In the second case the data comes from a remote and contains *only* domain data, however,
+the UI might still need to do some type of initialization to add ui-centric props for this in the local database.
 
-1. Component specific data initialization is separated from the component itself, reducing local reasoning
-2. Composition gets affected, every parent component has to write new logic to manually compose the initialization tree
-3. Initialization of to-many lists requires tedios code to manipulate tables in the app db
+Post-mutations are a little limiting in this case because they are not component-centric: they are not co-located
+with the components, and may have to deal with an entire sub-tree all at once.
+Pre hooks decomposes this logic to the component level making things a bit simpler in many cases.
 
-To illustrate these issues we are going to write a small app that has some count down buttons, the idea
-is that each counter gets clicked until it reaches zero, the important detail will be how we
-can handle the initial counter value, first using post-mutations and then pre-merge.
+To illustrate these issues we are going to write a small app that has some countdown buttons, the idea
+is that each counter will go down each time it is clicked until it reaches zero. The important detail will be how we
+can handle the initial counter value.
 
 [source,clojure]
 ----
@@ -5760,12 +5642,11 @@ can handle the initial counter value, first using post-mutations and then pre-me
         (if done? "Done!" (str count))))))
 ----
 
-The important part is the `:ui/count` must start with some value, we can arbitrarily
-choose `5` as a start, whatever it is we need to initialize when the data for this
-enter the system.
+The `:ui/count` is a ui-only concern that must start with some value. We will arbitrarily
+choose `5` as a start. Whatever it is we need to initialize it when a new instance of a `Countdown`
+enters the system.
 
-We are going to use this post-mutation to initialize this ui property, at this point
-the example is loading a single counter from the remote:
+First, we'll use this post-mutation to initialize this ui property:
 
 [source,clojure]
 ----
@@ -5774,7 +5655,7 @@ the example is loading a single counter from the remote:
     (swap! state update-in [::counter-id counter-id] #(merge {:ui/count 5} %))))
 ----
 
-And this is the call to load:
+And use it via this call to load:
 
 [source,clojure]
 ----
@@ -5784,7 +5665,7 @@ And this is the call to load:
    :post-mutation-params {::counter-id 1}})
 ----
 
-With all hook up here is the demo:
+Here is a running demo:
 
 ++++
 <div class="example" id="pre-merge-postmutations"> </div>
@@ -5827,16 +5708,12 @@ As you can see, adding a single depth to the query can yield a fair amount of ex
 you app grows each join depth will add more post-mutation code to compose over. Solving this composition issue
 is the main motivation behind pre-merge.
 
-==== Working with pre-merge
+=== Pre-merge Basics
 
-Pre merge addresses these issues by providing a component level hook that allows the data entering
-logic to be colocated with the rest of the component.
+Pre merge addresses these issues by providing a component level hook that allows the additional merge logic
+to be localized to the component of interest.
 
-It works by hooking in the new data normalization process, if you are not familiar with how
-the normalization works I suggest you <<Normalization,check it there>> and come back after.
-
-You can setup the pre-merge by adding the `:pre-merge` key to your component configuration,
-this is how we can setup our `Countdown` using `:pre-merge`:
+This is how we would set up our `Countdown` component using `:pre-merge`:
 
 [source,clojure]
 ----
@@ -5860,8 +5737,8 @@ this is how we can setup our `Countdown` using `:pre-merge`:
 
 <1> This merge setup works for most of the cases
 <2> We start the merge with a map containing defaults
-<3> Then we merge with the data that is already there for this component (may be `nil` if component doesn't has previous data)
-<4> Finally merge in the data tree, since it's the last it will win over any of the previous
+<3> Then we merge with the data that is already there for this component (may be `nil` if component doesn't have previous data)
+<4> Finally merge in the incoming data tree, since it's the last it will win over any of the previous
 
 The `:pre-merge` lambda receives a single map containing the following keys:
 
@@ -5870,53 +5747,55 @@ The `:pre-merge` lambda receives a single map containing the following keys:
 * `:state-map` - the current app state map (you may use to lookup refs).
 * `:query` - the query used to do this request (user may have modified the original using `:focus`, `:without` or `:update-query` during the load call
 
-With this setup we can get rid of the `post-mutation`. The to-one case example with pre-merge:
+With this setup we can get rid of the `post-mutation`. The cleaned up examples follow.
 
 ++++
-<div class="example" id="postmutations-single"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.postmutations-single').toggle()">Show/Hide Source</a>
+<div class="example" id="countdown-single"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.countdown-single').toggle()">Show/Hide Source</a>
 <br><br>
 ++++
 
-[source,clojure,role="postmutations-single source"]
+[source,clojure,role="countdown-single source"]
 ----
 include::src/book/book/demos/pre_merge/countdown.cljs[]
 ----
 
-For the to-many case it's the same, no need for post-mutation.
-
 ++++
-<div class="example" id="postmutations-many"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.postmutations-many').toggle()">Show/Hide Source</a>
+<div class="example" id="countdown-many"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.countdown-many').toggle()">Show/Hide Source</a>
 <br><br>
 ++++
 
-[source,clojure,role="postmutations-many source"]
+[source,clojure,role="countdown-many source"]
 ----
 include::src/book/book/demos/pre_merge/countdown_many.cljs[]
 ----
 
-To spicy this example, let's make so the initial counter number can be defined by the server, but we want
-to keep this is a separated attribute that doesn't going to be displayed to the right of the counter label.
+=== Pre-merge with Server Data
+
+To make this example more interesting let's make it possible, but optional, for the server to define an initial
+counter value.
 
 ++++
-<div class="example" id="postmutations-with-initial"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.postmutations-with-initial').toggle()">Show/Hide Source</a>
+<div class="example" id="countdown-with-initial"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.countdown-with-initial').toggle()">Show/Hide Source</a>
 <br><br>
 ++++
 
-[source,clojure,role="postmutations-with-initial source"]
+[source,clojure,role="countdown-with-initial source"]
 ----
 include::src/book/book/demos/pre_merge/countdown_with_initial.cljs[]
 ----
 
-<1> During the normalization step of a load Fulcro will put `::comp/not-found` value on keys
-that were not delivered by the server, this is used to do a `sweep-merge` later, the `comp/nilify-not-found`
-will return the same input value (like `identity`) unless it's a `::comp/not-found`, in which case
+<1> During the normalization step of a load Fulcro will put `::merge/not-found` value on keys
+that were not delivered by the server, this is used to do a `sweep-merge` later, the `merge/nilify-not-found`
+will return the same input value (like `identity`) unless it's a `::merge/not-found`, in which case
 it returns `nil`, this way the `or` works in both cases.
 
-Next, we are going to extract the counter button into its own component, this serves to illustrate
-how you can hook up pure UI components in remote based components.
+=== Pre-merge and UI Children
+
+Next, we are going to extract the counter button into its own component to illustrate
+how you can augment pure UI concerns with this feature:
 
 [source,clojure]
 ----
@@ -5958,15 +5837,17 @@ how you can hook up pure UI components in remote based components.
 Full demo:
 
 ++++
-<div class="example" id="postmutations-extracted"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.postmutations-extracted').toggle()">Show/Hide Source</a>
+<div class="example" id="countdown-extracted"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.countdown-extracted').toggle()">Show/Hide Source</a>
 <br><br>
 ++++
 
-[source,clojure,role="postmutations-extracted source"]
+[source,clojure,role="countdown-extracted source"]
 ----
 include::src/book/book/demos/pre_merge/countdown_extracted.cljs[]
 ----
+
+=== Pre-merge During App Initialization
 
 Another interesting property about pre-merge is that it also runs during normalization
 of app initialization, this means you can provide the minimum amount of data as the initial
@@ -5991,19 +5872,20 @@ demo:
 Pre merge will be applied on top of that running the pre-merge on the respective data parts. Full demo:
 
 ++++
-<div class="example" id="postmutations-initial-state"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.postmutations-initial-state').toggle()">Show/Hide Source</a>
+<div class="example" id="countdown-initial-state"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.countdown-initial-state').toggle()">Show/Hide Source</a>
 <br><br>
 ++++
 
-[source,clojure,role="postmutations-initial-state source"]
+[source,clojure,role="countdown-initial-state source"]
 ----
 include::src/book/book/demos/pre_merge/countdown_initial_state.cljs[]
 ----
 
-Time to talk about mutations the third case, the mutations. Fulcro already offered some
-ways to integrate new data given a component and some data using functions like `comp/merge-component`.
-This means we can leverage the pre-merge hooks also when adding new data on mutations, like so:
+=== Pre-merge via Mutations
+
+We've already talked about ways to integrate new data using things like `comp/merge-component`, and since pre-merge
+takes effect there as well we can rely on it in mutations:
 
 [source,clojure]
 ----
@@ -6040,15 +5922,27 @@ And add some UI to trigger this mutation:
 Full demo:
 
 ++++
-<div class="example" id="postmutations-mutation"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.postmutations-mutation').toggle()">Show/Hide Source</a>
+<div class="example" id="countdown-mutation"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.countdown-mutation').toggle()">Show/Hide Source</a>
 <br><br>
 ++++
 
-[source,clojure,role="postmutations-mutation source"]
+[source,clojure,role="countdown-mutation source"]
 ----
 include::src/book/book/demos/pre_merge/countdown_mutation.cljs[]
 ----
+
+
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; CONTINUE HERE
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
 
 
 == Augmenting the Ring Response
