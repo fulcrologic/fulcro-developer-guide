@@ -6,7 +6,8 @@
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [fulcro.server :as server]
-    [com.fulcrologic.fulcro.dom :as dom]))
+    [com.fulcrologic.fulcro.dom :as dom]
+    [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
