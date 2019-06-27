@@ -2853,7 +2853,7 @@ You can include a constructor which will `this` and `props` as explicit paramete
   ...
 ```
 
-You can also just place code in `initLocalState` before you return a value. Such code will also run on construction.
+You can also just place code in `:initLocalState` before you return a value. Such code will also run on construction.
 
 === React Lifecycle Methods
 
@@ -3256,6 +3256,35 @@ If you use any kind of library that provides input-like controls you may experie
 two easy options to make them behave correctly: Use component-local state with them, or similarly wrap them using
 Fulcro's pre-built wrapper code. There is a function in the `dom` namespace called `wrap-form-element` that can be used
 to create a factory for input-like controls that misbehave.
+
+== Using `defsc` for Rendering Optimization [[defscForOptimization]]
+
+Normally you'll define components that have both a query and ident; however, it is perfectly legal to
+define components that are completely controlled by their parent and have no identity of their own. This
+is useful when you have a component that has a rather large UI, but for which the query does not need further breakdown.
+Using `defsc` instead of `defn` to render subsections of a component means that you get `shouldComponentUpdate` optimizations
+that will short-circuit automatically when the props sent to those components have not changed.
+
+A simple example:
+
+```
+(defsc TopBar [this {:keys [title]}]
+  {}
+  (dom/div
+   ...
+   (dom/h3 title)))
+
+(def ui-top-bar (comp/factory TopBar))
+```
+
+instead of
+
+```
+(defn ui-top-bar [{:keys [title]}]
+  (dom/div
+    ...
+    (dom/h3 title)))
+```
 
 == React Lifecycle Examples [[ReactLifecycle]]
 
@@ -11169,17 +11198,17 @@ rebuilds on our code base so that we can continue to work quickly.  Here are som
 low:
 
 . Use shadow-cljs instead of the plain CLJS compiler. *Especially* if you plan on using external Javascript libraries from npm.
-The `lein new fulcro app` command will get you a pre-configured
-template with everything set up.
-. Keep your namespaces small, and `:require` sections pruned. This is about "size of code to compile", but it's more
+. Keep your namespaces small and `:require` sections pruned. This is about "size of code to compile", but it's more
 about the dependency graph. Whenever a save happens that new file needs to be compiled along with everything that 
-*depends* on it, *and* files that depend on those files up the dependency tree. Having large files and/or many `require`s means
-a high false-positive factor in these reloads (reloading files whose code didn't really depend on what you changed).
-If a file has just a few artifacts (e.g. functions) per file then less code will depend on
+*depends* on it, *and* files that depend on those files up the dependency tree. Having large files means
+a high false-positive factor in these reloads (reloading files whose code didn't really depend on the subsection
+you changed). If a file has just a few artifacts (e.g. functions) per file then less code will depend on
 it and the recompile tree will be smaller for a given change.
++
 When you put large amounts of code in a single namespace then many of your other
 namespaces will likely depend on it (the probability of needing to `require` it
 goes up with the number of artifacts within it).
++
 Changing a single line of code in that large namespace not only will take a long time for that single namespace, but
 will trigger tons of unnecessary dependent recompiles. I've adopted this in my recent personal projects, and this successfully keeps
 my compile times quite low even as the source grows.  Technically this could probably be solved at the compiler level, but
@@ -11187,16 +11216,15 @@ it is a "hard problem" that may not be solved for some time (if ever).
 . You might want to use a [linter](https://github.com/candid82/joker) to detect unused requires.
 . Keep the compiler up-to-date. I've seen 10-20% performance boosts in single releases.
 
-
 == Poor Query Performance
 
 This is by far the most common source of performance issues in Fulcro UIs. Evaluating the UI query is relatively fast, but *relative* is
 the key word. The larger the query, the more work that has to be done to get the data for it. Remember that you compose all
 component queries to the root. If you do this with *only* joins and props, then your root query will ask for *everything* that
-your UI could ever show, on every frame! This will perform very badly as your application gets large.
+your UI could *ever* show! This will perform poorly as your application gets large.
 
 The solution to this is to ensure that your query contains only the currently relevant things.
-There are a number of possible solutions for this, but the two most common are to use union or dynamic queries.
+There are two primary solutions for this: use union or dynamic queries.
 
 The `com.fulcrologic.fulcro.routing.union-router` namespace includes primitives for building UI routes using unions (the unions are written
 for you). It has a number of features, including the ability to nicely integrate with HTML5 history events for full HTML5
@@ -11205,97 +11233,62 @@ routing in your application.
 In the dynamic query approach you use `comp/set-query!` to actually change the query of a component at runtime in
 response to user events.
 
+There are two "dynamic routers" that use dynamic queries to change their current query so it only includes the "current"
+route. The older of these is present in the `union-router` namespace for legacy support, and should probably not be used
+for new projects.
+
 It is also important to note that you need not normalize things that are really just big blobs of data that you don't
-intend to mutate. An example of this is large reports where the data is read-only. You could write a big
-nested bunch of components, normalize all of the parts, and write a query that joins it all back together; however,
-that incurs a lot of overhead both in loading the data, and every time you render.
+intend to mutate. An example of this is large reports where the data is read-only and only displayed in one place.
+You could write a big nested bunch of components, normalize all of the parts, and write a query that joins it all back
+together; however, that incurs a lot of overhead both in loading the data, and every time you render.
 
 Instead, realize that a property query like `[:report-data]` can pull *any* kind of (serializable, if you want
-support viewer support) value from the
-application state. You can put a js/Date there. You can put a map there. Anything. Furthermore, this query is super-fast
+tools support) value from the application state. You can put a `js/Date` there. You can put a map there. Anything.
+Furthermore, this query is super-fast
 since it just pulls that big blob of data from app state and adds it to the result tree. Structural sharing makes that
-fast.
+a very simple and fast operation.
 
 == Poor React Performance
 
-In general Fulcro should be able to handle a pretty high frame-rate. In fact, the design is meant to facilitate
-60FPS rendering. Remember, however, that there are a number of stages in rendering, and each of them has an overhead. Large
-UIs can have negative performance impacts at both the query and DOM layers.
+In general Fulcro should be able to handle a pretty high frame-rate. In fact, the design is meant to provide
+60FPS rendering in general-purpose use. Remember, however, that there are a number of stages in rendering, and each of
+them has an overhead. Large UIs can have negative performance impacts at both the query and DOM layers.
 
 Since React does your rendering it is best to understand how to best optimize it using their suggestions and documentation. Note
-that Fulcro already ensures that `shouldComponentUpdate` is defined to an optimal value that should prevent even a regen/diff of VDOM
-when data hasn't changed.
+that Fulcro already ensures that `shouldComponentUpdate` is defined to an optimal value that should prevent a regen/diff of VDOM
+when data hasn't really changed.
 
 Some general tips to start with in React are:
 
 1. Make sure your components have a *stable* react key. If the key changes, React will ignore the diff and redo the DOM. This is *very* slow. So,
 if you've generated keys using something like random numbers just to get warnings to go away, then you're asking for trouble.
-2. You're generally better off changing classes than DOM structure. For example, having a `(when render? (dom/div ...))` will cause entire
-sections to be inserted and removed from the DOM. Using a class is much more efficient: `(dom/div {:className (str "" (when-not render? " hidden"))} ...)`.
-3. Large DOM. React is pretty good with eliminating unnecessary changes, but that is still no reason to try to render a table with 1000's of rows. Paginate.
-
+2. You're generally better off changing CSS classes than DOM structure. For example, having a `(when render? (dom/div ...))` will cause entire
+sections to be inserted and removed from the DOM. Using a class is much more efficient: `(dom/div {:classes [(when-not render? " hidden")]} ...)`.
+3. Large DOM. React is pretty good with eliminating unnecessary changes, but that is still no reason to try to render
+a table with 1000's of rows. Paginate.
+4. Use <<defscForOptimization, query-free `defsc` components>> to break up large UI within a component. In this case the idea is that you may not need
+subcomponents for query/normalization, but if you define them they will provide the `shouldComponentUpdate` optimization
+for the props you pass them.
+5. DO include empty props maps, even though they are optional. The DOM generators in Fulcro allow you to elide the props
+if you don't have any, but doing so means the macro cannot do certain compile-time optimizations. `(dom/div {} (dom/div {} ...))`
+is about 3x faster at runtime than `(dom/div (dom/div ...))`.
 
 = Testing
 
 Fulcro has a companion library called Fulcro Spec. It is a BDD DSL that wraps Clojure(script) test, and provides you
 with a number of helpful features:
 
-* A browser-based UI that can
-** Auto-refresh on code changes
-** Focus in on the tests of concern (you can define what that means)
-** Run client tests in any number of simultaneous browsers to detect browser differences
-** Run server-side tests through the same browser-based UI
-* A Mocking/expectation system
-* Outline-based specifications
+//* A browser-based UI that can
+//** Auto-refresh on code changes
+//** Focus in on the tests of concern (you can define what that means)
+//** Run client tests in any number of simultaneous browsers to detect browser differences
+//** Run server-side tests through the same browser-based UI
+* Outline-based specifications.
+* A Mocking/expectation system.
+* Improved assertions with easier labelling.
 * All of the functions from `clojure.test` work inside of specifications (e.g. `is`, `are`, etc).
-* It is easy to run specifications from CI systems. Try out the https://github.com/fulcrologic/fulcro-lein-template[Leiningen template]
-  to get an application that is already set up to go.
 
-== Defining a Test Suite
-
-The documentation for Fulcro Spec covers the full details. The same macro is used on both the client and server when
-defining a test suite, but there are a few other project details as well. The best source of a current example is the Fulcro
-Leiningen template, which emits a sample project that is set up with both client and server tests.
-
-A client test suite's configuration options include a namespace regex for finding your tests, and a map configuring
-the default and available test selectors (explained in a bit). Since the UI and the runner are the browser, there is
-really no other server component (other than your hot reload server from Figwheel or shadow-cljs):
-
-```
-(ns client.test-main
-  (:require
-    [fulcro-spec.selectors :as sel]
-    [fulcro-spec.suite :as suite]))
-
-(def-test-suite spec-report
-  {:ns-regex #".*-spec"}
-  {:default   #{::sel/none :focused}
-   :available #{:focused}})
-```
-
-The `spec-report` symbol that gets defined represents a function that can be called to run the tests: `(spec-report)`.
-
-The server test suite creates its own websocket enable server to serve the test runner UI. The server tests have
-automatic code change detection, and the selected tests are automatically re-run and results sent to the client renderer. The
-setup is very simiar:
-
-```
-(ns user
-  (:require
-    [fulcro-spec.selectors :as sel]
-    [fulcro-spec.suite :as suite]))
-
-(suite/def-test-suite server-tests
-  {:config       {:port 8888}
-   :test-paths   ["src/test"]
-   :source-paths ["src/main"]}
-  {:available #{:focused}
-   :default   #{::sel/none :focused}})
-```
-
-The macro defines a function (in this case `server-tests`) which when called (re)starts the websocket server
-on the given port. Opening a browser on `http://localhost:8888/fulcro-spec-server-tests.html` will bring up the
-user interface for those tests.
+See the documentation at the https://github.com/fulcrologic/fulcro-spec[repository] for more details.
 
 == Specifications
 
@@ -11306,49 +11299,22 @@ A specification is just a helpful wrapper around `clojure.test/deftest`. It look
    ...)
 ```
 
-It has several improvements to deftest:
-
-* The name is a string, encouraging better naming.
-* It establishes a section in the test runner view
-* It can include any number of keyword markers that indicate when the body of the test should run, allowing
-you to focus your test running on unit, integration, or just the current coding task:
+You may wish to use `deftest` if your tooling recognizes it better.
 
 === Controlling Which Tests Run
 
-Adding keywords after the string name of a specification marks that specification for targeting. You can define
-any number of these targeting keywords:
+Adding keywords after the string name of a specification marks that specification for targeting (it adds metadata with that
+keyword set to true to the test). You can define any number of these targeting keywords:
 
 ```
 (specification "Some Database Operation" :integration :focused
    ...)
 ```
 
-An inactive specification's body is skipped, leading to faster test suite run times when you're focusing on
-a task.
-
-When you define the test suite you define which of these selectors are defined, and which ones default to "on". For example
-a server test suite might be configured like this:
-
-```
-(ns user
-  (:require
-    [fulcro-spec.selectors :as sel]
-    [fulcro-spec.suite :as suite]))
-
-(suite/def-test-suite my-tests
-  { ...options... }
-  {:available #{:focused}
-   :default   #{::sel/none :focused}})
-```
-
-The special selector `::sel/none` means "any specification that has no selectors".  When you turn on/off selectors in the
-UI (via the fold-out left panel) the rule is: Run any specification that includes at least one active selector. So,
-turning off the "None" selector turns off all unmarked tests.
-
 == Behaviors, Components, and Assertions
 
-These macros assist you in organizing your specification. The `behavior` and `component` macros just add an outline
-entry and increase nesting in the report, aiding readability. The `assertions` macro can add descriptions for each assertion,
+These macros assist you in organizing your specification. The `behavior` and `component` macros just
+increase readability. The `assertions` macro can add descriptions for each assertion,
 and gives a nice human-readable notation:
 
 ```
@@ -11373,13 +11339,13 @@ optional, but you should supply at least one):
 ...
    (assertions
       "Throws when arg is nil"
-      (f nil) =throws=> {:ex-type ExceptionInfo :regex #"Regex match on message" :fn (fn [e] true)}
+      (f nil) =throws=> ExceptionInfo
+      (g nil) =throws=> #"message pattern"
       ...
 ```
 
-* `:ex-type` The type of exception
-* `:regex` A regular expression to compare against the exception's message
-* `:fn` A function that will receive the exception and can return true/false to indicate if it looks right.
+Using an exception type passes if that kind of exception is thrown. Using a regex passes if the message in the exception
+matches.  Of course you can also use `is` and `clojure.test` exception facilities for other combinations, if needed.
 
 == Functional Assertions
 
@@ -11463,21 +11429,6 @@ Fulcro spec has some limitations that are inherent to the underlying programming
 
 . It cannot mock inline, protocols, or macros.
 . You're always creating "partial mocks". Expanding a function will often invalidate the mocking around it.
-
-== Visual Regression Testing [[VisualRegression]]
-
-When you have immutable data, pure rendering, and devcards it isn't too hard to create an automated testing suite
-that verifies your UI, without having to have ugly and hard-to-maintain browser drivers. The scheme is as follows:
-
-* Treat your UI components as animations that have a specific list of valid "key frames"
-** Each possible combination of input values results in a specific look
-* Create a devcard that statically renders the component with that state
-* Write a script that can drive a browser to jump from card to card, and screen shot the output
-* Have a human look at them and approve their look
-* Add the script to CI, and have it compare the "approved" images to the newly generated ones. If the image
-comparison fails, your UI changed. Have a human check that specific item and approve the change.
-
-See the section on <<DevCards, Dev Cards>> for more information.
 
 = Logging
 
