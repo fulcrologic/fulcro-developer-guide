@@ -145,7 +145,7 @@ code. This book adopts the following general set of requires and aliases:
             [com.fulcrologic.fulcro.networking.http-remote :refer [fulcro-http-remote]]
             [com.fulcrologic.fulcro.ui-state-machines :as uism]
             [com.fulcrologic.fulcro.routing.dynamic-router :as dr]
-            [com.fulcrologic.fulcro.routing.union-router :as r]
+            [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]
             [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]))
 ----
 
@@ -3951,7 +3951,7 @@ kind of data (among the options) that you actually receive, and pass that on to 
 
 === Demo – Using Unions as a UI Type Selector
 
-The `com.fulcrologic.fulcro.routing.union-router/defsc-router` macro (2.6.18+) emits a union component that can be switched to point at any kind
+The `com.fulcrologic.fulcro.routing.legacy-ui-routers/defsc-router` macro (2.6.18+) emits a union component that can be switched to point at any kind
 of component that it knows about. The support for parameterized routers in the routing tree makes it possible
 to very easily reuse the UI router as a component that can show one of many screens in the same location.
 
@@ -3999,12 +3999,12 @@ is roughly this (cleaned up from macro output):
      (dom/div (str "Cannot route: Unknown Screen " page))))
 
 (defsc ItemDetail [this props]
-  {:initial-state (fn [params] {:com.fulcrologic.fulcro.routing.union-router/id :detail-router
-                                :com.fulcrologic.fulcro.routing.union-router/current-route (comp/get-initial-state ItemDetail-Union params)})
-   :ident (fn [] [:com.fulcrologic.fulcro.routing.union-router.routers/id :detail-router])
-   :query [:com.fulcrologic.fulcro.routing.union-router/id {:fulcro.client.routing/current-route (comp/get-query ItemDetail-Union)}]}
+  {:initial-state (fn [params] {:com.fulcrologic.fulcro.routing.legacy-ui-routers/id :detail-router
+                                :com.fulcrologic.fulcro.routing.legacy-ui-routers/current-route (comp/get-initial-state ItemDetail-Union params)})
+   :ident (fn [] [:com.fulcrologic.fulcro.routing.legacy-ui-routers.routers/id :detail-router])
+   :query [:com.fulcrologic.fulcro.routing.legacy-ui-routers/id {:fulcro.client.routing/current-route (comp/get-query ItemDetail-Union)}]}
   (let [computed (comp/get-computed this)
-        props (:com.fulcrologic.fulcro.routing.union-router/current-route (comp/props this))
+        props (:com.fulcrologic.fulcro.routing.legacy-ui-routers/current-route (comp/props this))
         props-with-computed (comp/computed props computed)]
    ((comp/factory ItemDetail-Union) props-with-computed)))))
 ```
@@ -5115,7 +5115,7 @@ Once you have your general operations written as basic functions on either the e
 targeted to nodes or the state map itself (like `add-friend*`), then it becomes much easier to create mutations that
 compose together operations to accomplish any higher-level task.
 
-For example, the `com.fulcrologic.fulcro.routing.union-router/update-routing-links` function takes a state map and
+For example, the `com.fulcrologic.fulcro.routing.legacy-ui-routers/update-routing-links` function takes a state map and
 changes all of the routers in the application state to show that particular screen. So, say you wanted add-friend to also
 take you to the screen that shows the details of that particular person. The top-level abstract mutation in the UI
 might still be called `add-friend`, but the internals now have two things to do.
@@ -8259,7 +8259,7 @@ A basic router looks like this:
 
 ```
 (ns app
-  (:require [com.fulcrologic.fulcro.routing.union-router :refer [defrouter defsc-router]]) ; requires 2.6.18 for defsc-router
+  (:require [com.fulcrologic.fulcro.routing.legacy-ui-routers :refer [defrouter defsc-router]]) ; requires 2.6.18 for defsc-router
 
 (defsc Index [this {:keys [db/id router/page]}]
   {:query         [:db/id :router/page]
@@ -8345,7 +8345,7 @@ like this if you want to examine the "current route" in the body of the "bad rou
 ```
 (defsc-router Router [this props]
   {...}
-  (let [{:com.fulcrologic.fulcro.routing.union-router/keys [id current-route]} (comp/props this)]
+  (let [{:com.fulcrologic.fulcro.routing.legacy-ui-routers/keys [id current-route]} (comp/props this)]
     (dom/div "Bad route: " current-route)))
 ```
 
@@ -8355,12 +8355,12 @@ instead:
 
 ```
 (ns ...
-  (:require [com.fulcrologic.fulcro.routing.union-router :as r :refer [defsc-router]]))
+  (:require [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r :refer [defsc-router]]))
 
 (defsc-router Router [this props]
   {...}
   (let [state-map (comp/component->state-map this)
-        {:com.fulcrologic.fulcro.routing.union-router/keys [id]} (comp/props this)]
+        {:com.fulcrologic.fulcro.routing.legacy-ui-routers/keys [id]} (comp/props this)]
         current-route (get-in state-map [r/routers-table ::r/id id ::r/current-route])]
     (dom/div "Bad route ident: " current-route)))
 ```
@@ -8466,7 +8466,7 @@ The routing namespace includes a Fulcro mutation for triggering the routing tree
 It takes a `:handler` (e.g. `:main`)  and an optional `:route-params` argument:
 
 ```
-; assumes you've aliased com.fulcrologic.fulcro.routing.union-router to r
+; assumes you've aliased com.fulcrologic.fulcro.routing.legacy-ui-routers to r
 (comp/transact! `[(r/route-to {:handler :main})])
 ```
 
@@ -8521,7 +8521,7 @@ table) to check the route:
 
 ```
 (ns x
-  (:require [com.fulcrologic.fulcro.routing.union-router :as r]
+  (:require [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]
             [com.fulcrologic.fulcro.components :as comp]))
 
 (r/defsc-router SomeRouter [this props]
@@ -11045,7 +11045,7 @@ main application knows to provide the link, but it does not yet have the renderi
 WARNING: There was a bug in dynamic queries prior to 2.6.0, which are used by dynamic routers.  Make sure you're using
 a newer version of Fulcro for this support.
 
-The `com.fulcrologic.fulcro.routing.union-router` namespace includes a second kind of UI router that can be used with the routing tree: `DynamicRouter`.
+The `com.fulcrologic.fulcro.routing.legacy-ui-routers` namespace includes a second kind of UI router that can be used with the routing tree: `DynamicRouter`.
 
 A `DynamicRouter` uses a dynamic query to change routes instead of a union, and it can derive the details of the target
 component at runtime, meaning that it can be used to route to screens that were not in the loaded application code base
@@ -11162,7 +11162,7 @@ One screen is defined in `other.cljc`:
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom] :clj
         [com.fulcrologic.fulcro.dom-server :as dom])
         [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-        [com.fulcrologic.fulcro.routing.union-router :as r]))
+        [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]))
 
 (defsc Other [this {:keys [x]}]
   {:query         [r/dynamic-route-key :x]
@@ -11184,7 +11184,7 @@ Another (with Root and the routing tree) is in `main.cljc`:
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom] :clj
         [com.fulcrologic.fulcro.dom-server :as dom])
         [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-        [com.fulcrologic.fulcro.routing.union-router :as r]))
+        [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]))
 
 (def routing-tree (r/routing-tree
                     (r/make-route :main [(r/router-instruction :top-router [:main :singleton])])
@@ -11225,7 +11225,7 @@ Next, the basic server is then:
     [ssr-dynamic-routing.ui.root :as root]
     [com.fulcrologic.fulcro.dom-server :as dom]
     [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.routing.union-router :as r]))
+    [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]))
 
 (defn build-ui-tree [match]
   (let [client-db (ssr/build-initial-state (comp/get-initial-state root/Root {}) root/Root)
@@ -11306,7 +11306,7 @@ your UI could *ever* show! This will perform poorly as your application gets lar
 The solution to this is to ensure that your query contains only the currently relevant things.
 There are two primary solutions for this: use union or dynamic queries.
 
-The `com.fulcrologic.fulcro.routing.union-router` namespace includes primitives for building UI routes using unions (the unions are written
+The `com.fulcrologic.fulcro.routing.legacy-ui-routers` namespace includes primitives for building UI routes using unions (the unions are written
 for you). It has a number of features, including the ability to nicely integrate with HTML5 history events for full HTML5
 routing in your application.
 
@@ -11314,7 +11314,7 @@ In the dynamic query approach you use `comp/set-query!` to actually change the q
 response to user events.
 
 There are two "dynamic routers" that use dynamic queries to change their current query so it only includes the "current"
-route. The older of these is present in the `union-router` namespace for legacy support, and should probably not be used
+route. The older of these is present in the `legacy-ui-routers` namespace for legacy support, and should probably not be used
 for new projects.
 
 It is also important to note that you need not normalize things that are really just big blobs of data that you don't

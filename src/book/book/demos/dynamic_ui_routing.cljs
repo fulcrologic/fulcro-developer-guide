@@ -1,6 +1,6 @@
 (ns book.demos.dynamic-ui-routing
   (:require
-    [com.fulcrologic.fulcro.routing.union-router :as r]
+    [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [cljs.loader :as loader]
@@ -20,7 +20,7 @@
   (dom/div {:style {:backgroundColor "skyblue"}}
     (str label " " new-user-prop)))
 
-(defsc Root [this {:keys [top-router :com.fulcrologic.fulcro.routing.union-router/pending-route]}]
+(defsc Root [this {:keys [top-router :com.fulcrologic.fulcro.routing.legacy-ui-routers/pending-route]}]
   {:initial-state (fn [params] (merge
                                  (r/routing-tree
                                    (r/make-route :ui-main [(r/router-instruction :top-router [:ui-main :singleton])])
@@ -28,7 +28,7 @@
                                    (r/make-route :new-user [(r/router-instruction :top-router [:new-user :singleton])]))
                                  {:top-router (comp/get-initial-state r/DynamicRouter {:id :top-router})}))
    :query         [:ui/react-key {:top-router (r/get-dynamic-router-query :top-router)}
-                   :com.fulcrologic.fulcro.routing.union-router/pending-route
+                   :com.fulcrologic.fulcro.routing.legacy-ui-routers/pending-route
                    r/routing-tree-key]}
   (dom/div nil
     ; Sample nav mutations

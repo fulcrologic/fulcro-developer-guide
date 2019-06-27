@@ -2,7 +2,7 @@
   (:require
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.routing.union-router :as r :refer [defrouter]]
+    [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r :refer [defrouter]]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [fulcro.logging :as log]
     [fulcro.ui.forms :as f]

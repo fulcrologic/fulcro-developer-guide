@@ -1,6 +1,6 @@
 (ns book.simple-router-2
   (:require
-    [com.fulcrologic.fulcro.routing.union-router :as r :refer-macros [defsc-router]]
+    [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r :refer-macros [defsc-router]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.mutations :as m]))

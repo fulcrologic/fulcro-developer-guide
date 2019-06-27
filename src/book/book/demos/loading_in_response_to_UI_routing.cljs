@@ -1,6 +1,6 @@
 (ns book.demos.loading-in-response-to-UI-routing
   (:require
-    [com.fulcrologic.fulcro.routing.union-router :as r]
+    [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]
     [com.fulcrologic.fulcro.mutations :as m]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
