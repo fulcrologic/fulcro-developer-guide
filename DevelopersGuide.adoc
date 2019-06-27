@@ -5117,6 +5117,7 @@ There are only a few general kinds of interactions with a server:
 * Incremental loads of sub-graphs of something that was previously loaded.
 * Event-based loads (e.g. user or timed events)
 * Integrating data from other external sources (e.g. server push)
+* Run a remote operation, which can optionally return a graph of data as a response.
 
 In standard Fulcro networking, *all* of the above have the following similarities:
 
@@ -5159,8 +5160,8 @@ The two core functions that allow you to trigger abstract operations or data mer
 (via your `app`) are:
 
 [Horizontal]
-`comp/transact!`:: The central function for running abstract changes in the application. Can be run with a component
-_or_ app. If run with the app, will typically cause a root re-render.
+`comp/transact!`:: The central function for running abstract (possibly full-stack) changes in the application.
+Can be run with a component _or_ app. If run with the app, will typically cause a root re-render.
 `merge/merge!`:: A function that can be run against the app to merge a tree of data via a UI query.
 `merge/merge-component!`:: Like `merge!`, but can be passed a component instead of a query.
 `merge/merge*`:: `merge!`, but in a mutation via `swap!`
@@ -5253,7 +5254,7 @@ queuing network traffic.
 Perhaps you wish to ensure something is loaded. To do that: trigger a mutation that checks state and optionally
 submits a load. You'll learn how to do this in the sections on the <<DataFetch, data fetch API>>.
 
-== Implementing Server APIs
+= Loads
 
 Most of your server API should be written with something like https://wilkerlucio.github.io/pathom/#Connect[Pathom Connect].
 There are also ways to adapt to GraphQL servers, REST APIs, etc.  The remainder of this chapter assumes you have read
@@ -5933,8 +5934,136 @@ include::src/book/book/demos/pre_merge/countdown_mutation.cljs[]
 ----
 
 
+== Incremental Loading [[IncrementalLoading]]
 
+It is very common for your UI query to have a lot more in it than you want to load at any given time. In some cases,
+even a specific entity asks for more than you'd like to load. A good example of this is a component that allows comments.
+Perhaps you'd like the initial load of the component to not include the comments at all, then later load the comments
+when the user, for example, opens (or scrolls to) that part of the UI.
 
+Fulcro makes this quite easy. There are three basic steps:
+
+. Put the full query on the  UI
+. When you use that UI query with load, prune out the parts you don't want.
+. Later, ask for the part you *do* want.
+
+Step 2 sounds like it will be hard, but it isn't:
+
+=== Pruning the Query
+
+Sometimes your UI graph asks for things that you'd like to load incrementally. Let's say you were loading a blog
+post that has comments. Perhaps you'd like to load the comments later:
+
+```
+(df/load app :server/blog Blog {:params {:id 1 }
+                                :target [:screens/by-name :blog :current-page]
+                                :without #{:blog/comments}})
+```
+
+The `:without` parameter can be used to elide portions of the query (it works recursively). The query sent to the
+server will *not* ask for `:blog/comments`. Of course, your server has to parse and honor the exact details
+of the query for this to work (if the server decides it's going to returns the comments, you get them...but this is why
+we disliked REST, right?)
+
+```
+(server/defquery-root :server/blog
+  (value [{:keys [query]} {:keys [id]}] ; query will be the query of Blog, without the :comments
+     ; use a parser on query to get the proper blog result. See Server Interactions - Query Parsing
+     (get-blog id query)))
+```
+
+=== Filling in the Subgraph
+
+Later, say when the user scrolls to the bottom of the screen or clicks on "show comments" we can load the rest
+from of this previously partially-loaded graph within the Blog itself using `load-field`, which does the opposite
+of `:without` on the query:
+
+```
+(defsc Blog [this props]
+  {:ident  [:blog/id :db/id]
+   :query  [:db/id :blog/title {:blog/content (comp/get-query BlogContent)} {:blog/comments (comp/get-query BlogComment)}]}
+  (dom/div
+     ...
+     (dom/button {:onClick #(load-field this :blog/comments)} "Show Comments")
+     ...)))
+```
+
+The `load-field` function prunes everything from the query *except* for the branch
+joined through the given key. It also generates an *entity rooted query* based on the calling component's ident:
+
+```
+[{[:table ID] subquery}]
+```
+
+where the `[:table ID]` are the ident of the invoking component, and subquery is `(comp/get-query invoking-component)`, but
+focused down to the one field. In the example above, this would end up something like this:
+
+```
+[{[:blog/id 1] [{:blog/comments [:db/id :comment/author :comment/body]}]}]
+```
+
+This kind of query can be handled on the server with `defquery-entity` (which is triggered on these kinds of ident joins):
+
+```
+(server/defquery-entity :blog/id
+  (value [{:keys [query]} id params]
+    (get-blog id query))) ; SAME HANDLER WORKS!!!
+```
+
+==== Load Focus
+
+Another way to load a subgraph part is to use the `:focus` setting on the `load`, `:focus`
+allow you to define a subquery to be loaded from the component query, to start simple here
+is how we can write the same previous example using `:focus`:
+
+```
+(defsc Blog [this props]
+  {:ident  [:blog/id :db/id]
+   :query  [:db/id :blog/title {:blog/content (comp/get-query BlogContent)} {:blog/comments (comp/get-query BlogComment)}]}
+  (dom/div
+     ...
+     (dom/button {:onClick #(load this (comp/get-ident this) Blog {:focus [:blog/comments]})}
+       "Show Comments")
+     ...)))
+```
+
+Although the interface requires more code, it's more flexible, let's say for instance you only want
+to load the comment id and author, you can write as:
+
+```
+(load this (get-ident this) Blog {:focus [{:blog/comments [:db/id :comment/author]}]})
+```
+
+As you might notice, in the first `:focus` example when we point to a join, the whole
+join sub-query will be pulled, but you can get more precise by expressing more of the
+sub-query.
+
+==== Load focus on unions
+
+A special case that worth mention about focus sub-query is how it handles unions. Other
+than on unions, `:focus` will only use the attributes mentioned on the sub-query, but
+on unions, if you don't express some union branch it will be pulled as is, for example, let's
+say you have this given query:
+
+```
+[{:feed/item {:message [:message/text :message/timestamp]
+              :activity [:activity/source-id :activity/url]}}]
+```
+
+If you `:focus` on this:
+
+```
+[{:feed/item {:message [:message/text]}}]
+```
+
+Then you get out the query:
+
+```
+[{:feed/item {:message [:message/text]
+              :activity [:activity/source-id :activity/url]}}]
+```
+
+This makes sure you will keep all union branches.
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -5942,33 +6071,7 @@ include::src/book/book/demos/pre_merge/countdown_mutation.cljs[]
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-
-
-
-== Augmenting the Ring Response
-
-The Ring stack is supplied for you in the server code and most responses are simple EDN with the HTTP details taken care
-of for you; however, there are times when you need to modify something about the low-level response itself (such
-as adding a cookie).
-
-If you're using the Fulcro server tools (handle API request or the easy server) then you can add a fully general
-response transform to your EDN response as follows:
-
-```
-(fulcro.server/augment-response your-EDN-response
-  (fn [ring-response]
-     ...
-     modified-ring-response))
-```
-
-For example, if you were using Ring and Ring Session, you could cause a session cookie to be generated, and user
-information to be stored in a server session store simply by returning this from a query on user:
-
-```
-(server/augment-response user (fn [resp] (assoc-in resp [:session :uid] real-uid)))
-```
-
-== Full-Stack Mutations
+= Full-Stack Mutations
 
 You've already seen how to define local mutations on the client. In this chapter we're going to go into the details
 of making mutations work against the server.
@@ -6351,143 +6454,6 @@ IMPORTANT: The `remote-load` call need only be done for *any one* of the remotes
 back-end code to process remote requests (which will hit all remote queues). Thus, the parameters to the `load-action`
 calls are where you actually specify which remote a given load should actually talk to.
 
-== Network Activity Indicators
-
-Rendering is completely up to you, but Fulcro handles the networking (technically this is pluggable, but Fulcro still initiates
-the interactions). That means that you're going to need some help when it comes to showing the user that something is happening on the network.
-
-The first and easiest thing to use is a global activity marker that is automatically maintained at the root node of
-your client database.
-
-=== Global loading activity marker
-
-Fulcro will automatically maintain a global network activity marker at the top level of the app state under the
-keyword `:ui/loading-data`. This key will have a `true` value when there are network *loads* awaiting a response from
-the server, and will have a `false` value when there are no network requests in process.
-
-You can access this marker from any component that composes to root by including a link in your component's query:
-
-```
-(defsc Item ... )
-(def ui-item (comp/factory Item {:keyfn :id}))
-
-(defsc List [this {:keys [title items ui/loading-data]}]
-  {:query [:id :title {:items (comp/get-query Item)} [:ui/loading-data '_]]}
-  ...
-  (if (and loading-data (empty? items))
-    (dom/div "Loading...")
-    (dom/div
-      (dom/h1 title)
-      (map ui-item items))))
-```
-
-Because the global loading marker is at the top level of the application state, do not use the keyword as a follow-on
-read to mutations because it may unnecessarily trigger a re-render of the entire application.
-
-In Fulcro 2.6.10+ there is a top-level key called :fulcro.client.network/status that holds a map from remotes to their
-current general status (`:inactive` or `:active`).  These are correct for all Fulcro remotes you've added to the
-application, and can be used (via a link query) to watch for global activity.  Since these are not tied to specific
-requests, they have only minor advantages over the older `:ui/loading-data` marker: They are correct for loads
-*and* mutations, and are split out by remote.
-
-=== Mutation Activity
-
-Mutations can be passed off silently to the server. You may choose to block the UI if you have reason to believe there
-will be a problem, but there is usually no other reason to prevent the user from just continuing to use your application
-while the server processes the mutation. See
-<<PTransact, Pessimistic Transactions>> for a method of controlling UI around the network activity of remote mutations.
-
-Fulcro Incubator also has "pessimistic mutations", an extention of the mutation system that allows for
-more pessimistic general operation, and is easier to use.
-
-=== Tracking Specific Loads
-
-Loads are a different story. It is very often the case that you might have a number of loads running to populate different
-parts of your UI all at once. In this case it is quite useful to have some kind of load-specific marker that you
-can use to show that activity.
-
-=== Normalized Load Markers
-
-Load markers are normalized into a well-known table via an ID that you choose.
-You can use just about any value (except a boolean) for the id. This has the following behavior:
-
-. Load markers are placed in a top-level table (the var com.fulcrologic.fulcro.data-fetch/marker-table holds the table name),
-using your marker value as their ID.
-. You can explicitly query for them using an ident join.
-
-WARNING: Do not use a boolean for a marker's ID as this causes a legacy behavior that is undesirable
-(but supported for backwards compatibility). The `:marker false` option on loads completely disables load markers for
-a load, and is the default.
-
-==== Working with Normalized Load Markers
-
-The steps are rather simple: Include the `:marker` parameter with load, and issue a query for the load marker on
-the marker table. The table name for markers is stored in the data-fetch namespace in the var `df/marker-table`.
-
-```
-(defsc SomeComponent [this props]
-  {:query [:data :prop2 :other [df/marker-table :marker-id]]} ; an ident in queries pulls in an entire entity
-  (let [marker (get props [df/marker-table :marker-id])]
-    ...)))
-
-...
-
-(df/load this :key Item {:marker :marker-id})
-```
-
-The data fetch load marker will be missing if no loading is in progress. You can use the following functions
-to detect what state the load is in:
-
-* `(df/ready? m)` - Returns true if the item is queued, but not yet active on the network
-* `(df/loading? m)` - Returns true if the item is active on the network
-
-The marker will disappear from the table when network activity completes.
-
-The rendering is up to you, but that is really all there is to it.
-
-===== Marker IDs for Items That Have Many Instances
-
-In this case you will need to generate a marker ID based on the entity ID, and then use a link query to pull the
-entire load marker table to see what is loading.
-
-For example, you might define the marker IDs as `(keyword "person-load-marker" (str person-id))`. Your person
-component could then find its load marker like this:
-
-```
-(defn person-markerid [id] (keyword "person-load-marker" (str id)))
-
-(defsc Person [this {:keys [db/id person/name] :as props}]
-  {:query [:db/id :person/name [df/marker-table '_]]
-   :ident [:person/id :db/id]}
-  (let [marker-id   (person-markerid id)
-        all-markers (get props df/marker-table)
-        marker      (get all-markers marker-id)]
-      ...))
-```
-
-the load might look something like this:
-
-```
-(df/load this [:person/id 42] Person {:marker (person-markerid 42)})
-```
-
-The example below uses these techniques to name load markers.
-
-NOTE: Open up the DB view and turn your server's latency way up so you can watch the marker state.
-
-++++
-<div class="example" id="loading-indicators"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-indicators').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="loading-indicators source"]
-----
-include::src/book/book/demos/loading_indicators.cljs[]
-----
-
-NOTE: You can also just use something like a component's ident for the marker ID.  This sounds confusing at first, but
-just think of the marker ID as any opaque value that supports comparison under `=`.
-
 == Server Mutation Return Values [[ReturnValues]]
 
 The server mutation is always allowed to return a value. Normally the only value that makes sense is the temporary ID
@@ -6688,328 +6654,173 @@ The server mutation just returns the entity (mixed with tempid remappings, if yo
 include::src/book/book/demos/server_targeting_return_values_into_app_state.cljs[]
 ----
 
-=== Augmenting the Merge
+== Augmenting Merge
 
-There is also a sledge-hammer approach to return values: plug into Fulcro's merge routines. This is an advanced technique
-and is not recommended for most applications.
-
-Fulcro gives a hook for a `mutation-merge` function that you can install when you're creating the application. If you
-use a multi-method, then it will make it easier to co-locate your return value logic near the client-local mutation itself:
-
-```
-(defmulti return-merge (fn [state mutation-sym return-value] mutation-sym))
-(defmethod return-merge :default [s m r] s)
-
-(make-fulcro-client {:mutation-merge return-merge ...})
-```
-
-Now you should be able to write your return merging logic next to the mutation that it goes with. For example:
-
-```
-(defmethod m/mutate 'some-mutation [env k p] {:remote true })
-(defmethod app/return-merge 'some-mutation [state k returnval] ...new-state...)
-```
-
-Note that the API is a bit different between the two: mutations get the app state *atom* in an environment, and you
-`swap!` on that atom to change state. The return merge function is *in an already running* `swap!` during the state merge
-of the networking layer. So, it is a function that takes the application state as a *map* and must
-return a new state as a *map*.
-
-This technique is fully general in terms of handling arbitrary return values, but is limited in that your only recourse
-is to merge the data into you app state. Of course, since your rendering is a pure function of app state this means you
-can, at the very least, visualize the result.
-
-This works, but is not the recommended approach because it is very easy to make mistakes that affect your entire
-application.
-
-NOTE: Mutation merge happens after server return values have been merged; however, it does happen *before* tempid remapping.
-Just work with the tempids, and they will be rewritten once your merge is complete.
-
-==== Live Example of a Mutation Merge
-
-In the example below the displayed volume is coming from the server's mutation return value.
-Use the server latency to convince yourself of this. Notice if you click too rapidly then the value doesn't increase
-any faster than the server can respond (since it computes the new volume based on what the client sends).
-
-The merge function is most easily dealt with as a multimethod so you can dispatch on the mutation symbol:
-
-```
-(defmulti merge-return-value (fn [state sym return-value] sym))
-```
-
-We're going to return a map with `:new-volume` in it from the server, so our merge can look like this:
-
-```
-(defmethod merge-return-value `crank-it-up
-  [state _ {:keys [new-volume]}]
-  (assoc-in state [:child/id 0 :volume] new-volume))
-```
-
-Our mutation asks a remote server to increase the volume. The client and server mutations are:
-
-```
-;; client-side
-(m/defmutation crank-it-up [params]
-  (remote [env] true))
-```
-
-```
-(server/defmutation crank-it-up [{:keys [value]}]
-  (action [env]
-    {:new-volume (inc value)}))
-```
-
-The remainder of the setup is just giving the merge handler function to the application at startup:
-
-```
-(fc/make-fulcro-client {:mutation-merge merge-return-value})
-```
-
-++++
-<div class="example" id="server-return-values-manually-merging"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-return-values-manually-merging').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="server-return-values-manually-merging source"]
-----
-include::src/book/book/demos/server_return_values_manually_merging.cljs[]
-----
+TODO: Done differently now. Use `:result-action`.
 
 == Loads From Within Mutations
 
-It is often the case that a load results from user interaction with the UI. But it is also the case that the
-load isn't everything you want to do, or that you'd like to hide the load logic or base it on current state that
-the triggering component does not know.
+Just call `load!` with the app from `env`.
 
-=== Load Actions in Mutations
+== Augmenting the Ring Response
 
-In reality `load` and `load-field` call `comp/transact!` under the hood, targeting fulcro's built-in `fulcro/load`
-mutation, which is responsible for sending your request to the server.
+The Ring stack is supplied for you in the server code and most responses are simple EDN with the HTTP details taken care
+of for you; however, there are times when you need to modify something about the low-level response itself (such
+as adding a cookie).
 
-There are similar functions: `load-action` and `load-field-action`
-that **do not** call `comp/transact!`, but instead just push a load request into the load queue and can be used to
-inside of one of your own client-side mutations.
-
-Let's look at an example of a standard load. Say you want to load a list of people from the server:
+If you're using the Fulcro server tools (handle API request or the easy server) then you can add a fully general
+response transform to your EDN response as follows:
 
 ```
-(require [com.fulcrologic.fulcro.data-fetch :as df])
-
-(defsc Person [this props]
-  {:query [:id :name]}
-  ... )
-(def ui-person (comp/factory Person))
-
-(defsc PeopleList [this {:keys [people]}]
-  {:query [:db/id :list-title {:people (comp/get-query Person}]
-   :ident [:people-list/id :db/id]}
-   (dom/div
-     (if (seq people)
-       (dom/button {:onClick #(df/load-field this :people)} "Load People")
-       (map ui-person people))))
-```
-
-Since we are in the UI and not inside of a mutation's action thunk, we can use `load-field` to initialize the
-call to `comp/transact!`.
-
-The action-suffixed load functions are useful when performing an action in the user interface that must *both* modify
-the client-side database *and* load data from the server.
-
-NOTE: You must use the result of the
-`com.fulcrologic.fulcro.data-fetch/remote-load` funtion as the value of the `remote` in the mutation. The
-`action` calls of `load-action` place the request on a queue. The `remote-load` returns the correct indicator to
-Fulcro so that it knows you queued a load. If you forget it, then your load won't be processed until the next
-operation causes remote interactions.
-
-```
-(require [com.fulcrologic.fulcro.data-fetch :as df]
-         [com.fulcrologic.fulcro.mutations :refer [mutate]]
-         [app.ui :as ui])
-
-(defmutation change-view [{:keys [new-view]}]
-  (action [{:keys [state] :as env}]
-              (let [new-view-comp (cond
-                                     (= new-view :main)  ui/Main
-                                     (= new-view :settings) ui/Settings]
-                (df/load-action env new-view new-view-comp)  ;; Add the load request to the queue
-                (swap! state update :app/current-view new-view))}))
-  (remote [env] (df/remote-load env))) ;; Tell Fulcro you did something that requires remote
-```
-
-This snippet defines a mutation that modifies the app state to display the view passed in via the mutation parameters
-and loads the data for that view. A few important points:
-
-. If an action thunk calls one or more `action`-suffixed load functions (which do nothing but queue the load
-   request) then it MUST also call `remote-load` on the remote side.
-. The `remote-load` function *changes* the mutation's dispatch key to `fulcro/load` which in turn triggers
-   the networking layer that one or more loads are ready. IMPORTANT: Remote loading cannot be mixed with a mutation
-   that also needs to be sent remotely. I.e. one could not send `change-view` to the server in this example.
-. If you find yourself wanting to put a call to any `load-*` in a React Lifecycle method try reworking
-   the code to use your own mutations (which can check if a load is really needed) and the use the action-suffixed
-   loads instead. Lifecycle methods are often misunderstood, leading to incorrect behaviors like triggering loads
-   over and over again.
-
-=== Using the `fulcro/load` Mutation Directly (NOT recommended)
-
-Fulcro has a built-in mutation `fulcro/load` (also aliased as `com.fulcrologic.fulcro.data-fetch/load`).
-
-The mutation can be used from application startup or anywhere you'd run a mutation (`transact!`). This covers almost
-all of the possible remote data integration needs!
-
-The helper functions described above simply trigger this built-in Fulcro mutation
-(the `*-action` variants do so by modifying the remote mutation AST via the `remote-load` helper function).
-
-You are allowed to use this mutation directly in a call to `transact!`, but you should never need to.
-
-The arguments to this mutation include <<LoadOptions, most of the options that `load` can take>>, but you do
-need to specify `query`. For most direct use-cases you'll probably skip using the `load-field` specific parameters
-described in the docstring (`:field` and `:ident`). You can read the source of `load-field` if you'd like to simulate
-it by hand.
-
-For example:
-
-```
-(load reconciler :prop nil)
-```
-
-is a simple helper that is ultimately identical to:
-
-```
-(comp/transact! reconciler '[(fulcro/load {:query [:prop]}) :ui/loading-data])
-```
-
-(the follow-on read is to ensure load markers update).
-
-== Incremental Loading [[IncrementalLoading]]
-
-It is very common for your UI query to have a lot more in it than you want to load at any given time. In some cases,
-even a specific entity asks for more than you'd like to load. A good example of this is a component that allows comments.
-Perhaps you'd like the initial load of the component to not include the comments at all, then later load the comments
-when the user, for example, opens (or scrolls to) that part of the UI.
-
-Fulcro makes this quite easy. There are three basic steps:
-
-. Put the full query on the  UI
-. When you use that UI query with load, prune out the parts you don't want.
-. Later, ask for the part you *do* want.
-
-Step 2 sounds like it will be hard, but it isn't:
-
-=== Pruning the Query
-
-Sometimes your UI graph asks for things that you'd like to load incrementally. Let's say you were loading a blog
-post that has comments. Perhaps you'd like to load the comments later:
-
-```
-(df/load app :server/blog Blog {:params {:id 1 }
-                                :target [:screens/by-name :blog :current-page]
-                                :without #{:blog/comments}})
-```
-
-The `:without` parameter can be used to elide portions of the query (it works recursively). The query sent to the
-server will *not* ask for `:blog/comments`. Of course, your server has to parse and honor the exact details
-of the query for this to work (if the server decides it's going to returns the comments, you get them...but this is why
-we disliked REST, right?)
-
-```
-(server/defquery-root :server/blog
-  (value [{:keys [query]} {:keys [id]}] ; query will be the query of Blog, without the :comments
-     ; use a parser on query to get the proper blog result. See Server Interactions - Query Parsing
-     (get-blog id query)))
-```
-
-=== Filling in the Subgraph
-
-Later, say when the user scrolls to the bottom of the screen or clicks on "show comments" we can load the rest
-from of this previously partially-loaded graph within the Blog itself using `load-field`, which does the opposite
-of `:without` on the query:
-
-```
-(defsc Blog [this props]
-  {:ident  [:blog/id :db/id]
-   :query  [:db/id :blog/title {:blog/content (comp/get-query BlogContent)} {:blog/comments (comp/get-query BlogComment)}]}
-  (dom/div
+(fulcro.server/augment-response your-EDN-response
+  (fn [ring-response]
      ...
-     (dom/button {:onClick #(load-field this :blog/comments)} "Show Comments")
-     ...)))
+     modified-ring-response))
 ```
 
-The `load-field` function prunes everything from the query *except* for the branch
-joined through the given key. It also generates an *entity rooted query* based on the calling component's ident:
+For example, if you were using Ring and Ring Session, you could cause a session cookie to be generated, and user
+information to be stored in a server session store simply by returning this from a query on user:
 
 ```
-[{[:table ID] subquery}]
+(server/augment-response user (fn [resp] (assoc-in resp [:session :uid] real-uid)))
 ```
 
-where the `[:table ID]` are the ident of the invoking component, and subquery is `(comp/get-query invoking-component)`, but
-focused down to the one field. In the example above, this would end up something like this:
+= Network Activity Indicators
+
+Rendering is completely up to you, but Fulcro handles the networking (technically this is pluggable, but Fulcro still initiates
+the interactions). That means that you're going to need some help when it comes to showing the user that something is happening on the network.
+
+The first and easiest thing to use is a global activity marker that is automatically maintained at the root node of
+your client database.
+
+== Global loading activity marker
+
+Fulcro will automatically maintain a global network activity marker at the top level of the app state under the
+keyword `:ui/loading-data`. This key will have a `true` value when there are network *loads* awaiting a response from
+the server, and will have a `false` value when there are no network requests in process.
+
+You can access this marker from any component that composes to root by including a link in your component's query:
 
 ```
-[{[:blog/id 1] [{:blog/comments [:db/id :comment/author :comment/body]}]}]
+(defsc Item ... )
+(def ui-item (comp/factory Item {:keyfn :id}))
+
+(defsc List [this {:keys [title items ui/loading-data]}]
+  {:query [:id :title {:items (comp/get-query Item)} [:ui/loading-data '_]]}
+  ...
+  (if (and loading-data (empty? items))
+    (dom/div "Loading...")
+    (dom/div
+      (dom/h1 title)
+      (map ui-item items))))
 ```
 
-This kind of query can be handled on the server with `defquery-entity` (which is triggered on these kinds of ident joins):
+Because the global loading marker is at the top level of the application state, do not use the keyword as a follow-on
+read to mutations because it may unnecessarily trigger a re-render of the entire application.
+
+In Fulcro 2.6.10+ there is a top-level key called :fulcro.client.network/status that holds a map from remotes to their
+current general status (`:inactive` or `:active`).  These are correct for all Fulcro remotes you've added to the
+application, and can be used (via a link query) to watch for global activity.  Since these are not tied to specific
+requests, they have only minor advantages over the older `:ui/loading-data` marker: They are correct for loads
+*and* mutations, and are split out by remote.
+
+=== Mutation Activity
+
+Mutations can be passed off silently to the server. You may choose to block the UI if you have reason to believe there
+will be a problem, but there is usually no other reason to prevent the user from just continuing to use your application
+while the server processes the mutation. See
+<<PTransact, Pessimistic Transactions>> for a method of controlling UI around the network activity of remote mutations.
+
+Fulcro Incubator also has "pessimistic mutations", an extention of the mutation system that allows for
+more pessimistic general operation, and is easier to use.
+
+=== Tracking Specific Loads
+
+Loads are a different story. It is very often the case that you might have a number of loads running to populate different
+parts of your UI all at once. In this case it is quite useful to have some kind of load-specific marker that you
+can use to show that activity.
+
+=== Normalized Load Markers
+
+Load markers are normalized into a well-known table via an ID that you choose.
+You can use just about any value (except a boolean) for the id. This has the following behavior:
+
+. Load markers are placed in a top-level table (the var com.fulcrologic.fulcro.data-fetch/marker-table holds the table name),
+using your marker value as their ID.
+. You can explicitly query for them using an ident join.
+
+WARNING: Do not use a boolean for a marker's ID as this causes a legacy behavior that is undesirable
+(but supported for backwards compatibility). The `:marker false` option on loads completely disables load markers for
+a load, and is the default.
+
+==== Working with Normalized Load Markers
+
+The steps are rather simple: Include the `:marker` parameter with load, and issue a query for the load marker on
+the marker table. The table name for markers is stored in the data-fetch namespace in the var `df/marker-table`.
 
 ```
-(server/defquery-entity :blog/id
-  (value [{:keys [query]} id params]
-    (get-blog id query))) ; SAME HANDLER WORKS!!!
+(defsc SomeComponent [this props]
+  {:query [:data :prop2 :other [df/marker-table :marker-id]]} ; an ident in queries pulls in an entire entity
+  (let [marker (get props [df/marker-table :marker-id])]
+    ...)))
+
+...
+
+(df/load this :key Item {:marker :marker-id})
 ```
 
-==== Load Focus
+The data fetch load marker will be missing if no loading is in progress. You can use the following functions
+to detect what state the load is in:
 
-Another way to load a subgraph part is to use the `:focus` setting on the `load`, `:focus`
-allow you to define a subquery to be loaded from the component query, to start simple here
-is how we can write the same previous example using `:focus`:
+* `(df/ready? m)` - Returns true if the item is queued, but not yet active on the network
+* `(df/loading? m)` - Returns true if the item is active on the network
 
-```
-(defsc Blog [this props]
-  {:ident  [:blog/id :db/id]
-   :query  [:db/id :blog/title {:blog/content (comp/get-query BlogContent)} {:blog/comments (comp/get-query BlogComment)}]}
-  (dom/div
-     ...
-     (dom/button {:onClick #(load this (comp/get-ident this) Blog {:focus [:blog/comments]})}
-       "Show Comments")
-     ...)))
-```
+The marker will disappear from the table when network activity completes.
 
-Although the interface requires more code, it's more flexible, let's say for instance you only want
-to load the comment id and author, you can write as:
+The rendering is up to you, but that is really all there is to it.
+
+===== Marker IDs for Items That Have Many Instances
+
+In this case you will need to generate a marker ID based on the entity ID, and then use a link query to pull the
+entire load marker table to see what is loading.
+
+For example, you might define the marker IDs as `(keyword "person-load-marker" (str person-id))`. Your person
+component could then find its load marker like this:
 
 ```
-(load this (get-ident this) Blog {:focus [{:blog/comments [:db/id :comment/author]}]})
+(defn person-markerid [id] (keyword "person-load-marker" (str id)))
+
+(defsc Person [this {:keys [db/id person/name] :as props}]
+  {:query [:db/id :person/name [df/marker-table '_]]
+   :ident [:person/id :db/id]}
+  (let [marker-id   (person-markerid id)
+        all-markers (get props df/marker-table)
+        marker      (get all-markers marker-id)]
+      ...))
 ```
 
-As you might notice, in the first `:focus` example when we point to a join, the whole
-join sub-query will be pulled, but you can get more precise by expressing more of the
-sub-query.
-
-==== Load focus on unions
-
-A special case that worth mention about focus sub-query is how it handles unions. Other
-than on unions, `:focus` will only use the attributes mentioned on the sub-query, but
-on unions, if you don't express some union branch it will be pulled as is, for example, let's
-say you have this given query:
+the load might look something like this:
 
 ```
-[{:feed/item {:message [:message/text :message/timestamp]
-              :activity [:activity/source-id :activity/url]}}]
+(df/load this [:person/id 42] Person {:marker (person-markerid 42)})
 ```
 
-If you `:focus` on this:
+The example below uses these techniques to name load markers.
 
-```
-[{:feed/item {:message [:message/text]}}]
-```
+NOTE: Open up the DB view and turn your server's latency way up so you can watch the marker state.
 
-Then you get out the query:
+++++
+<div class="example" id="loading-indicators"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-indicators').toggle()">Show/Hide Source</a>
+++++
 
-```
-[{:feed/item {:message [:message/text]
-              :activity [:activity/source-id :activity/url]}}]
-```
+[source,clojure,role="loading-indicators source"]
+----
+include::src/book/book/demos/loading_indicators.cljs[]
+----
 
-This makes sure you will keep all union branches.
+NOTE: You can also just use something like a component's ident for the marker ID.  This sounds confusing at first, but
+just think of the marker ID as any opaque value that supports comparison under `=`.
 
 == Full-Stack Error Handling [[FullStackErrorHandling]]
 
@@ -7398,20 +7209,6 @@ will associate the first two fallbacks with remote call `R`, and the last one wi
 
 = Building a Server [[BuildingAServer]]
 
-In the Getting Started chapter you saw a little on how to build and use Fulcro's easy server. That server is acually
-flexible enough for many production needs, but Fulcro also
-comes with code to help you very quickly get a custom server for your
-application up and running. In this chapter we'll give you more detail on these two main approaches to
-the server-side of Fulcro:
-
-- How to use the pre-built bits to manually build your own server.
-- More details on the easy server.
-
-== Rolling Your Own Server
-
-If you're integrating with an existing server then you probably just want to know how to get things working without
-having to use a Component library, and all of the other stuff that comes along with it.
-
 It turns out that the server API handling is relatively light. Most of the work goes into getting things set up
 for easy server restart (e.g. making components stop/start) and getting those components into your parsing environment.
 
@@ -7519,7 +7316,7 @@ user=> (restart)
 If you used the lein template to setup your project, see it's README doc for instructions about
 how to run the dev environment.
 
-=== Configuration
+== Configuration
 
 Since you'll need to configure your web server, it might be useful to note that the configuration used
 by the easy server is a component you can inject into your own server. A number of add-on components for Fulcro
@@ -7529,39 +7326,8 @@ create a config component via `fulcro.server/new-config`.
 It supports pulling in values from the system environment, overriding configs with a JVM option, and more. See
 the section in easy server about <<ServerConfig, configuration>>, and the docstrings on `new-config` for more details.
 
-== The "Easy" Server [[EasyServer]]
 
-The pre-built easy server component for Fulcro uses Stuart Sierra's Component library. The server has no
-global state except for a debugging atom that holds the entire system, and can therefore be easily restarted
-with a code refresh to avoid costly restarts of the JVM.
-
-You should have a firm understanding of [Stuart's component library](https://github.com/stuartsierra/component), since
-we won't be covering that in detail here.
-
-=== Constructing a base server
-
-The base server is trivial to create:
-
-```
-(ns app.system
-  (:require
-    [fulcro.easy-server :as server]
-    [app.api :as api]
-    [fulcro.server :as comp]))
-
-(defn make-system []
-  (server/make-fulcro-server
-    ; where you want to store your override config file
-    :config-path "/usr/local/etc/app.edn"
-
-    ; The keyword names of any components you want auto-injected into the query/mutation processing parser env (e.g. databases)
-    :parser-injections #{}
-
-    ; Additional components you want added to the server
-    :components {}))
-```
-
-=== Configuring the server [ServerConfig]
+= Configuration Support on the server [ServerConfig]
 
 Server configuration requires two EDN files:
 
@@ -7603,147 +7369,6 @@ If you choose not to use components (see https://github.com/tolitius/mount[mount
 ```
 
 and `config` (after start) will simply contain the EDN of the defaults/config file merge.
-
-=== Pre-installed components
-
-When you start a Fulcro server it comes pre-supplied with injectable components upon which your
-component can depend and/or inject into the server-side parsing environment.
-
-The most important of these, of course, is the configuration itself. The available components
-are known by the following keys:
-
-- `:config`: The configuration component. The actual EDN value is in the `:value` field
-of the component.
-- `:handler`: The component that handles web traffic. You can inject your own Ring handlers into
-two different places in the request/response processing: before or after the API handler.
-- `:server`: The actual web server.
-
-The component library, of course, figures out the dependency order and ensures things are initialized
-and available where necessary.
-
-=== Making components available in the processing environment [[EasyParsingEnv]]
-
-Any components in the server can be injected into the processing pipeline so they are
-available when writing your mutations and query procesing. Making them available is as simple
-as putting their component keyword into the `:parser-injections` set when building the server:
-
-```
-(defn make-system []
-  (server/make-fulcro-server
-    :parser-injections #{:config}
-    ...))
-```
-
-=== Adding to the Ring Stack
-
-The easy server has a hook in front of the API processing (pre-hook), and one at the end of the ring stack
-after API processing and just before the not-found handler (post-hook). You can have a component join into
-the stack by making it depend on `:handler`. Here is an example:
-
-```
-(defrecord Authentication [handler]
-  c/Lifecycle
-  (start [this]
-    (log/info "Hooking into pre-processing to add user info")
-    (let [old-pre-hook (fulcro.easy-server/get-pre-hook handler)
-          new-hook     (fn [ring-handler] (fn [req] ((old-pre-hook ring-handler) (new-behavior req)))]
-      (fulcro.easy-server/set-pre-hook! handler new-hook))
-    this)
-  (stop [this] this))
-
-...
-
-(def server (fulcro.easy-server/make-fulcro-server
-               :components { :auth (component/using (map->Authentication {}) [:handler]))}))
-```
-
-The same pattern is used for fallback hooks.
-
-The nesting of these functions can be a bit confusing, especially since none of the types are explicit. Here's a
-description of each:
-
-[Horizontal]
-middleware:: A function that takes a "default handler" and returns a function of request -> response
-(which is where you can choose to call the default, or do your own thing).
-`ring-handler`:: A function from Ring request maps to responses `(fn [req] resp)`
-`old-pre-hook`:: The prior value of the hook. It is middleware.
-
-So in the example above you have complete control over what happens in your new hook. Here are some examples:
-
-Ignore the request altogether, and short-circuit everything with a literal response:
-
-```
-(let [...
-      new-hook     (fn [ring-handler] (fn [req] (ring.util.response "Hello world")]
-  ...
-```
-
-Ignore the old hook (this is like uninstalling all hooks):
-
-```
-(let [...
-      new-hook  (fn [ring-handler] (fn [req] (ring-handler req))]
-  ...
-```
-
-Serve `index.html` from your `public` resources folder if the uri of the request ends in `html` (useful for HTML5 routing):
-
-```
-(let [...
-      new-hook  (fn [ring-handler]
-                  (fn [req]
-                    (if (re-find #".*html$" uri)
-                      (ring.middleware.resource/resource-request (assoc req :uri "index.html") "public")
-                      ((old-pre-hook ring-handler) req)))]
-  ...
-```
-
-NOTE: Remember that if you serve something like `index.html` for alternate paths you should use absolute paths for the
-resources (e.g. scripts) in that file. If the requested resource wasn't an `html` file, then you'll also need to set the
-content type on the response with something like `(-> (ring.middleware.resource/resource-request ...) (ring.util.response/content-type "text/html"))`.
-
-=== Handling Filesystem Resources
-
-The easy server will serve any files that are placed in `resources/public`. The easy server does pre-map
-URI "/" to "/index.html".
-
-=== Modifying the `/api` route
-
-The easy server (and client) default to using `/api` as the URI on which to handle traffic. If you are proxying multiple
-Fulcro applications to a single server, you may want to place them under different URI paths (e.g. `/app-1/api` and `/app-2/api`.
-
-```
-; server API at "/app-1/api":
-(def server (fulcro.easy-server/make-fulcro-server :app-name "app-1" ...))
-```
-
-The `:app-name` option of the easy server will add such a prefix to the API route. If you do that, then the client
-will also need to have manual configuration of networking to ensure that it tries to contact the correct URI for
-API calls.
-
-```
-(def client (fc/make-fulcro-client {:networking {:remote (fulcro.client.network/fulcro-http-remote {:url "/app1/api"})})})
-```
-
-=== Adding Non-API Routes
-
-The easy server also supplies a way to add in URI handlers via BIDI:
-
-```
-(defn page-handler [env bidi-match]
-  (ring/response ...))
-
-; define routes (see BIDI documentation)
-(def my-routes ["/" {"page.html" :page}])
-
-(def server (fulcro.easy-server/make-fulcro-server
-               :extra-routes { :routes   my-routes
-                               :handlers {:page page-handler}}))
-```
-
-The extra routes are processed right *after* the pre-hook, but just before the
-resource (filesystem) serving. Thus, you can respond to any URI that isn't already
-handled by your pre-hook.
 
 = UI State Machines
 
