@@ -2610,6 +2610,22 @@ Here are some common things you'll want to know how to do that are different whe
 attribute. This helps the React diff figure out how that collection has changed. You will
 get warnings in the browser console if you fail to do so.
 
+=== Converting HTML to Fulcro
+
+Below is a simple little live application that can convert valid HTML into the Clojure(script) you'd use
+within a Fulcro component. Note that stray whitespace will be converted to (harmless) things like `" \n"` that can be easily
+removed, and the output indentation isn't ideal; Still, it turns the task into one of simple formatting:
+
+++++
+<div class="example" id="html-converter"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.html-converter').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="html-converter source"]
+----
+include::src/book/book/html_converter.cljs[]
+----
+
 == The `defsc` Macro
 
 Fulcro's defsc is the main macro you'll use to create components. It is sanity-checked for the most common elements:
@@ -4544,6 +4560,212 @@ then merge doesn't affect it). Also queues rendering for affected components (de
 Can be used within mutations.
 - `misc/deep-merge` - A simple implementation of merge that is recursive.
 
+= Full Stack Operation [[FullStack]]
+
+One of the most interesting and powerful things about Fulcro is that the model for server interaction is unified into
+a clean data-driven structure. At first the new concepts can be challenging, but once you've seen the core primitive
+(component-based queries/idents for normalization) we think you'll find that it dramatically simplifies everything!
+
+In fact, now that you've completed the materials of this guide on the graph database, queries, idents, and
+normalization, it turns out that the server interactions become nearly trivial!
+
+Not only is the *structure* of server interaction well-defined, Fulcro come with pre-written middleware
+to handle plumbing for you.
+
+However, there are a lot of possible pitfalls when writing distributed applications. People often underestimate just how hard
+it is to get web applications right because they forget that.
+
+So, while the *API and mechanics* of how you write Fulcro server interactions are as simple as possible there is no getting
+around that there are some hairy things to navigate in distributed apps independent of your choice of tools.
+Fulcro tries to make these things apparent, and it also tries hard to make sure you're able to get it right without
+pulling out your hair.
+
+Here are some of the basics:
+
+* The Network protocol is included (and extensible))
+ ** The protocol is EDN on the wire (via transit), which means you just speak Clojure data on the wire, and can
+ easily extend it to encode/decode new types.
+* All network requests (queries and mutations) are processed sequentially unless you specify otherwise. This allows you
+to reason about optimistic updates (Starting more than one at a time via async calls could
+lead to out-of-order execution, and impossible-to-reason-about recovery from errors).
+* You can provide error handling for remote problems at a global or mutation-local level.
+* You can interact directly with the network result or use default result processing.
+* Any `:ui/` namespaced query elements are automatically elided when generating a query from the UI to a server, allowing you
+to easily mix UI concerns with server concerns in your component queries. You can also change the global rewrite
+logic to elide other local props from remote queries.
+* Normalization of a remote query result is automatic when using `defmutation`, but customizable.
+** Query results use <<ResultMerge,intelligent overwrite>> for properties that are already present in the client database.
+* Any number of remotes can be defined
+* Protocol and communication is strictly constrained to the networking layer and away from your application's core structure,
+meaning you can actually speak whatever and however you want to a remote. In fact
+the concept of a remote is just "something you can talk to via queries and mutations".
+You can easily define a "remote" that reads and writes browser
+local storage or a Datascript database in the browser. This is an extremely powerful generalization for isolating
+side-effect code from your UI.
+
+NOTE: To those of you with REST or GraphQL APIs: See the Pathom library for ways of converting those services
+into custom client remotes that isolate those APIs to the networking layers of your client.
+
+== General Theory of Operation
+
+There are only a few general kinds of interactions with a server:
+
+* Initial loads when the application starts
+* Incremental loads of sub-graphs of something that was previously loaded.
+* Event-based loads (e.g. user or timed events)
+* Integrating data from other external sources (e.g. server push)
+* Run a remote operation, which can optionally return a graph of data as a response.
+
+In standard Fulcro networking, *all* of the above have the following similarities:
+
+* A component-based graph query needs to be involved to enable auto-normalization. This is true even for a server push
+(though in that case the client needs to know what **implied** query the server is sending data about).
+* The data from the server will be a tree that has the same shape as the query.
+* The data needs to be normalized into the client database.
+* Optionally: after integrating new data there may be some need to transform the result to a form the UI needs
+(e.g. perhaps you need to sort or paginate some list of items that came in).
+
+**IMPORTANT**: Remember what you learned about the graph database, queries, and idents. This section cannot possibly be understood
+properly if you do not understand those topics!
+
+=== Integration of *ALL* new external data is just a Query-Based Merge
+
+So, here is the secret: When external data needs to go into your database it all uses the exact same mechanism: a
+query-based merge. So, for a simple load: you send a UI-based query to the server, the server responds with a tree
+of data that matches that graph query, and then the query itself (which is annotated with the components and ident functions)
+can be used to normalize the result. Finally, the normalized result can be merged into your existing client database.
+
+----
+Query --> Server --> Response + Original Query w/Idents --> Normalized Data --> Database Merge --> New Database
+----
+
+Any other kind of external data integration just starts at the "Response" step by manually providing the query:
+
+----
+New External Data + Query w/Idents --> Normalized Data --> Database Merge --> New Database
+----
+
+There is a primitive function `merge/merge!` function that implements this, so that you can simplify the picture to:
+
+----
+Tree of Data + Query --> merge! --> New Database
+----
+
+=== The Central Functions: `transact!` and `merge!`
+
+The two core functions that allow you to trigger abstract operations or data merges externally
+(via your `app`) are:
+
+[Horizontal]
+`comp/transact!`:: The central function for running abstract (possibly full-stack) changes in the application.
+Can be run with a component _or_ app. If run with the app, will typically cause a root re-render.
+`merge/merge!`:: A function that can be run against the app to merge a tree of data via a UI query.
+`merge/merge-component!`:: Like `merge!`, but can be passed a component instead of a query.
+`merge/merge*`:: `merge!`, but in a mutation via `swap!`
+
+These (and related/derived helpers) are the primary tools used to put new data into your client's database.
+
+=== Query Mismatch
+
+We have all sorts of ways we'd like to view data. Perhaps we'd like to view "all the people who've ever had a particular
+phone number". That is something we can very simply represent with a UI graph, but may not be trivial to pull from
+our database.
+
+In general, there are a few approaches to resolving our graph differences:
+
+. Use a query parser on the server to piece together data based on the graph of the query (preferred).
+. Ask the server for exactly what you want, using an invented well-known "root" keyword, and hand-code the database
+code to create the UI-centric view.
+. Ask the server for the data in a format it can provide and morph it on the client.
+
+The first two have the advantage of making the client blissfully unaware of the server schema. It just asks for what
+it needs, and someone on the server programming team makes it happen. Fortunately, pathom makes this approach
+quite tractable and good.
+
+In some cases, though, you'd like to morph it a bit on the client-side. We'll show you an example of this
+as we explore the data fetch options.
+
+=== Server Interaction Order
+
+Fulcro will serialize requests unless you mark queries as parallel (an option you can specify with `df/load!`). Two different
+*events* that queue mutations or loads will be processed in order. For example, if the user clicks on something and you trigger two loads
+during *that event*, then both of those *may* be combined (if they don't conflict by querying for the same thing)
+and sent as one network request. If the user clicks on something else and that handler queues two more loads, then the latter two
+loads will not start over the network until the first load sequence has completed.
+
+This ensures that you don't get out-of-order
+server execution. This is a distributed system, so it is possible for a second request to hit a less congested server (or even thread)
+than the first and get processed out of order. That would hurt your ability to reason about your program, so the default behavior in
+Fulcro is to ensure that server interactions happen on the server in the same order as they do on the client.
+
+Fulcro will also try to reorder writes that are submitted alongside reads so that the writes appear on the server first,
+giving you the best possible chance that the reads get the most up-to-date versions of data.
+
+In Summary:
+
+- Loads/transactions queued while "holding the UI thread" may be joined together in a single network request.
+- Remote writes go before reads (for a given processing event)
+- Loads/transactions queued at a later event (new UI thread event) are guaranteed to be processed after ones queued earlier.
+- You can override this behavior with the `parallel` option of `load!`.
+
+=== Server Result Query Merging [[ResultMerge]]
+
+There is a potential for a data-driven app to create a new class of problem related to merging data. The normalization
+guarantees that the data for any number of *views* of the same thing are normalized to the same *node* in the graph
+database.
+
+Thus, your `PersonListRow` view and `PersonDetail` view should both normalize the same person data to
+a location like `[:person/id id]`. Let's say you have a quick list of people on the screen that is paginated and
+demand-loaded, where each row is a `PersonListRow` with query `[:db/id :person/name {:person/image (comp/get-query Image)}]`.
+Now say that you can click on one of these rows and a side-by-side view of that person's `PersonDetail` is shown,
+but the query for that is a whole bunch of stuff: name, age, address, phone numbers, etc. A *much* larger query.
+
+A naive merge could cause you all sorts of nightmares. For example, Refreshing the list rows would load only name and image,
+but if merge overwrote the entire table *entry* then the current detail would suddenly empty out!
+
+Fulcro provides you with an advanced merging algorithm that ensures these kinds of cases don't easily occur. It does an
+intelligent merge with the following algorithm:
+
+- It is a detailed deep merge. Thus, the target table entry is updated, not overwritten.
+- If the query *asks* for a value but the result *does not* contain it, then that value *is removed*.
+- If the query *didn't ask* for a value, then the existing database value is untouched.
+
+This reduces the problem to one of potential staleness. It is technically possible for an entity in the resulting client
+database to be in a state that has never existed on the server because of such a partial update. This is considered
+to be a better result than the arbitrary UI madness that a more naive approach would cause.
+
+For example, in the example above a query for a list row will update the name and image. All of the other details (if already
+loaded) would remain the same; however, it is possible that the server has run a mutation that also updated this person's
+phone number. The detail part of the UI will be showing an updated name and image, but the old phone number. Technically
+this "state of Person" has never existed in the server's timeline, but from a user's perspective it looks better than
+the phone number disappearing.
+
+In practice this isn't that big of a deal; however, if you are switching the UI to an edit mode it is generally a good practice to
+on-demand (re)load the entity being edited to help prevent user confusion.
+
+=== Defining Error Conditions [[WhatIsAnError]]
+
+Both loads and mutations have a general concept of network errors that is customizable.
+The default detection of error conditions looks at the `status-code` of the network result. If it
+is 200, then it is considered "ok", and anything else is an error. You may want to customize this
+behavior to also look for other bits of content in the result, which can be specific to the
+remote and middleware definitions.
+
+There is one global definition for error detection that is used for both loads and mutations.
+It can be overridden with the `:remote-error?` option when creating the application:
+
+```
+(def app (app/fulcro-app {:remote-error? (fn [result] ...)}))
+```
+
+== React Lifecycle and Load
+
+React lifecycle and Load may not mix well. It is technically legal to issue transactions and loads from React Lifecycle,
+methods, but it is recommended that you carefully check the state of the system in said mutations before actually
+queuing network traffic.
+Perhaps you wish to ensure something is loaded. To do that: trigger a mutation that checks state and optionally
+submits a load. You'll learn how to do this in the sections on the <<DataFetch, data fetch API>>.
+
 = Handling Mutations [[MutationsChapter]]
 
 Mutations are known by their symbol and are dispatched to the internal multi-method
@@ -4629,20 +4851,69 @@ to use the mutation unquoted in most situations (except where there are circular
 
 NOTE: You can get the "quoteless" feature <<CircularRefs, using the `m/declare-mutation`>> function as well.
 
-== The `env`
+=== The `env`
 
 Each stage of the mutation will receive an environment parameter the has a number of things in it that can be
 used to accomplish the real work of the mutation:
 
-`app`:: The application itself. Can be used to do things like call `transact!`, etc.
-`component`:: Will be the component (if any) that ran the transaction
-`ref`:: Will be the ident of the component (if any) that ran the transaction
-`state`:: The atom holding the state database. Optimistic actions `swap!` on this.
-`state-before-action`:: (in remotes) A map holding the value of the state database before the `:action` ran.
-`ast`:: The AST of the mutation node that is running.
-`com.fulcrologic.fulcro.algorithms.tx-processing/options`:: The map of options that was passed to `transact!` (if using
+`:app`:: The application itself. Can be used to do things like call `transact!`, etc.
+`:component`:: Will be the component (if any) that ran the transaction
+`:ref`:: Will be the ident of the component (if any) that ran the transaction
+`:state`:: The atom holding the state database. Optimistic actions `swap!` on this.
+`:state-before-action`:: (in remotes) A map holding the value of the state database before the `:action` ran.
+`:ast`:: The AST of the mutation node that is running.
+`:com.fulcrologic.fulcro.algorithms.tx-processing/options`:: The map of options that was passed to `transact!` (if using
 the default built-in transaction processing).
+`:result`:: (passed to `:result-action`, which may subsequently call `ok-action` or `error-action`).
+The raw remote response. This raw result's content will depend on the actual remote and middleware you're
+using for that remote, but it will typically include things like the raw response and the network result status code.
+`:dispatch`:: A map from section name to the lambdas that represent the other sections of the mutation (e.g. `:action`
+in this map is the lambda representing the `action` section of the mutation). This can be used to cross-call
+sections, usually to invent your own purpose-built sections of mutations via overriding the default `result-action`.
 
+=== The Sections
+
+The sections of a mutation include:
+
+`action`:: The optimistic action. Run before any network traffic is submitted.
+`remote`:: Instructions for the remote side of the mutation. The names of these sections
+are user-defined by the list of remotes you define when you create the application.
+The return value of a remote determines what, if anything, is sent to that remote.
+`result-action`:: Optional. The default value of this can be overridden as an application parameter.
+The `result-action` section receives network results as the arrive. The
+default result action handles mutation return values and cross-calls `ok-action` or `error-action`.
+`ok-action`:: Optional. *If* you are using the default `result-action`, the `ok-action` is called when
+the remote result received is free from errors.
+`error-action`:: Optional. *If* you are using the default `result-action`, the `error-action` is called
+when the remote result was an error. See <<WhatIsAnError, Defining Error Conditions>>.
+
+== Result Action
+
+A key part of `defmutation` is that it emits a "default" result action that does a number
+of automatic operations for your mutation's network results:
+
+* If there is an error, it calls your `error-action` section.
+* If there is not an error, it calls you `ok-action` section.
+* If it was configured with a global error handler, then that handler is called on errors (see the docstring
+of `default-result-action`).
+* It merges and targets the mutation's remote return value (if you indicated there was a return value).
+* It resolves tempids.
+
+IMPORTANT: If you override the `result-action` section, then *none* of these default behaviors will happen unless you do them
+yourself.  If you want to *augment* the default behavior, then you can manually call the `m/default-result-action`
+function as part of your own `:result-action`.
+
+=== Plugging in a New Global Result Action
+
+You can supply a lambda to use instead of `default-result-action` when you create your application:
+
+```
+(def app (app/fulcro-app {:default-result-action (fn [env] ...)}))
+```
+
+WARNING: This setting will affect *all* mutations in your system, and should be used with care.  If you choose not
+to call `m/default-result-action` within your custom function then mutation return values, tempid resolution,
+and ok/error action handlers *will not work*.
 
 == Ownership Mutations
 
@@ -4907,11 +5178,11 @@ namespace to it. In any case the symbol is just that: a symbol (data) that acts 
 key for the multimethod. If you use a plain quote (`'`) then you should manually namespace the symbol.
 ****
 
-The biggest trick to this technique is the `result-action` key. Any remote results will be passed, unprocessed, to this
-handler *and only this handler*.  The `defmutation` macro provides a default implementation of this action
+The biggest trick to this technique is the `:result-action` key. Any remote results will be passed, unprocessed, to this
+handler *and only this handler*.  The `defmutation` macro uses a default implementation of this action
 that merges results, checks for errors, calls other handlers, etc. If you make a multimethod, then you will not
 get *any* of that built-in behavior. If all you want to do is change the result
-action, then look into setting the `default-result-action` option when you create your application.
+action, then look into setting the `:default-result-action` option when you create your application.
 
 If you would like your multimethod mutation to work like `defmutation` then you should do the following in your
 `:result-action`:
@@ -5091,197 +5362,6 @@ Here is the full running example with source:
 ----
 include::src/book/book/merge_component.cljs[]
 ----
-
-= Full Stack Operation [[FullStack]]
-
-One of the most interesting and powerful things about Fulcro is that the model for server interaction is unified into
-a clean data-driven structure. At first the new concepts can be challenging, but once you've seen the core primitive
-(component-based queries/idents for normalization) we think you'll find that it dramatically simplifies everything!
-
-In fact, now that you've completed the materials of this guide on the graph database, queries, idents, and
-normalization, it turns out that the server interactions become nearly trivial!
-
-Not only is the *structure* of server interaction well-defined, Fulcro come with pre-written middleware
-to handle plumbing for you.
-
-However, there are a lot of possible pitfalls when writing distributed applications. People often underestimate just how hard
-it is to get web applications right because they forget that.
-
-So, while the *API and mechanics* of how you write Fulcro server interactions are as simple as possible there is no getting
-around that there are some hairy things to navigate in distributed apps independent of your choice of tools.
-Fulcro tries to make these things apparent, and it also tries hard to make sure you're able to get it right without
-pulling out your hair.
-
-Here are some of the basics:
-
-* The Network protocol is included (and extensible))
- ** The protocol is EDN on the wire (via transit), which means you just speak Clojure data on the wire, and can
- easily extend it to encode/decode new types.
-* All network requests (queries and mutations) are processed sequentially unless you specify otherwise. This allows you
-to reason about optimistic updates (Starting more than one at a time via async calls could
-lead to out-of-order execution, and impossible-to-reason-about recovery from errors).
-* You can provide error handling for remote problems at a global or mutation-local level.
-* You can interact directly with the network result or use default result processing.
-* Any `:ui/` namespaced query elements are automatically elided when generating a query from the UI to a server, allowing you
-to easily mix UI concerns with server concerns in your component queries. You can also change the global rewrite
-logic to elide other local props from remote queries.
-* Normalization of a remote query result is automatic when using `defmutation`, but customizable.
-** Query results use <<ResultMerge,intelligent overwrite>> for properties that are already present in the client database.
-* Any number of remotes can be defined
-* Protocol and communication is strictly constrained to the networking layer and away from your application's core structure,
-meaning you can actually speak whatever and however you want to a remote. In fact
-the concept of a remote is just "something you can talk to via queries and mutations".
-You can easily define a "remote" that reads and writes browser
-local storage or a Datascript database in the browser. This is an extremely powerful generalization for isolating
-side-effect code from your UI.
-
-NOTE: To those of you with REST or GraphQL APIs: See the Pathom library for ways of converting those services
-into custom client remotes that isolate those APIs to the networking layers of your client.
-
-== General Theory of Operation
-
-There are only a few general kinds of interactions with a server:
-
-* Initial loads when the application starts
-* Incremental loads of sub-graphs of something that was previously loaded.
-* Event-based loads (e.g. user or timed events)
-* Integrating data from other external sources (e.g. server push)
-* Run a remote operation, which can optionally return a graph of data as a response.
-
-In standard Fulcro networking, *all* of the above have the following similarities:
-
-* A component-based graph query needs to be involved to enable auto-normalization. This is true even for a server push
-(though in that case the client needs to know what **implied** query the server is sending data about).
-* The data from the server will be a tree that has the same shape as the query.
-* The data needs to be normalized into the client database.
-* Optionally: after integrating new data there may be some need to transform the result to a form the UI needs
-(e.g. perhaps you need to sort or paginate some list of items that came in).
-
-**IMPORTANT**: Remember what you learned about the graph database, queries, and idents. This section cannot possibly be understood
-properly if you do not understand those topics!
-
-=== Integration of *ALL* new external data is just a Query-Based Merge
-
-So, here is the secret: When external data needs to go into your database it all uses the exact same mechanism: a
-query-based merge. So, for a simple load: you send a UI-based query to the server, the server responds with a tree
-of data that matches that graph query, and then the query itself (which is annotated with the components and ident functions)
-can be used to normalize the result. Finally, the normalized result can be merged into your existing client database.
-
-----
-Query --> Server --> Response + Original Query w/Idents --> Normalized Data --> Database Merge --> New Database
-----
-
-Any other kind of external data integration just starts at the "Response" step by manually providing the query:
-
-----
-New External Data + Query w/Idents --> Normalized Data --> Database Merge --> New Database
-----
-
-There is a primitive function `merge/merge!` function that implements this, so that you can simplify the picture to:
-
-----
-Tree of Data + Query --> merge! --> New Database
-----
-
-=== The Central Functions: `transact!` and `merge!`
-
-The two core functions that allow you to trigger abstract operations or data merges externally
-(via your `app`) are:
-
-[Horizontal]
-`comp/transact!`:: The central function for running abstract (possibly full-stack) changes in the application.
-Can be run with a component _or_ app. If run with the app, will typically cause a root re-render.
-`merge/merge!`:: A function that can be run against the app to merge a tree of data via a UI query.
-`merge/merge-component!`:: Like `merge!`, but can be passed a component instead of a query.
-`merge/merge*`:: `merge!`, but in a mutation via `swap!`
-
-These (and related/derived helpers) are the primary tools used to put new data into your client's database.
-
-=== Query Mismatch
-
-We have all sorts of ways we'd like to view data. Perhaps we'd like to view "all the people who've ever had a particular
-phone number". That is something we can very simply represent with a UI graph, but may not be trivial to pull from
-our database.
-
-In general, there are a few approaches to resolving our graph differences:
-
-. Use a query parser on the server to piece together data based on the graph of the query (preferred).
-. Ask the server for exactly what you want, using an invented well-known "root" keyword, and hand-code the database
-code to create the UI-centric view.
-. Ask the server for the data in a format it can provide and morph it on the client.
-
-The first two have the advantage of making the client blissfully unaware of the server schema. It just asks for what
-it needs, and someone on the server programming team makes it happen. Fortunately, pathom makes this approach
-quite tractable and good.
-
-In some cases, though, you'd like to morph it a bit on the client-side. We'll show you an example of this
-as we explore the data fetch options.
-
-=== Server Interaction Order
-
-Fulcro will serialize requests unless you mark queries as parallel (an option you can specify with `df/load!`). Two different
-*events* that queue mutations or loads will be processed in order. For example, if the user clicks on something and you trigger two loads
-during *that event*, then both of those *may* be combined (if they don't conflict by querying for the same thing)
-and sent as one network request. If the user clicks on something else and that handler queues two more loads, then the latter two
-loads will not start over the network until the first load sequence has completed.
-
-This ensures that you don't get out-of-order
-server execution. This is a distributed system, so it is possible for a second request to hit a less congested server (or even thread)
-than the first and get processed out of order. That would hurt your ability to reason about your program, so the default behavior in
-Fulcro is to ensure that server interactions happen on the server in the same order as they do on the client.
-
-Fulcro will also try to reorder writes that are submitted alongside reads so that the writes appear on the server first,
-giving you the best possible chance that the reads get the most up-to-date versions of data.
-
-In Summary:
-
-- Loads/transactions queued while "holding the UI thread" may be joined together in a single network request.
-- Remote writes go before reads (for a given processing event)
-- Loads/transactions queued at a later event (new UI thread event) are guaranteed to be processed after ones queued earlier.
-- You can override this behavior with the `parallel` option of `load!`.
-
-=== Server Result Query Merging [[ResultMerge]]
-
-There is a potential for a data-driven app to create a new class of problem related to merging data. The normalization
-guarantees that the data for any number of *views* of the same thing are normalized to the same *node* in the graph
-database.
-
-Thus, your `PersonListRow` view and `PersonDetail` view should both normalize the same person data to
-a location like `[:person/id id]`. Let's say you have a quick list of people on the screen that is paginated and
-demand-loaded, where each row is a `PersonListRow` with query `[:db/id :person/name {:person/image (comp/get-query Image)}]`.
-Now say that you can click on one of these rows and a side-by-side view of that person's `PersonDetail` is shown,
-but the query for that is a whole bunch of stuff: name, age, address, phone numbers, etc. A *much* larger query.
-
-A naive merge could cause you all sorts of nightmares. For example, Refreshing the list rows would load only name and image,
-but if merge overwrote the entire table *entry* then the current detail would suddenly empty out!
-
-Fulcro provides you with an advanced merging algorithm that ensures these kinds of cases don't easily occur. It does an
-intelligent merge with the following algorithm:
-
-- It is a detailed deep merge. Thus, the target table entry is updated, not overwritten.
-- If the query *asks* for a value but the result *does not* contain it, then that value *is removed*.
-- If the query *didn't ask* for a value, then the existing database value is untouched.
-
-This reduces the problem to one of potential staleness. It is technically possible for an entity in the resulting client
-database to be in a state that has never existed on the server because of such a partial update. This is considered
-to be a better result than the arbitrary UI madness that a more naive approach would cause.
-
-For example, in the example above a query for a list row will update the name and image. All of the other details (if already
-loaded) would remain the same; however, it is possible that the server has run a mutation that also updated this person's
-phone number. The detail part of the UI will be showing an updated name and image, but the old phone number. Technically
-this "state of Person" has never existed in the server's timeline, but from a user's perspective it looks better than
-the phone number disappearing.
-
-In practice this isn't that big of a deal; however, if you are switching the UI to an edit mode it is generally a good practice to
-on-demand (re)load the entity being edited to help prevent user confusion.
-
-== React Lifecycle and Load
-
-React lifecycle and Load may not mix well. It is technically legal to issue transactions and loads from React Lifecycle,
-methods, but it is recommended that you carefully check the state of the system in said mutations before actually
-queuing network traffic.
-Perhaps you wish to ensure something is loaded. To do that: trigger a mutation that checks state and optionally
-submits a load. You'll learn how to do this in the sections on the <<DataFetch, data fetch API>>.
 
 = Loads
 
@@ -11476,22 +11556,6 @@ NOTE: when logging errors, be sure to log the exception first. This is documente
   (catch :default ex
     (log/error ex ...))
 ```
-
-= Converting HTML to Fulcro
-
-This chapter has a simple little live application that can convert valid HTML into the Clojure(script) you'd use
-within a Fulcro component. Note that stray whitespace will be converted to (harmless) things like `" \n"` that can be easily
-removed, and the output indentation isn't ideal; Still, it turns the task into one of simple formatting:
-
-++++
-<div class="example" id="html-converter"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.html-converter').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="html-converter source"]
-----
-include::src/book/book/html_converter.cljs[]
-----
 
 = Demos
 
