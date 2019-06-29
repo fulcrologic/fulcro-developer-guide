@@ -2535,7 +2535,7 @@ from the server.
 At this point you've gotten more detailed view of what a Fulcro application looks like.  The remaining chapters of this
 book go into considerably more detail about each important part of the API.
 
-= Component Rendering
+= Components and Rendering
 
 == HTML5 Element Factories
 
@@ -3635,6 +3635,18 @@ which then allows you to write components like this:
 The "extra props" are actually encoded onto the internal raw js props of React,
 so the most common operation is to leverage `wrap-update-extra-props` so you only
 affect those.
+
+== Component Options
+
+The component options map that appears after the argument list is just that: a plain map.  The
+`defsc` macro adds a bit of magic to the three central items (`initial-state`, `query`, and
+`ident`), but otherwise the map is open; that is to say you can add you own stuff to it, and
+whatever you add will be available via `comp/component-options` on both the component class
+and the instances.
+
+This opens up all sorts of possibilities for extensions. The form-state library, component-local CSS,
+and new dynamic router use this fact and add their own keys that only they use and know about.
+You can too.
 
 == React Higher-Order Components
 
