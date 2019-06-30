@@ -1,7 +1,7 @@
 (ns book.demos.dynamic-ui-main
   (:require
     [com.fulcrologic.fulcro.components :refer [defsc]]
-    [com.fulcrologic.fulcro.routing.union-router :as r]
+    [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]
     [com.fulcrologic.fulcro.dom :as dom]
     cljs.loader
     [taoensso.timbre :as log]))

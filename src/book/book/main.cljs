@@ -32,8 +32,8 @@
     book.demos.loading-data-targeting-entities
     book.demos.loading-in-response-to-UI-routing
     book.demos.loading-indicators
-    ;book.demos.paginating-large-lists-from-server
-    ;book.demos.parallel-vs-sequential-loading
+    book.demos.paginating-large-lists-from-server
+    book.demos.parallel-vs-sequential-loading
     book.demos.parent-child-ownership-relations
     book.demos.pre-merge.post-mutation-countdown
     book.demos.pre-merge.post-mutation-countdown-many
@@ -50,7 +50,7 @@
     ;book.demos.server-targeting-return-values-into-app-state
     ;book.demos.server-return-values-manually-merging
     [book.server.ui-blocking-example :as ui-blocking]
-
+    [book.pathom :as po]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [taoensso.timbre :as log]
     [com.fulcrologic.fulcro-css.css-injection :as css]
@@ -63,37 +63,22 @@
     [com.fulcrologic.fulcro.application :as app]
     [taoensso.encore :as encore]))
 
-(defonce latency (atom 100))
+(def non-conflicting-resolvers [db/general-resolvers
+                                autocomplete/list-resolver
+                                book.forms.form-state-demo-2/resolvers
+                                book.demos.loading-data-basics/resolvers
+                                book.demos.pre-merge.post-mutation-countdown/resolvers
+                                book.demos.pre-merge.post-mutation-countdown-many/resolvers
+                                book.demos.pre-merge.countdown/resolvers
+                                book.demos.pre-merge.countdown-many/resolvers
+                                book.demos.pre-merge.countdown-with-initial/resolvers
+                                book.demos.pre-merge.countdown-initial-state/resolvers
+                                book.demos.pre-merge.countdown-extracted/resolvers
+                                book.demos.paginating-large-lists-from-server/infinite-pages
+                                book.demos.parallel-vs-sequential-loading/long-query-resolver
+                                #_book.demos.cascading-dropdowns/model-resolver])
 
-(def my-resolvers [db/general-resolvers
-                   autocomplete/list-resolver
-                   book.forms.form-state-demo-2/resolvers
-                   book.demos.loading-data-basics/resolvers
-                   book.demos.pre-merge.post-mutation-countdown/resolvers
-                   book.demos.pre-merge.post-mutation-countdown-many/resolvers
-                   book.demos.pre-merge.countdown/resolvers
-                   book.demos.pre-merge.countdown-many/resolvers
-                   book.demos.pre-merge.countdown-with-initial/resolvers
-                   book.demos.pre-merge.countdown-initial-state/resolvers
-                   book.demos.pre-merge.countdown-extracted/resolvers
-                   #_book.demos.cascading-dropdowns/model-resolver])
-
-(def parser
-  (p/parallel-parser
-    {::p/env     {::p/reader [p/map-reader
-                              pc/parallel-reader
-                              pc/open-ident-reader]}
-     ::p/mutate  pc/mutate-async
-     ::p/plugins [(pc/connect-plugin {::pc/register my-resolvers})
-                  p/error-handler-plugin
-                  p/request-cache-plugin
-                  (p/post-process-parser-plugin p/elide-not-found)]}))
-
-(defmutation set-server-latency [{:keys [delay]}]
-  (action [{:keys [app state]}]
-    (js/console.log "Latency set to" delay)
-    (reset! latency delay)
-    (swap! state assoc-in [:server-control/by-id :server :server-control/delay] delay)))
+(defonce example-server (po/mock-remote non-conflicting-resolvers))
 
 (defsc ServerControl [this {:keys [:server-control/delay ui/hidden?]}]
   {:query         [:server-control/delay :ui/hidden?]
@@ -112,8 +97,8 @@
                              :right           (if hidden? "-179px" "-1px")}})
     (dom/div nil "Latency: " (dom/span nil delay))
     (dom/br nil)
-    (dom/button #js {:disabled (> delay 2000) :onClick #(comp/transact! this `[(set-server-latency {:delay ~(+ delay 500)})])} "Slower")
-    (dom/button #js {:disabled (< delay 500) :onClick #(comp/transact! this `[(set-server-latency {:delay ~(- delay 500)})])} "Faster")
+    (dom/button #js {:disabled (> delay 2000) :onClick #(comp/transact! this `[(po/set-server-latency {:delay ~(+ delay 500)})])} "Slower")
+    (dom/button #js {:disabled (< delay 500) :onClick #(comp/transact! this `[(po/set-server-latency {:delay ~(- delay 500)})])} "Faster")
     (dom/div #js {:onClick #(m/toggle! this :ui/hidden?)
                   :style   #js {:color           "grey"
                                 :backgroundColor "lightgray"
@@ -133,12 +118,7 @@
   (dom/div #js {:key react-key}
     (ui-server-control server-control)))
 
-(defonce example-server
-  (let [transmit! (:transmit! (mock-http-server {:parser (fn [req] (parser {} req))}))]
-    {:remote {:transmit! (fn [this send-node]
-                           (js/setTimeout
-                             #(transmit! this send-node)
-                             @latency))}}))
+
 
 (css/upsert-css "example-css" {:component     book.macros/ExampleRoot
                                :auto-include? false})
@@ -152,7 +132,7 @@
 ;
 ;;; Dynamic queries
 (defexample "Dynamic Query" book.queries.dynamic-queries/Root "dynamic-queries")
-(defexample "Dyanmic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters")
+(defexample "Dynamic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters")
 ;
 (defexample "Routing Demo" book.ui-routing/Root "ui-routing" :remotes book.main/example-server)
 (defexample "Simple Router" book.simple-router-1/Root "simple-router-1")
@@ -181,11 +161,11 @@
 (defexample "Loading Indicators" book.demos.loading-indicators/Root "loading-indicators" :remotes book.main/example-server)
 (defexample "Initial State" book.demos.initial-app-state/Root "initial-app-state" :remotes book.main/example-server)
 ;#?(:cljs (defexample "Legacy Load Indicators" book.demos.legacy-load-indicators/Root "legacy-load-indicators" :remotes book.main/example-server))
-;#?(:cljs (defexample "Paginating Lists From Server" book.demos.paginating-large-lists-from-server/Root "paginating-large-lists-from-server"
-;           :started-callback book.demos.paginating-large-lists-from-server/initialize
-;           :remotes book.main/example-server))
-;
-;#?(:cljs (defexample "Parallel vs. Sequential Loading" book.demos.parallel-vs-sequential-loading/Root "parallel-vs-sequential-loading" :remotes book.main/example-server))
+(defexample "Paginating Lists From Server" book.demos.paginating-large-lists-from-server/Root
+  "paginating-large-lists-from-server"
+  :client-did-mount book.demos.paginating-large-lists-from-server/initialize
+  :remotes book.main/example-server)
+(defexample "Parallel vs. Sequential Loading" book.demos.parallel-vs-sequential-loading/Root "parallel-vs-sequential-loading" :remotes book.main/example-server)
 (defexample "Parent-Child Ownership" book.demos.parent-child-ownership-relations/Root "parent-child-ownership-relations" :remotes book.main/example-server)
 
 ;
@@ -210,9 +190,10 @@
 ;           :remotes book.main/example-server))
 ;#?(:cljs (defexample "Targeting Mutation Return Values" book.demos.server-targeting-return-values-into-app-state/Root "server-targeting-return-values-into-app-state" :remotes book.main/example-server))
 
-(defonce server-control-app (app/fulcro-app
-                              {:client-did-mount (fn [app]
-                                                   (comp/transact! app [(set-server-latency {:delay 100})]))}))
+(defonce server-control-app
+  (app/fulcro-app
+    {:client-did-mount (fn [app]
+                         (comp/transact! app [(po/set-server-latency {:delay 100})]))}))
 
 (defn ^:export init []
   (js/console.log "Init")
@@ -221,7 +202,7 @@
   (db/seed-database))
 
 (defn ^:export focus [app-id]
-  (encore/when-let [app        (get @book.macros/app-registry app-id)
-                    state-map  (app/current-state app)
+  (encore/when-let [app (get @book.macros/app-registry app-id)
+                    state-map (app/current-state app)
                     inspect-id (get state-map :fulcro.inspect.core/app-uuid)]
     (inspect/set-active-app inspect-id)))

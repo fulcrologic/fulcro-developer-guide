@@ -7,7 +7,8 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.wsscode.pathom.connect :as pc]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
-    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -54,10 +55,10 @@
                {:ui/counter (comp/get-query CountdownButton)}]
    :pre-merge (fn [{:keys [current-normalized data-tree]}]
                 (let [initial (merge/nilify-not-found (::counter-initial data-tree))]
-                  (merge
-                    {:ui/counter (cond-> {} initial (assoc :ui/count initial))}
-                    current-normalized
-                    data-tree)))}
+                  (log/spy :info (merge
+                                   {:ui/counter (cond-> {} initial (assoc :ui/count initial))}
+                                   current-normalized
+                                   data-tree))))}
   (dom/div
     (dom/h4 (str counter-label " [" (or counter-initial default-count) "]"))
     (ui-countdown-button counter)))
@@ -76,8 +77,6 @@
    :query         [{::all-counters (comp/get-query Countdown)}]}
   (dom/div
     (dom/h3 "Counters")
-    (if (seq all-counters)
+    (when (seq all-counters)
       (dom/div {:style {:display "flex" :alignItems "center" :justifyContent "space-between"}}
-        (mapv ui-countdown all-counters))
-      (dom/button {:onClick #(df/load! this ::all-counters Countdown)}
-        "Load many counters"))))
+        (mapv ui-countdown all-counters)))))

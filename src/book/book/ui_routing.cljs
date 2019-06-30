@@ -1,6 +1,6 @@
 (ns book.ui-routing
   (:require
-    [com.fulcrologic.fulcro.routing.union-router :as r :refer-macros [defsc-router]]
+    [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r :refer-macros [defsc-router]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
@@ -92,7 +92,7 @@
                            (r/router-instruction :report-router [:status-report :param/report-id])])))
 
 (defsc Root [this {:keys [top-router]}]
-  ; r/routing-tree-key implies the alias of com.fulcrologic.fulcro.routing.union-router as r.
+  ; r/routing-tree-key implies the alias of com.fulcrologic.fulcro.routing.legacy-ui-routers as r.
   {:initial-state (fn [params] (merge routing-tree
                                  {:top-router (comp/get-initial-state TopRouter {})}))
    :query         [r/routing-tree-key

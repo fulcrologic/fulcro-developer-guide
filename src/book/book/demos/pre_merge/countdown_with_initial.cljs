@@ -59,7 +59,3 @@
         (mapv ui-countdown all-counters))
       (dom/button {:onClick #(df/load! this ::all-counters Countdown)}
         "Load many counters"))))
-
-(defn initialize
-  "To be used in :started-callback to pre-load things."
-  [app])

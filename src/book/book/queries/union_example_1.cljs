@@ -1,7 +1,7 @@
 (ns book.queries.union-example-1
   (:require
     [com.fulcrologic.fulcro.dom :as dom :refer [div table td tr th tbody]]
-    [com.fulcrologic.fulcro.routing.union-router :as r :refer [defsc-router]]
+    [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r :refer [defsc-router]]
     [book.elements :as ele]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [taoensso.timbre :as log]))
