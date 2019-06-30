@@ -1,3 +1,101 @@
+.++++
+<div class="example" id="loading-data-targeting-entities"> </div>
+<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-data-targeting-entities').toggle()">Show/Hide Source</a>
+++++
+
+[source,clojure,role="loading-data-targeting-entities source"]
+----
+include::src/book/book/demos/loading_data_targeting_entities.cljs[]
+----
+
+[[LoadingDataTargetingEntities]]<<LoadingDataTargetingEntities,Loading Data Targeting Entities>>
+====
+
+++++
+<button class="inspector" onClick="book.main.focus('loading-data-targeting-entities')">Focus Inspector</button>
+<div class="short narrow example" id="loading-data-targeting-entities"></div>
+<br/>
+++++
+
+[source,clojure,role="source"]
+----
+include::src/book/book/demos/loading_data_targeting_entities.cljs[]
+----
+
+====
+
+
+;;;;;;;;;;;;;;;;;;;
+
+
+
+
+
+.[[LoadingDataBasics]]<<LoadingDataBasics,Loading Data Basics>>
+====
+
+++++
+<button class="inspector" onClick="book.main.focus('loading-data-basics')">Focus Inspector</button>
+<div class="short narrow example" id="loading-data-basics"></div>
+<br/>
+++++
+
+[source,clojure,role="source"]
+----
+include::src/book/book/demos/loading_data_basics.cljs[]
+----
+
+====
+
+
+;;;;;;;;;;;;;;;;;;;
+
+
+
+
+.[[ServerTargetingReturnValuesIntoAppState]]<<ServerTargetingReturnValuesIntoAppState,Server Targeting Return Values into App State>>
+====
+
+++++
+<button class="inspector" onClick="book.main.focus('server_targeting_return_values_into_app_state')">Focus Inspector</button>
+<div class="short narrow example" id="server_targeting_return_values_into_app_state"></div>
+<br/>
+++++
+
+[source,clojure,role="source"]
+----
+include::src/book/book/demos/server_targeting_return_values_into_app_state.cljs[]
+----
+
+====
+
+
+;;;;;;;;;;;;;;;;;;;
+
+
+
+.[[ServerQuerySecurityExample]]<<ServerQuerySecurityExample,Server Query Security Example>>
+====
+
+++++
+<button class="inspector" onClick="book.main.focus('server-query-security')">Focus Inspector</button>
+<div class="short narrow example" id="server-query-security"></div>
+<br/>
+++++
+
+[source,clojure,role="source"]
+----
+include::src/book/book/demos/server_query_security.cljs[]
+----
+
+====
+
+
+;;;;;;;;;;;;;;;;;;;
+
+
+
+
 .[[D3Example]]<<D3Example,D3>>
 ====
 

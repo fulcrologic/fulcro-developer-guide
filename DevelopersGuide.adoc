@@ -2616,15 +2616,21 @@ Below is a simple little live application that can convert valid HTML into the C
 within a Fulcro component. Note that stray whitespace will be converted to (harmless) things like `" \n"` that can be easily
 removed, and the output indentation isn't ideal; Still, it turns the task into one of simple formatting:
 
+.[[HTMLConverter]]<<HTMLConverter,HTML Converter>>
+====
+
 ++++
-<div class="example" id="html-converter"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.html-converter').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('html-converter')">Focus Inspector</button>
+<div class="short narrow example" id="html-converter"></div>
+<br/>
 ++++
 
-[source,clojure,role="html-converter source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/html_converter.cljs[]
 ----
+
+====
 
 == The `defsc` Macro
 
@@ -3411,15 +3417,22 @@ scenes.
 The following code is an example using component local state to render a box that follows the hover position
 of the mouse.
 
+.[[DrawingCanvas]]<<DrawingCanvas,Drawing in a Canvas>>
+====
+
 ++++
-<div class="example" id="hover-example"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.hover-example').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('hover-example')">Focus Inspector</button>
+<div class="short narrow example" id="hover-example"></div>
+<br/>
 ++++
 
-[source,clojure,role="hover-example source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/ui/hover_example.cljs[]
 ----
+
+====
+
 
 The component receives mouse move events to show a hover box. In this case we really don't care to take the overhead
 to track the cursor position in real app state, so we leverage component local state instead.
@@ -3477,15 +3490,22 @@ years, and a Y axis that contains dollar amounts. Really the data is irrelevant,
 
 The running code and source are below:
 
+
+.[[UsingExternalReactLibraries]]<<UsingExternalReactLibraries,Using External React Libraries>>
+====
+
 ++++
-<div class="example" id="victory-example"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.victory-example').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('victory-example')">Focus Inspector</button>
+<div class="short narrow example" id="victory-example"></div>
+<br/>
 ++++
 
-[source,clojure,role="victory-example source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/ui/victory_example.cljs[]
 ----
+
+====
 
 === The Function-As-a-Child Pattern
 
@@ -4025,15 +4045,21 @@ You can see that this just defines a union whose "selection" is controlled by th
 
 Here is a complete working example that uses this to make a UI around displaying things of various types:
 
+.[[UnionsToSelectType]]<<UnionsToSelectType,Unions to Select Type>>
+====
+
 ++++
-<div class="example" id="union-example-1"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.union-example-1').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('union-example-1')">Focus Inspector</button>
+<div class="short narrow example" id="union-example-1"></div>
+<br/>
 ++++
 
-[source,clojure,role="union-example-1 source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/queries/union_example_1.cljs[]
 ----
+
+====
 
 == Mutations [[Mutations]]
 
@@ -4262,15 +4288,21 @@ NOTE: At the time of this writing you must use the lamba mode of `defsc` for que
 
 The following demo (with source) demonstrates the core basics of recursion:
 
+.[[RecursiveDemo1]]<<RecursiveDemo1,Recursive Demo 1>>
+====
+
 ++++
-<div class="example" id="recursive-demo-1"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.recursive-demo-1').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('recursive-demo-1')">Focus Inspector</button>
+<div class="short narrow example" id="recursive-demo-1"></div>
+<br/>
 ++++
 
-[source,clojure,role="recursive-demo-1 source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/queries/recursive_demo_1.cljs[]
 ----
+
+====
 
 === Circular Recursion
 
@@ -4285,15 +4317,22 @@ lead to funny-looking results.
 The demo below lets you modify people and their spouse (a circular relation). Try it out
 and you'll see that something isn't quite right (try making Sally older):
 
+.[[RecursiveDemo2]]<<RecursiveDemo2,Recursive Demo 2>>
+====
+
 ++++
-<div class="example" id="recursive-demo-2"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.recursive-demo-2').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('recursive-demo-2')">Focus Inspector</button>
+<div class="short narrow example" id="recursive-demo-2"></div>
+<br/>
 ++++
 
-[source,clojure,role="recursive-demo-2 source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/queries/recursive_demo_2.cljs[]
 ----
+
+====
+
 
 The problem is that when you touch Sally the UI refresh updates *just* that component; however,
 that component has a recursive query of depth 1, so it ends up returning Joe as her spouse! This
@@ -4303,15 +4342,21 @@ The fix is equally simple: calculate depth and pass it to the child. Use the cal
 to prevent the extra rendering when local refresh gives you data you don't need. The
 demo below has this fix.
 
+.[[RecursiveDemo3]]<<RecursiveDemo3,Recursive Demo 3>>
+====
+
 ++++
-<div class="example" id="recursive-demo-3"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.recursive-demo-3').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('recursive-demo-3')">Focus Inspector</button>
+<div class="short narrow example" id="recursive-demo-3"></div>
+<br/>
 ++++
 
-[source,clojure,role="recursive-demo-3 source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/queries/recursive_demo_3.cljs[]
 ----
+
+====
 
 === Duplicates and Recursion
 
@@ -4325,15 +4370,21 @@ entries. It simply merges the multiple copies into the same normalized entry in 
 Since the two entries merge to the same entry, it also means the modifications will
 be shared among them. Try checking item `B.1` in either location.
 
+.[[RecursiveDemo4]]<<RecursiveDemo4,Recursive Demo 4>>
+====
+
 ++++
-<div class="example" id="recursive-demo-bullets"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.recursive-demo-bullets').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('recursive-demo-bullets')">Focus Inspector</button>
+<div class="short narrow example" id="recursive-demo-bullets"></div>
+<br/>
 ++++
 
-[source,clojure,role="recursive-demo-bullets source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/queries/recursive_demo_bullets.cljs[]
 ----
+
+====
 
 == The AST
 
@@ -4467,15 +4518,21 @@ performance.
 
 The following demo shows all of this in action.
 
+.[[InitialState]]<<InitialState,Initial State>>
+====
+
 ++++
-<div class="example" id="initial-app-state"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.initial-app-state').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('initial-app-state')">Focus Inspector</button>
+<div class="short narrow example" id="initial-app-state"></div>
+<br/>
 ++++
 
-[source,clojure,role="initial-app-state source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/demos/initial_app_state.cljs[]
 ----
+
+====
 
 
 == Initial State and State Progressions
@@ -5490,15 +5547,22 @@ which is targeting to-many so we can demo more features.
 +
 The server mutation just returns the entity.
 
+.[[ServerTargetingReturnValuesIntoAppState]]<<ServerTargetingReturnValuesIntoAppState,Server Targeting Return Values into App State>>
+====
+
 ++++
-<div class="example" id="server-targeting-return-values-into-app-state"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-targeting-return-values-into-app-state').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('server_targeting_return_values_into_app_state')">Focus Inspector</button>
+<div class="short narrow example" id="server_targeting_return_values_into_app_state"></div>
+<br/>
 ++++
 
-[source,clojure,role="server-targeting-return-values-into-app-state source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/demos/server_targeting_return_values_into_app_state.cljs[]
 ----
+
+====
+
 
 === Augmenting the Ring Response
 
@@ -5542,15 +5606,24 @@ that wants to modify the state (the delete button on the item) is not local to t
 The solution is simple: create a callback in the parent that can run the delete transaction and pass it through
 as a computed value.
 
+
+.[[ParentChildOwnership]]<<ParentChildOwnership,Parent-Child Ownership>>
+====
+
 ++++
-<div class="example" id="parent-child-ownership-relations"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.parent-child-ownership-relations').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('parent-child-ownership-relations')">Focus Inspector</button>
+<div class="short narrow example" id="parent-child-ownership-relations"></div>
+<br/>
 ++++
 
-[source,clojure,role="parent-child-ownership-relations source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/demos/parent_child_ownership_relations.cljs[]
 ----
+
+====
+
+
 <1> The item uses the computed callback
 <2> The list creates a lambda that closes over the list id
 
@@ -5804,17 +5877,25 @@ UI queries don't match what you'd like to ask the server).
    :query [:id {:subs (comp/get-query SubQuery)}]})
 ```
 
+.[[TreeToDBWithQueries]]<<TreeToDBWithQueries,Tree to DB with Queries>>
+====
+
 ++++
-<div class="example" id="tree-to-db"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.tree-to-db').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('tree-to-db')">Focus Inspector</button>
+<div class="short narrow example" id="tree-to-db"></div>
+<br/>
 ++++
 
-[source,clojure,role="tree-to-db source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/tree_to_db.cljs[]
 ----
 
-of course, you can see that you're still going to need to merge the database table contents into your main app state
+====
+
+
+
+Of course, you can see that you're still going to need to merge the database table contents into your main app state
 and carefully integrate the other bits as well.
 
 .Reminder
@@ -5893,15 +5974,21 @@ We'll want to:
 
 Here is the full running example with source:
 
+.[[MergingWithAComponent]]<<MergingWithAComponent,Merging with a Component>>
+====
+
 ++++
-<div class="example" id="merge-component"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.merge-component').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('merge-component')">Focus Inspector</button>
+<div class="short narrow example" id="merge-component"></div>
+<br/>
 ++++
 
-[source,clojure,role="merge-component source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/merge_component.cljs[]
 ----
+
+====
 
 = Loads
 
@@ -6007,15 +6094,21 @@ there is a helper function called `refresh!` that makes this a bit shorter to ty
 (df/refresh! this)
 ```
 
+.[[LoadingDataBasics]]<<LoadingDataBasics,Loading Data Basics>>
+====
+
 ++++
-<div class="example" id="loading-data-basics"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-data-basics').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('loading-data-basics')">Focus Inspector</button>
+<div class="short narrow example" id="loading-data-basics"></div>
+<br/>
 ++++
 
-[source,clojure,role="loading-data-basics source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/demos/loading_data_basics.cljs[]
 ----
+
+====
 
 === Targeting Loads
 
@@ -6115,15 +6208,21 @@ The main loader looks like this (and is called from root):
 
 The server is rather simple. It just makes up a person for any given random ID.
 
+.[[LoadingDataTargetingEntities]]<<LoadingDataTargetingEntities,Loading Data Targeting Entities>>
+====
+
 ++++
-<div class="example" id="loading-data-targeting-entities"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-data-targeting-entities').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('loading-data-targeting-entities')">Focus Inspector</button>
+<div class="short narrow example" id="loading-data-targeting-entities"></div>
+<br/>
 ++++
 
-[source,clojure,role="loading-data-targeting-entities source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/demos/loading_data_targeting_entities.cljs[]
 ----
+
+====
 
 === Other Load Options [[LoadOptions]]
 
@@ -11934,12 +12033,16 @@ code is:
 This logic is basically hacked in to the live example to give you an idea of how
 it looks.
 
+.[[ServerQuerySecurityExample]]<<ServerQuerySecurityExample,Server Query Security>>
+====
+
 ++++
-<div class="example" id="server-query-security"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-query-security').toggle()">Show/Hide Source</a>
+<button class="inspector" onClick="book.main.focus('server-query-security')">Focus Inspector</button>
+<div class="short narrow example" id="server-query-security"></div>
+<br/>
 ++++
 
-[source,clojure,role="server-query-security source"]
+[source,clojure,role="source"]
 ----
 include::src/book/book/demos/server_query_security.cljs[]
 ----
