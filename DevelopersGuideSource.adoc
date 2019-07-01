@@ -4182,15 +4182,9 @@ NOTE: At the time of this writing you must use the lamba mode of `defsc` for que
 
 The following demo (with source) demonstrates the core basics of recursion:
 
-++++
-<div class="example" id="recursive-demo-1"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.recursive-demo-1').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="recursive-demo-1 source"]
-----
-include::src/book/book/queries/recursive_demo_1.cljs[]
-----
+$example$ Recursive Demo 1,recursive-demo-1,src/book/book/queries/recursive_demo_1.cljs
+
 
 === Circular Recursion
 
@@ -4205,15 +4199,9 @@ lead to funny-looking results.
 The demo below lets you modify people and their spouse (a circular relation). Try it out
 and you'll see that something isn't quite right (try making Sally older):
 
-++++
-<div class="example" id="recursive-demo-2"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.recursive-demo-2').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="recursive-demo-2 source"]
-----
-include::src/book/book/queries/recursive_demo_2.cljs[]
-----
+$example$ Recursive Demo 2,recursive-demo-2,src/book/book/queries/recursive_demo_2.cljs
+
 
 The problem is that when you touch Sally the UI refresh updates *just* that component; however,
 that component has a recursive query of depth 1, so it ends up returning Joe as her spouse! This
@@ -4223,15 +4211,9 @@ The fix is equally simple: calculate depth and pass it to the child. Use the cal
 to prevent the extra rendering when local refresh gives you data you don't need. The
 demo below has this fix.
 
-++++
-<div class="example" id="recursive-demo-3"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.recursive-demo-3').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="recursive-demo-3 source"]
-----
-include::src/book/book/queries/recursive_demo_3.cljs[]
-----
+$example$ Recursive Demo 3,recursive-demo-3,src/book/book/queries/recursive_demo_3.cljs
+
 
 === Duplicates and Recursion
 
@@ -4245,15 +4227,9 @@ entries. It simply merges the multiple copies into the same normalized entry in 
 Since the two entries merge to the same entry, it also means the modifications will
 be shared among them. Try checking item `B.1` in either location.
 
-++++
-<div class="example" id="recursive-demo-bullets"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.recursive-demo-bullets').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="recursive-demo-bullets source"]
-----
-include::src/book/book/queries/recursive_demo_bullets.cljs[]
-----
+$example$ Recursive Demo 4,recursive-demo-bullets,src/book/book/queries/recursive_demo_bullets.cljs
+
 
 == The AST
 
@@ -6642,15 +6618,9 @@ The example below uses these techniques to name load markers.
 
 NOTE: Open up the DB view and turn your server's latency way up so you can watch the marker state.
 
-++++
-<div class="example" id="loading-indicators"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-indicators').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="loading-indicators source"]
-----
-include::src/book/book/demos/loading_indicators.cljs[]
-----
+$example$ Loading Indicators,loading-indicators,src/book/book/demos/loading_indicators.cljs
+
 
 NOTE: You can also just use something like a component's ident for the marker ID.  This sounds confusing at first, but
 just think of the marker ID as any opaque value that supports comparison under `=`.
@@ -6801,15 +6771,8 @@ The next button tries a mutation that fails (by throwing on the server in a way 
 error back to the client). The final one tries a read that will fail, but does nothing with the error, though
 you'll still see that the global indicator updates.
 
-++++
-<div class="example" id="server-error-handling"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-error-handling').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="server-error-handling source"]
-----
-include::src/book/book/demos/server_error_handling.cljs[]
-----
+$example$ Error Handling,server-error-handling,src/book/book/demos/server_error_handling.cljs
 
 === UI Blocking
 
@@ -6954,15 +6917,7 @@ If the submission had an error, then it
 
 You can try out the finished product in the example below. Try it a few times so you can see the error-handling in action.
 
-++++
-<div class="example" id="ui-blocking-example"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.ui-blocking-example').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="ui-blocking-example source"]
-----
-include::src/book/book/server/ui_blocking_example.cljs[]
-----
+$example$ UI Blocking,ui-blocking-example,src/book/book/server/ui_blocking_example.cljs
 
 === Fallbacks [[Fallbacks]]
 
@@ -7888,25 +7843,12 @@ In the above example one can now set the query for `Thing`, or "`Thing` with qua
 
 The following live demo shows dynamic queries in action:
 
-++++
-<div class="example" id="dynamic-queries"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.dynamic-queries').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="dynamic-queries source"]
-----
-include::src/book/book/queries/dynamic_queries.cljs[]
-----
+$example$ Dynamic Query,dynamic-queries,src/book/book/queries/dynamic_queries.cljs
 
-++++
-<div class="example" id="dynamic-query-parameters"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.dynamic-query-parameters').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="dynamic-query-parameters source"]
-----
-include::src/book/book/queries/dynamic_query_parameters.cljs[]
-----
+$example$ Dynamic Query Parameters,dynamic-query-parameters,src/book/book/queries/dynamic_query_parameters.cljs
+
 
 == Setting a Query
 
@@ -8043,15 +7985,9 @@ You may also include most other `defsc` options, other than `:query` and `:initi
 The optional body of `defsc-router` is what to render if the route is bad (e.g. the ident in state for the route doesn't
 point to a valid routing target).
 
-++++
-<div class="example" id="simple-router-1"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.simple-router-1').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="simple-router-1 source"]
-----
-include::src/book/book/simple_router_1.cljs[]
-----
+$example$ Simple Router,simple-router-1,src/book/book/simple_router_1.cljs
+
 
 Be sure to look at the database view in the example above. Notice that all that has to happen is a change
 of a single ident. This as the effect of switching the rendering, and choosing the
@@ -8104,15 +8040,9 @@ It is very easy from here to compose together as many of these as you'd like in 
 build a more complicated UI. For example, the settings could have several subscreens as in this
 example:
 
-++++
-<div class="example" id="simple-router-2"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.simple-router-2').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="simple-router-2 source"]
-----
-include::src/book/book/simple_router_2.cljs[]
-----
+$example$ Nested Router,simple-router-2,src/book/book/simple_router_2.cljs
+
 
 This allows you to build up a tree of routers that keeps your query minimal, and allows for very nice dynamic
 structuring of the applicataion at runtime.
@@ -8278,15 +8208,9 @@ table) to check the route:
 
 The following shows the example routing tree in a complete running demo:
 
-++++
-<div class="example" id="ui-routing"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.ui-routing').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="ui-routing source"]
-----
-include::src/book/book/ui_routing.cljs[]
-----
+$example$ Routing Demo,ui-routing,src/book/book/ui_routing.cljs
+
 
 == Combining Routing with Data Management
 
@@ -8743,15 +8667,7 @@ This demo lists some phone numbers. Clicking on one:
 * Switches the UI to the form editor
 * Switches back to the (updated) list on save
 
-++++
-<div class="example" id="form-state-demo-1"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.form-state-demo-1').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="form-state-demo-1 source"]
-----
-include::src/book/book/forms/form_state_demo_1.cljs[]
-----
+$example$ Editing Existing Data,form-state-demo-1,src/book/book/forms/form_state_demo_1.cljs
 
 === Loading or Creating Something New
 
@@ -8765,15 +8681,7 @@ delta. The other button will create a new person, and submissions will send all 
 The load case, as you can see in the code, is very similar to the prior example, but just includes some extra
 code to show you how to put it together with a load interaction.
 
-++++
-<div class="example" id="form-state-demo-2"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.form-state-demo-2').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="form-state-demo-2 source"]
-----
-include::src/book/book/forms/form_state_demo_2.cljs[]
-----
+$example$ Network Interactions and Forms,form-state-demo-2,src/book/book/forms/form_state_demo_2.cljs
 
 == Full Stack Form Demo
 
@@ -10881,15 +10789,9 @@ include::src/book/book/demos/dynamic_ui_main.cljs[]
 
 The main entry point code is in the code below the demo:
 
-++++
-<div class="example" id="dynamic-ui-routing"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.dynamic-ui-routing').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="dynamic-ui-routing source"]
-----
-include::src/book/book/demos/dynamic_ui_routing.cljs[]
-----
+$example$ Dynamic UI Routing,dynamic-ui-routing,src/book/book/demos/dynamic_ui_routing.cljs
+
 
 == Code Splitting and Server-Side Rendering
 
@@ -11384,15 +11286,7 @@ mutation (see the demo source).
 
 The running demo (with source) is below:
 
-++++
-<div class="example" id="autocomplete-demo"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.autocomplete-demo').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="autocomplete-demo source"]
-----
-include::src/book/book/demos/autocomplete.cljs[]
-----
+$example$ Autocomplete,autocomplete-demo,src/book/book/demos/autocomplete.cljs
 
 == Cascading Dropdowns
 
@@ -11440,15 +11334,9 @@ and we define a mutation for showing a "Loading..." item in the dropdown that is
 The main action is in the `onSelect` of the first dropdown, which just issues the transact to set the loading
 visualization, followed by the remote load.
 
-++++
-<div class="example" id="cascading-dropdowns"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.cascading-dropdowns').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="cascading-dropdowns source"]
-----
-include::src/book/book/demos/cascading_dropdowns.cljs[]
-----
+$example$ Cascading Dropdowns,cascading-dropdowns,src/book/book/demos/cascading_dropdowns.cljs
+
 
 == Loading due to a UI Event
 
@@ -11503,15 +11391,9 @@ load data needed for that screen. The intention is to just load it if it is miss
 Fairly standard fare at this point: Look at the database to see if it has what you want, and if not trigger a load
 with `df/load-action` (on the action side) and `df/remote-load` on the remote.
 
-++++
-<div class="example" id="loading-in-response-to-UI-routing"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-in-response-to-UI-routing').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="loading-in-response-to-UI-routing source"]
-----
-include::src/book/book/demos/loading_in_response_to_UI_routing.cljs[]
-----
+$example$ Loading In Response To UI Routing,loading-in-response-to-UI-routing,src/book/book/demos/loading_in_response_to_UI_routing.cljs
+
 
 == Paginating Large Lists
 
@@ -11626,15 +11508,9 @@ The server in this example is trivial. It is just a query that generates items o
 ```
 
 
-++++
-<div class="example" id="paginating-large-lists-from-server"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.paginating-large-lists-from-server').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="paginating-large-lists-from-server source"]
-----
-include::src/book/book/demos/paginating_large_lists_from_server.cljs[]
-----
+$example$ Paginating Lists From Server,paginating-large-lists-from-server,src/book/book/demos/paginating_large_lists_from_server.cljs
+
 
 == UI Query Security
 
@@ -11735,15 +11611,9 @@ code is:
 This logic is basically hacked in to the live example to give you an idea of how
 it looks.
 
-++++
-<div class="example" id="server-query-security"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-query-security').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="server-query-security source"]
-----
-include::src/book/book/demos/server_query_security.cljs[]
-----
+$example$ Query Security,server-query-security,src/book/book/demos/server_query_security.cljs
+
 
 == Fulcro with SQL
 
