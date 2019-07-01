@@ -5991,15 +5991,9 @@ The main loader looks like this (and is called from root):
 
 The server is rather simple. It just makes up a person for any given random ID.
 
-++++
-<div class="example" id="loading-data-targeting-entities"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-data-targeting-entities').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="loading-data-targeting-entities source"]
-----
-include::src/book/book/demos/loading_data_targeting_entities.cljs[]
-----
+$example$ Loading Data and Targeting Entities,loading-data-targeting-entities,src/book/book/demos/loading_data_targeting_entities.cljs
+
 
 === Other Load Options [[LoadOptions]]
 
@@ -6030,15 +6024,9 @@ at least 3x your server latency to complete from the time you click the first on
 If you rapidly click the parallel buttons, then the loads will not be sequenced and you will see them all complete in roughly
 1x your server latency (from the time you click the last one).
 
-++++
-<div class="example" id="parallel-vs-sequential-loading"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.parallel-vs-sequential-loading').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="parallel-vs-sequential-loading source"]
-----
-include::src/book/book/demos/parallel_vs_sequential_loading.cljs[]
-----
+$example$ Parallel vs. Sequential Loading,parallel-vs-sequential-loading,src/book/book/demos/parallel_vs_sequential_loading.cljs
+
 
 == Initializing Loaded Items
 
@@ -6120,15 +6108,8 @@ that the UI wants to display. In  this case we're pretending that the load has b
 
 You can interact with it and view the database to A/B compare the before/after state.
 
-++++
-<div class="example" id="morphing-example"></div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.morphing-example').toggle()">Show/Hide Source</a>
-++++
+$example$ Morphing Example,morphing-example,src/book/book/server/morphing_example.cljs
 
-[source,clojure,role="morphing-example source"]
-----
-include::src/book/book/server/morphing_example.cljs[]
-----
 
 == Pre-Merge [[PreMerge]]
 
@@ -6193,16 +6174,9 @@ And use it via this call to load:
 
 Here is a running demo:
 
-++++
-<div class="example" id="pre-merge-postmutations"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.pre-merge-postmutations').toggle()">Show/Hide Source</a>
-<br><br>
-++++
 
-[source,clojure,role="pre-merge-postmutations source"]
-----
-include::src/book/book/demos/pre_merge/post_mutation_countdown.cljs[]
-----
+$example$ Pre merge - using post mutations,pre-merge-postmutations,src/book/book/demos/pre_merge/post_mutation_countdown.cljs
+
 
 Now let's see in case of a to-many, this is what our new mutation looks like:
 
@@ -6219,16 +6193,9 @@ Now let's see in case of a to-many, this is what our new mutation looks like:
           (get state ::all-counters))))))
 ----
 
-++++
-<div class="example" id="pre-merge-postmutations-many"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.pre-merge-postmutations-many').toggle()">Show/Hide Source</a>
-<br><br>
-++++
 
-[source,clojure,role="pre-merge-postmutations-many source"]
-----
-include::src/book/book/demos/pre_merge/post_mutation_countdown_many.cljs[]
-----
+$example$ Pre merge - using post mutations to many,pre-merge-postmutations-many,src/book/book/demos/pre_merge/post_mutation_countdown_many.cljs
+
 
 As you can see, adding a single depth to the query can yield a fair amount of extra code to hook things up, and as
 you app grows each join depth will add more post-mutation code to compose over. Solving this composition issue
@@ -6275,43 +6242,22 @@ The `:pre-merge` lambda receives a single map containing the following keys:
 
 With this setup we can get rid of the `post-mutation`. The cleaned up examples follow.
 
-++++
-<div class="example" id="countdown-single"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.countdown-single').toggle()">Show/Hide Source</a>
-<br><br>
-++++
 
-[source,clojure,role="countdown-single source"]
-----
-include::src/book/book/demos/pre_merge/countdown.cljs[]
-----
+$example$ Pre merge,countdown-single,src/book/book/demos/pre_merge/countdown.cljs
 
-++++
-<div class="example" id="countdown-many"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.countdown-many').toggle()">Show/Hide Source</a>
-<br><br>
-++++
 
-[source,clojure,role="countdown-many source"]
-----
-include::src/book/book/demos/pre_merge/countdown_many.cljs[]
-----
+
+$example$ Pre merge - to many,countdown-many,src/book/book/demos/pre_merge/countdown_many.cljs
+
 
 === Pre-merge with Server Data
 
 To make this example more interesting let's make it possible, but optional, for the server to define an initial
 counter value.
 
-++++
-<div class="example" id="countdown-with-initial"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.countdown-with-initial').toggle()">Show/Hide Source</a>
-<br><br>
-++++
 
-[source,clojure,role="countdown-with-initial source"]
-----
-include::src/book/book/demos/pre_merge/countdown_with_initial.cljs[]
-----
+$example$ Pre merge - with initial,countdown-with-initial,src/book/book/demos/pre_merge/countdown_with_initial.cljs
+
 
 <1> During the normalization step of a load Fulcro will put `::merge/not-found` value on keys
 that were not delivered by the server, this is used to do a `sweep-merge` later, the `merge/nilify-not-found`
@@ -6362,16 +6308,9 @@ how you can augment pure UI concerns with this feature:
 
 Full demo:
 
-++++
-<div class="example" id="countdown-extracted"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.countdown-extracted').toggle()">Show/Hide Source</a>
-<br><br>
-++++
 
-[source,clojure,role="countdown-extracted source"]
-----
-include::src/book/book/demos/pre_merge/countdown_extracted.cljs[]
-----
+$example$ Pre merge - extracted ui,countdown-extracted,src/book/book/demos/pre_merge/countdown_extracted.cljs
+
 
 === Pre-merge During App Initialization
 
@@ -6397,16 +6336,9 @@ demo:
 
 Pre merge will be applied on top of that running the pre-merge on the respective data parts. Full demo:
 
-++++
-<div class="example" id="countdown-initial-state"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.countdown-initial-state').toggle()">Show/Hide Source</a>
-<br><br>
-++++
 
-[source,clojure,role="countdown-initial-state source"]
-----
-include::src/book/book/demos/pre_merge/countdown_initial_state.cljs[]
-----
+$example$ Pre merge - initial,state countdown-initial-state,src/book/book/demos/pre_merge/countdown_initial_state.cljs
+
 
 === Pre-merge via Mutations
 
@@ -6447,16 +6379,9 @@ And add some UI to trigger this mutation:
 
 Full demo:
 
-++++
-<div class="example" id="countdown-mutation"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.countdown-mutation').toggle()">Show/Hide Source</a>
-<br><br>
-++++
 
-[source,clojure,role="countdown-mutation source"]
-----
-include::src/book/book/demos/pre_merge/countdown_mutation.cljs[]
-----
+$example$ Pre merge - mutation,countdown-mutation,src/book/book/demos/pre_merge/countdown_mutation.cljs
+
 
 
 == Incremental Loading [[IncrementalLoading]]
