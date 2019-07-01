@@ -2593,15 +2593,7 @@ Below is a simple little live application that can convert valid HTML into the C
 within a Fulcro component. Note that stray whitespace will be converted to (harmless) things like `" \n"` that can be easily
 removed, and the output indentation isn't ideal; Still, it turns the task into one of simple formatting:
 
-++++
-<div class="example" id="html-converter"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.html-converter').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="html-converter source"]
-----
-include::src/book/book/html_converter.cljs[]
-----
+$example$ HTML Converter,html-converter,src/book/book/html_converter.cljs
 
 == The `defsc` Macro
 
@@ -3303,21 +3295,9 @@ If your component had a property called `editing?` that you made true to indicat
 instead of just a value, then you could write your focus logic based on the transition of your component's props
 from `:editing?` false to `:editing?` true.
 
-.[[Focusing]]<<Focusing, Focusing an input>>
-====
 
-++++
-<button class="inspector" onClick="book.main.focus('focus-example')">Focus Inspector</button>
-<div class="short narrow example" id="focus-example"> </div>
-<br/>
-++++
+$example$ Input Focus and React Refs Lifecycle,focus-example,src/book/book/ui/focus_example.cljs
 
-[source,clojure,role="focus-example source"]
-----
-include::src/book/book/ui/focus_example.cljs[]
-----
-
-====
 
 NOTE: The older string support for refs is still present, but will not be supported in future versions. Use the
 function-based version of refs and port old code to that to avoid future problems.
@@ -3345,24 +3325,9 @@ doesn't allow React to refresh that sub-tree via `shouldComponentUpdate`.
 
 Below is a demo of this:
 
-// D3Example is just invented for asciidoc anchor
-// D3 is the title, which comes from the 1st arg of the defexample in book/main.cljs
-// ui-d3 is the 3rd arg of the defexample
-.[[D3Example]]<<D3Example,D3>>
-====
 
-++++
-<button class="inspector" onClick="book.main.focus('ui-d3')">Focus Inspector</button>
-<div class="short narrow example" id="ui-d3"></div>
-<br/>
-++++
+$example$ D3,ui-d3,src/book/book/ui/d3_example.cljs
 
-[source,clojure,role="source"]
-----
-include::src/book/book/ui/d3_example.cljs[]
-----
-
-====
 
 The things to note for this example are:
 
@@ -3388,15 +3353,7 @@ scenes.
 The following code is an example using component local state to render a box that follows the hover position
 of the mouse.
 
-++++
-<div class="example" id="hover-example"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.hover-example').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="hover-example source"]
-----
-include::src/book/book/ui/hover_example.cljs[]
-----
+$example$ Drawing in a Canvas,hover-example,src/book/book/ui/hover_example.cljs
 
 The component receives mouse move events to show a hover box. In this case we really don't care to take the overhead
 to track the cursor position in real app state, so we leverage component local state instead.
@@ -3454,15 +3411,9 @@ years, and a Y axis that contains dollar amounts. Really the data is irrelevant,
 
 The running code and source are below:
 
-++++
-<div class="example" id="victory-example"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.victory-example').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="victory-example source"]
-----
-include::src/book/book/ui/victory_example.cljs[]
-----
+$example$ Using External React Libraries,victory-example,src/book/book/ui/victory_example.cljs
+
 
 === The Function-As-a-Child Pattern
 
@@ -4002,15 +3953,7 @@ You can see that this just defines a union whose "selection" is controlled by th
 
 Here is a complete working example that uses this to make a UI around displaying things of various types:
 
-++++
-<div class="example" id="union-example-1"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.union-example-1').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="union-example-1 source"]
-----
-include::src/book/book/queries/union_example_1.cljs[]
-----
+$example$ Unions to Select Type,union-example-1,src/book/book/queries/union_example_1.cljs
 
 == Mutations [[Mutations]]
 
@@ -4444,16 +4387,7 @@ performance.
 
 The following demo shows all of this in action.
 
-++++
-<div class="example" id="initial-app-state"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.initial-app-state').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="initial-app-state source"]
-----
-include::src/book/book/demos/initial_app_state.cljs[]
-----
-
+$example$ Initial State,initial-app-state,src/book/book/demos/initial_app_state.cljs
 
 == Initial State and State Progressions
 
@@ -5467,15 +5401,8 @@ which is targeting to-many so we can demo more features.
 +
 The server mutation just returns the entity.
 
-++++
-<div class="example" id="server-targeting-return-values-into-app-state"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.server-targeting-return-values-into-app-state').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="server-targeting-return-values-into-app-state source"]
-----
-include::src/book/book/demos/server_targeting_return_values_into_app_state.cljs[]
-----
+$example$ Targeting Mutation Return Values,server-targeting-return-values-into-app-state,src/book/book/demos/server_targeting_return_values_into_app_state.cljs
 
 === Augmenting the Ring Response
 
@@ -5519,15 +5446,9 @@ that wants to modify the state (the delete button on the item) is not local to t
 The solution is simple: create a callback in the parent that can run the delete transaction and pass it through
 as a computed value.
 
-++++
-<div class="example" id="parent-child-ownership-relations"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.parent-child-ownership-relations').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="parent-child-ownership-relations source"]
-----
-include::src/book/book/demos/parent_child_ownership_relations.cljs[]
-----
+$example$ Parent-Child Ownership,parent-child-ownership-relations,src/book/book/demos/parent_child_ownership_relations.cljs
+
 <1> The item uses the computed callback
 <2> The list creates a lambda that closes over the list id
 
@@ -5781,15 +5702,9 @@ UI queries don't match what you'd like to ask the server).
    :query [:id {:subs (comp/get-query SubQuery)}]})
 ```
 
-++++
-<div class="example" id="tree-to-db"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.tree-to-db').toggle()">Show/Hide Source</a>
-++++
 
-[source,clojure,role="tree-to-db source"]
-----
-include::src/book/book/tree_to_db.cljs[]
-----
+$example$ Tree to DB with Queries,tree-to-db,src/book/book/tree_to_db.cljs
+
 
 of course, you can see that you're still going to need to merge the database table contents into your main app state
 and carefully integrate the other bits as well.
@@ -5870,15 +5785,7 @@ We'll want to:
 
 Here is the full running example with source:
 
-++++
-<div class="example" id="merge-component"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.merge-component').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="merge-component source"]
-----
-include::src/book/book/merge_component.cljs[]
-----
+$example$ Merging with a Component,merge-component,src/book/book/merge_component.cljs
 
 = Loads
 
@@ -5984,15 +5891,7 @@ there is a helper function called `refresh!` that makes this a bit shorter to ty
 (df/refresh! this)
 ```
 
-++++
-<div class="example" id="loading-data-basics"> </div>
-<a class="source-toggle" href="javascript:void(0)" onClick="$('.loading-data-basics').toggle()">Show/Hide Source</a>
-++++
-
-[source,clojure,role="loading-data-basics source"]
-----
-include::src/book/book/demos/loading_data_basics.cljs[]
-----
+$example$ Loading Data Basics,loading-data-basics,src/book/book/demos/loading_data_basics.cljs
 
 === Targeting Loads
 
