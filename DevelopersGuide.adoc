@@ -217,7 +217,7 @@ get the data you need when given a "context" that makes sense.
 
 == Queries (EQL)
 
-Fulcro uses https://github.com:edn-query-language/eql[EQL] (EDN Query Language), a graph query language similar to
+Fulcro uses http://edn-query-language.org[EQL] (EDN Query Language), a graph query language similar to
 Datomic's http://www.datomic.com/docs/pull-query[pull query notation (FIXME)].
 
 A query is a vector (with nesting) that lists the things you want:
