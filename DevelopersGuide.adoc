@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: July 1, 2019
-:revnumber: 33
+:revdate: July 2, 2019
+:revnumber: 34
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -210,19 +210,18 @@ What about Server-Side Rendering?::
 Fulcro is written in CLJC. The intention is to be able to set up and "run" an application in a headless
 JS OR Java VM environment and either actively control a DOM or just render "frames" as strings.
 The server-side implementation of the DOM methods let you render Fulcro
-UI in a Java VM without needing to resort to a js engine at all.  If you choose to use `node.js` for
-your server then you just use the normal cljs code there (with the appropriate headless DOM polyfill).
+UI in a Java VM without needing to resort to a js engine at all.
 
 == Server Schema vs. UI Graph
 
 Fulcro makes no assumptions nor does it have *any* requirements about back-end databases.  You don't even have
-to have a back-end:  You can easily simulate one with browser (like this book does), wrap browser local storage,
+to have a back-end:  You can easily simulate one with the browser (like this book does), wrap browser local storage,
 or simply not use one at all.
 
 If you are using a server database, then normalization and schema on the server is done according to whatever you've designed.
 Pathom makes it easy to "reshape" any particular schema or storage technology into a graph that fits your external API and UI needs.
 
-This is an important point: it does not *matter* how your database structures the data, as long as *you* know how to
+This is an important point: it does not *matter* how your back-end database structures the data, as long as *you* know how to
 get the data you need when given a "context" that makes sense.
 
 == Queries (EQL)
@@ -268,12 +267,6 @@ be used to tune for optimal performance (e.g. fixing n+1 query problems, branch 
 
 == Fulcro Client Database
 
-Fulcro does *not* use a component-centric subscription model (though you can get the *actual* "features" you're looking for
-from those easily enough).
-Subscription models introduce arbitrary management components that are meant to manage your state for you.  This can be
-a nice convenience, but it leads to a number of problems related to caching, reasoning, de-duplicating network
-interactions, and data sharing.
-
 Fulcro uses a single, central, normalized graph database.  Any time data is created or read into a Fulcro application it can be
 auto-normalized into this database, and EQL queries from the UI components can easily be fulfilled from it.
 
@@ -314,6 +307,9 @@ of some complex graph query result, which is common when composing related compo
 * Subgraph reasoning is trivial: You can (re)load *any portion* of the graph at *any time*.
 ** A UI query, server load, or transfer of some portion of the graph can be started from any node.
 ** Manipulation of some node affects all paths through that node.
+* Meteor-style subscription models need not be an internal part of the library.  If you have a database that can tell
+  you when data changes then you can either re-run your graph query to pull those changes or merge in new graph of data
+  that arrives from some arbitrary websocket push.
 
 You may be asking "by what magic can Fulcro do this?". The answer is simple: by co-locating the node/edge
 descriptions with the components of your UI!
