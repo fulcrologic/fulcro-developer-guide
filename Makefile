@@ -11,9 +11,9 @@ bookdemos:
 	shadow-cljs release book
 
 publish: book
-	rsync -av docs/DevelopersGuide.html linode:/usr/share/nginx/html/index.html
+	rsync -av docs/DevelopersGuide.html linode:/usr/share/nginx/html/fulcro3/index.html
 
 publish-all: book
-	rsync -av docs/DevelopersGuide.html linode:/usr/share/nginx/html/index.html
-	rsync -av docs/js/book/*.js linode:/usr/share/nginx/html/js/book/
-	rsync -av docs/assets/img linode:/usr/share/nginx/html/assets/
+	rsync -av docs/DevelopersGuide.html linode:/usr/share/nginx/html/fulcro3/index.html
+	rsync -av docs/js/book/*.js linode:/usr/share/nginx/html/fulcro3/js/book/
+	rsync -av docs/assets/img linode:/usr/share/nginx/html/fulcro3/assets/
