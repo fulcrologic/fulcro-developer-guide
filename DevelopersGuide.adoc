@@ -172,12 +172,22 @@ If you are familiar with other CLJS or JS UI libraries then you may have one of 
 common ones are:
 
 Can I use "hiccup" notation for the DOM?::
-Yes, you can use https://github.com/r0man/sablono[Sablono]. It should work fine. If you
-want _support_, server-side rendering of components, etc.: then use what Fulcro provides.
+Yes, you can use https://github.com/r0man/sablono[Sablono]. It should work fine, but it is cljs-only. If you
+want _support_, isomorphic server-side rendering of components, etc.: then use what Fulcro provides.
+
+<<TheFreakingHiccupQuestionAgain, Why don't you use Hiccup by default?>>:: [[TheFreakingHiccupQuestionAgain]]
+The honest answer is "because". As in: because that's the way it was written in Om Next, the predecessor of Fulcro.
+I assume David Nolen had his reasons for preferring functions/macros over hiccup and I respected his choice (even though
+I did not personally know why it was). Why is Fulcro still using functions? Well, several reasons: Certainly the fact that I already have the code
+and there are apps based on it is sufficient, it is no more verbose (if you leverage `:refer` in `:require`), it tests
+to be as fast as raw React when used optimally, and works with the same API on the client and server for supporting isomorphic rendering
+(Hiccup is CLJ only, you have to use Sablono for cljs with React).  Finally, I will note that this question ranks near the
+top of my list of "Questions that Don't Matter".  If you came to Fulcro looking for DOM notation: move along. If you ask
+this question on the Slack channel prepare to be, *at best*, politely referred to this question :)
 
 Where are the "reducers"?::
 Re-frame and Redux are very popular choices for front-end work, and for good reason.
-Fulcro is basically graph-centric full-stack CQRS library.  Mutations are the "commands" that
+Fulcro is basically a graph-centric full-stack CQRS-style library.  Mutations are the "commands" that
 are queued (like events in a reducer system), but Fulco adds a some very important things:
 graph data support, auto-normalization of central database, and a centralized transaction
 processing system.
