@@ -6634,8 +6634,8 @@ Pre merge will be applied on top of that running the pre-merge on the respective
 .[[Premerge-initial]]<<Premerge-initial,Pre merge - initial>>
 ====
 ++++
-<button class="inspector" onClick="book.main.focus('state countdown-initial-state')">Focus Inspector</button>
-<div class="short narrow example" id="state countdown-initial-state"></div>
+<button class="inspector" onClick="book.main.focus('countdown-initial-state')">Focus Inspector</button>
+<div class="short narrow example" id="countdown-initial-state"></div>
 <br/>
 ++++
 [source,clojure,role="source"]

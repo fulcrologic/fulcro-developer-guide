@@ -44,7 +44,7 @@
     book.demos.pre-merge.countdown-extracted
     book.demos.pre-merge.countdown-mutation
 
-    ;book.demos.server-error-handling
+    book.demos.server-error-handling
     ;book.demos.server-query-security
     ;book.demos.server-return-values-as-data-driven-mutation-joins
     ;book.demos.server-targeting-return-values-into-app-state
@@ -76,6 +76,8 @@
                                 book.demos.pre-merge.countdown-extracted/resolvers
                                 book.demos.paginating-large-lists-from-server/infinite-pages
                                 book.demos.parallel-vs-sequential-loading/long-query-resolver
+                                book.demos.server-error-handling/resolvers
+                                book.server.ui-blocking-example/submit-form-mutation
                                 #_book.demos.cascading-dropdowns/model-resolver])
 
 (defonce example-server (po/mock-remote non-conflicting-resolvers))
@@ -178,8 +180,11 @@
 (defexample "Pre merge - initial state" book.demos.pre-merge.countdown-initial-state/Root "countdown-initial-state" :remotes book.main/example-server)
 (defexample "Pre merge - mutation" book.demos.pre-merge.countdown-mutation/Root "countdown-mutation" :remotes book.main/example-server)
 ;
-;#?(:cljs (defexample "Error Handling" book.demos.server-error-handling/Root "server-error-handling"
-;           :remotes book.main/example-server))
+(defexample "Error Handling" book.demos.server-error-handling/Root "server-error-handling" :remotes book.main/example-server
+  :remote-error? (fn [{:keys [body] :as result}]
+                   (or
+                     (app/default-remote-error? result)
+                     (book.demos.server-error-handling/contains-error? body))))
 ;#?(:cljs (defexample "Query Security" book.demos.server-query-security/Root "server-query-security"
 ;           :remotes book.main/example-server))
 ;#?(:cljs (defexample "Return Values and Mutation Joins" book.demos.server-return-values-as-data-driven-mutation-joins/Root "server-return-values-as-data-driven-mutation-joins"
@@ -202,7 +207,7 @@
   (db/seed-database))
 
 (defn ^:export focus [app-id]
-  (encore/when-let [app (get @book.macros/app-registry app-id)
-                    state-map (app/current-state app)
+  (encore/when-let [app        (get @book.macros/app-registry app-id)
+                    state-map  (app/current-state app)
                     inspect-id (get state-map :fulcro.inspect.core/app-uuid)]
     (inspect/set-active-app inspect-id)))

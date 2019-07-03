@@ -4,7 +4,8 @@
     [com.fulcrologic.fulcro.dom :as dom]
     [book.macros :refer [defexample]]
     [com.fulcrologic.fulcro.mutations :refer [defmutation]]
-    [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]))
+    [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]))
 
 (defsc CategoryQuery [this props]
   {:query [:db/id :category/name]
@@ -43,8 +44,11 @@
 (def ui-toolbar-category (comp/factory ToolbarCategory {:keyfn :db/id}))
 
 (defmutation group-items-reset [params]
-  (action [{:keys [state]}]
-    (reset! state (fnorm/tree->db component-query sample-server-response true))))
+  (action [{:keys [app state]}]
+    (swap! state (fn [s]
+                   (-> s
+                     (dissoc :categories/by-id :toolbar/categories)
+                     (merge/merge* component-query sample-server-response))))))
 
 (defn add-to-category
   "Returns a new db with the given item added into that item's category."
@@ -76,5 +80,5 @@
     (dom/ul
       (map ui-toolbar-category categories))))
 
-(defexample "Morphing Data" Toolbar "morphing-example" :initial-state (atom (fnorm/tree->db component-query sample-server-response true)))
+(defexample "Morphing Data" Toolbar "morphing-example" :initial-db (fnorm/tree->db component-query sample-server-response true))
 

@@ -48,7 +48,7 @@
 (defn submit-ok? [env] (= 0 (some-> env :state deref :remote-mutation :status :result)))
 
 (defmutation retry-or-hide-overlay [params]
-  (action [{:keys [reconciler state] :as env}]
+  (action [{:keys [app state] :as env}]
     (if (submit-ok? env)
       (swap! state (fn [s]
                      (-> s
@@ -56,7 +56,7 @@
                        (set-overlay-visible* false))))
       (do
         (swap! state set-overlay-message* (str (-> state deref :remote-mutation :status :message) " (Retrying...)"))
-        (comp/ptransact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})]))))
+        (comp/ptransact! app `[(submit-form {}) (retry-or-hide-overlay {})]))))
   (refresh [env] [:overlay]))                               ; we need this because the mutation runs outside of the context of a component
 
 (defsc Root [this {:keys [ui/name overlay]}]
