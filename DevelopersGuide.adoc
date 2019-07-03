@@ -218,7 +218,7 @@ get the data you need when given a "context" that makes sense.
 == Queries (EQL)
 
 Fulcro uses http://edn-query-language.org[EQL] (EDN Query Language), a graph query language similar to
-Datomic's http://www.datomic.com/docs/pull-query[pull query notation (FIXME)].
+Datomic's https://docs.datomic.com/on-prem/pull.html[pull query notation].
 
 A query is a vector (with nesting) that lists the things you want:
 
@@ -265,7 +265,8 @@ a nice convenience, but it leads to a number of problems related to caching, rea
 interactions, and data sharing.
 
 Fulcro uses a single, central, normalized graph database.  Any time data is created or read into a Fulcro application it can be
-auto-normalized into this database, and EQL queries from the UI components can easily be fulfilled from it.
+auto-normalized into this database, and 
+queries from the UI components can easily be fulfilled from it.
 
 The format of this database is *trivial* (and very fast as a result):
 
