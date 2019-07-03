@@ -40,33 +40,36 @@
 (defn- chars->entity [ns chars]
   (if (= \# (first chars))
     (apply str "&" (conj chars ";"))                        ; skip it. needs (parse int, convert base, format to 4-digit code)
-    (symbol ns (apply str chars))))
+    (if (seq ns)
+      (symbol ns (apply str chars))
+      (symbol (apply str chars)))))
 
 (defn- parse-entity [stream result {:keys [entity-ns] :as options}]
-  (let [ens (or entity-ns "ent")]
-    (loop [s stream chars []]
-      (let [c (first s)]
-        (case c
-          (\; nil) [(rest s) (if (seq chars)
-                               (conj result (chars->entity ens chars))
-                               result)]
-          (recur (rest s) (conj chars c)))))))
+  (loop [s stream chars []]
+    (let [c (first s)]
+      (case c
+        (\; nil) [(rest s) (if (seq chars)
+                             (conj result (chars->entity entity-ns chars))
+                             result)]
+        (recur (rest s) (conj chars c))))))
 
-(defn- html-string->react-string [stream options]
-  (loop [s stream result []]
-    (let [c (first s)
-          [new-stream new-result] (case c
-                                    nil [nil result]
-                                    \& (parse-entity (rest s) result options)
-                                    [(rest s) (conj result c)])]
-      (if new-stream
-        (recur new-stream new-result)
-        (let [segments (partition-by char? new-result)
-              result   (mapv (fn [s]
-                               (if (char? (first s))
-                                 (apply str s)
-                                 (first s))) segments)]
-          result)))))
+(defn- html-string->react-string [html-str {:keys [ignore-entities?] :as options}]
+  (if ignore-entities?
+    html-str
+    (loop [s html-str result []]
+      (let [c (first s)
+            [new-stream new-result] (case c
+                                      nil [nil result]
+                                      \& (parse-entity (rest s) result options)
+                                      [(rest s) (conj result c)])]
+        (if new-stream
+          (recur new-stream new-result)
+          (let [segments (partition-by char? new-result)
+                result   (mapv (fn [s]
+                                 (if (char? (first s))
+                                   (apply str s)
+                                   (first s))) segments)]
+            result))))))
 
 (defn element->call
   ([elem]
@@ -93,12 +96,12 @@
                           expanded-children (reduce
                                               (fn [acc c]
                                                 (if (vector? c)
-                                                  (concat acc c)
+                                                  (into [] (concat acc c))
                                                   (conj acc c)))
                                               []
                                               children)]
                       (concat (list) (keep identity
-                                       [(if ns-alias
+                                       [(if (seq ns-alias)
                                           (symbol ns-alias tag)
                                           (symbol tag))
                                         (when classkey classkey)
@@ -108,9 +111,21 @@
      :otherwise "")))
 
 (defn html->clj-dom
-  "Convert an HTML fragment (containing just one tag) into a corresponding Dom cljs"
-  ([html-fragment {:keys [ns-alias] :as options}]
-   (let [hiccup-list (map hc/as-hiccup (hc/parse-fragment html-fragment))]
+  "Convert an HTML fragment (containing just one tag) into a corresponding Dom cljs.
+
+  Options is a map that can contain:
+
+  - `ns-alias`: The primary DOM namespace alias to use.  If not set, the calls will not be namespaced.
+  - `keep-empty-attrs?`: Boolean (default false). Output (dom/p {} ...) vs (dom/p ...).
+  - `entity-ns`: String (defaults to \"ent\"). When named HTML entities are found they are converted to the Fulcro
+    HTML entity ns symbols that stand for the correct unicode (e.g. \"&quot;\" -> `ent/quot`). This is the ns alias
+    for those.
+  - `ignore-entities?`: Boolean (default false). If true, entities in strings will not be touched.
+  "
+  ([html-fragment options]
+   (let [hiccup-list (map hc/as-hiccup (hc/parse-fragment html-fragment))
+         options     (cond-> options
+                       (not (contains? options :entity-ns)) (assoc :entity-ns "ent"))]
      (let [result (keep (fn [e] (element->call e options)) hiccup-list)]
        (if (< 1 (count result))
          (vec result)
