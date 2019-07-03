@@ -11899,13 +11899,6 @@ background-color: rgba(0,0,0,0.04);
 <!-- The book demos -->
 <script src="js/book/book.js"></script>
 
-<!-- quick convenient way to toggle the source within asciidoc, since
-     it is super-easy to include it via asciidoc include -->
-<script
-  src="https://code.jquery.com/jquery-3.2.1.min.js"
-  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
-  crossorigin="anonymous"></script>
-
 <!-- Global site tag (gtag.js) - Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=UA-107376541-3"></script>
 <script>
