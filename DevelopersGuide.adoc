@@ -6058,6 +6058,11 @@ If you write a legal query and press "Run query", it will contact the server and
 image::query-autocomplete-2.png[Server Query Autocomplete]
 ====
 
+Some quick keyboard shortcuts (OSX):
+
+- `CMD-J`: Turn the keyword under the cursor into a query join (wrap it in a map with a subquery vector).
+- `CMD-ENTER`: Run the query
+
 == The Data Fetch API: `load!` [[DataFetch]]
 
 Let's say we want to load all of our friends from the server. A query has to be rooted somewhere, so we've invented
