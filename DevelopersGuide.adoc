@@ -2621,7 +2621,7 @@ removed, and the output indentation isn't ideal; Still, it turns the task into o
 ++++
 [source,clojure,role="source"]
 ----
-include::src/book/book/html_converter.cljs[]
+include::src/book/book/html_converter.cljc[]
 ----
 ====
 
