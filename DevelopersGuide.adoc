@@ -377,7 +377,7 @@ which inserts this:
 To put that same data into the database and add an "edge" somewhere else in the graph you could do:
 
 ```
-(merge/merge-component! app Person {:person/id 11 ...} :append [:list/id :friends :people])
+(merge/merge-component! app Person {:person/id 11 ...} :append [:list/id :friends :list/people])
 ```
 
 which would add this to the graph:
