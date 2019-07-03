@@ -2616,7 +2616,7 @@ removed, and the output indentation isn't ideal; Still, it turns the task into o
 ====
 ++++
 <button class="inspector" onClick="book.main.focus('html-converter')">Focus Inspector</button>
-<div class="short narrow example" id="html-converter"></div>
+<div class="short wide example" id="html-converter"></div>
 <br/>
 ++++
 [source,clojure,role="source"]
