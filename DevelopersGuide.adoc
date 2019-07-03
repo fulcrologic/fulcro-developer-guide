@@ -99,6 +99,10 @@ include::src/book/book/example_1.cljs[]
 ----
 ====
 
+Each example includes a "Focus Inspector" button that will cause the Fulcro Inspect
+development tools to focus on that example. See <<Install Fulcro Inspect>> for details on how
+to set that up and use it.
+
 All of the full stack examples use a mock server embedded in the browser to
 simulate any network interaction, but the source that you'll read for the application is
 identical to what you'd write for a real server.
@@ -597,6 +601,15 @@ stack frame analysis and proper clojure names for things!  These tools will save
 
 Fulcro Inspect is a free extension for Chrome, and Binaryage devtools is a library that can be injected via a preload
 (which shadow-cljs does for you if it is in your dependencies).
+
+ALl of the examples in the book have a "Focus Inspector" button. If you open Chrome devtools, choose the Fulcro Inspect
+tab, and then press that button you will focus the inspector on that example so you can see its database. The first
+example in this book looks like this when you do that:
+
+.Using Inspect on the Book
+=====
+image::inspect-open.png[]
+=====
 
 == Configure Chrome Development Settings
 
@@ -5964,14 +5977,55 @@ include::src/book/book/merge_component.cljs[]
 = Loads
 
 Most of your server API should be written with something like https://wilkerlucio.github.io/pathom/#Connect[Pathom Connect].
-There are also ways to adapt to GraphQL servers, REST APIs, etc.  The remainder of this chapter assumes you have read
-and understood the Pathom Connect documentation.
+There are also ways to adapt to GraphQL servers, REST APIs, etc.  This chapter will be strictly using a Pathom parser
+to supply data from the servers according to the following database schema and data:
 
-The examples in this chapter simulate a server by using a "loopback" remote that talks to a cljs pathom parser. We use
-a naive database ...
+```
+include::src/book/book/database.cljs[]
+```
 
-TODO: complete implementation for examples
+This database and small set of resolvers can resolve quite complex queries:
 
+[source%nowrap]
+----
+(parse
+  [{:all-people [:person/name
+                 :person/age
+                 {:person/phone-numbers [:phone/number :phone/type]}
+                 {:person/spouse [:person/name]}
+                 {:person/children [:person/name {:person/spouse [:person/name]}]}
+                 {:person/addresses [:address/street]}
+                 {:person/addresses [:address/id :address/street :address/state
+                                     :address/city :address/postal-code]}]}])
+;; result
+{:all-people
+ [{:person/spouse {:person/name "Tom"},
+   :person/age 45,
+   :person/name "Sally",
+   :person/children [{:person/name "Amy"} {:person/name "Billy"}],
+   :person/addresses [{:address/street "101 Main St"}],
+   :person/phone-numbers
+   [{:phone/type :work, :phone/number "812-555-1212"}
+    {:phone/type :home, :phone/number "502-555-1212"}]}
+  {:person/spouse {:person/name "Sally"},
+   :person/age 48,
+   :person/name "Tom",
+   :person/children [{:person/name "Amy"} {:person/name "Billy"}],
+   :person/addresses [{:address/street "101 Main St"}],
+   :person/phone-numbers
+   [{:phone/type :home, :phone/number "502-555-1212"}
+    {:phone/type :work, :phone/number "503-555-1212"}]}
+  {:person/age 17,
+   :person/name "Amy",
+   :person/addresses [{:address/street "101 Main St"}]}
+  {:person/age 25,
+   :person/name "Billy",
+   :person/children [{:person/name "Billy Jr."}],
+   :person/addresses [{:address/street "101 Main St"}]}
+  {:person/age 1,
+   :person/name "Billy Jr.",
+   :person/addresses [{:address/street "101 Main St"}]}]}
+----
 
 == The Data Fetch API: `load!` [[DataFetch]]
 

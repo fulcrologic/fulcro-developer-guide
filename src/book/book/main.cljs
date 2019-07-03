@@ -63,10 +63,8 @@
     [com.fulcrologic.fulcro.application :as app]
     [taoensso.encore :as encore]))
 
-(def non-conflicting-resolvers [db/general-resolvers
-                                autocomplete/list-resolver
+(def non-conflicting-resolvers [autocomplete/list-resolver
                                 book.forms.form-state-demo-2/resolvers
-                                book.demos.loading-data-basics/resolvers
                                 book.demos.pre-merge.post-mutation-countdown/resolvers
                                 book.demos.pre-merge.post-mutation-countdown-many/resolvers
                                 book.demos.pre-merge.countdown/resolvers
@@ -80,6 +78,7 @@
                                 book.server.ui-blocking-example/submit-form-mutation
                                 #_book.demos.cascading-dropdowns/model-resolver])
 
+(defonce people-server (po/mock-remote db/general-resolvers {:connection db/connection}))
 (defonce example-server (po/mock-remote non-conflicting-resolvers))
 
 (defsc ServerControl [this {:keys [:server-control/delay ui/hidden?]}]
@@ -157,7 +156,7 @@
 (defexample "Recursive Demo 3" book.queries.recursive-demo-3/Root "recursive-demo-3")
 (defexample "Recursive Demo 4" book.queries.recursive-demo-bullets/Root "recursive-demo-bullets")
 ;
-;#?(:cljs (defexample "Loading Data Basics" book.demos.loading-data-basics/Root "loading-data-basics" :remotes book.main/example-server :started-callback book.demos.loading-data-basics/initialize))
+(defexample "Loading Data Basics" book.demos.loading-data-basics/Root "loading-data-basics" :remotes book.main/people-server)
 ;#?(:cljs (defexample "Loading Data and Targeting Entities" book.demos.loading-data-targeting-entities/Root "loading-data-targeting-entities" :remotes book.main/example-server))
 (defexample "Loading In Response To UI Routing" book.demos.loading-in-response-to-UI-routing/Root "loading-in-response-to-UI-routing" :remotes book.main/example-server)
 (defexample "Loading Indicators" book.demos.loading-indicators/Root "loading-indicators" :remotes book.main/example-server)

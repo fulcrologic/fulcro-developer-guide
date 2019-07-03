@@ -24,10 +24,13 @@
                   p/request-cache-plugin
                   (p/post-process-parser-plugin p/elide-not-found)]}))
 
-(defn mock-remote [resolvers]
-  (let [parser (new-parser resolvers)
-        transmit! (:transmit! (mock-http-server {:parser (fn [req] (parser {} req))}))]
-    {:remote {:transmit! (fn [this send-node]
-                           (js/setTimeout
-                             #(transmit! this send-node)
-                             @latency))}}))
+(defn mock-remote
+  ([resolvers env]
+   (let [parser    (new-parser resolvers)
+         transmit! (:transmit! (mock-http-server {:parser (fn [req] (parser env req))}))]
+     {:remote {:transmit! (fn [this send-node]
+                            (js/setTimeout
+                              #(transmit! this send-node)
+                              @latency))}}))
+  ([resolvers]
+   (mock-remote resolvers {})))
