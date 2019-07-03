@@ -202,6 +202,8 @@
 
 (defn ^:export init []
   (js/console.log "Init")
+  (when inspect/INSPECT
+    (inspect/install {}))
   (app/mount! server-control-app ServerControlRoot "server-controls")
   (js/console.log "Seeding demo database")
   (db/seed-database))

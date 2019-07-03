@@ -1,17 +1,19 @@
 {:deps     {:aliases []}
  :nrepl    {:port 9000}
  :jvm-opts ["-Xmx2G"]
- :builds   {:book {:target        :browser
-                   :output-dir    "docs/js/book"
-                   :asset-path    "/js/book"
-                   :module-loader true
-                   :modules       {:book    {:entries [book.main]
-                                             :init-fn book.main/init}
-                                   ; For the dynamic code splitting demo
-                                   :ui-main {:entries    [book.demos.dynamic-ui-main]
-                                             :init-fn    book.demos.dynamic-ui-main/init
-                                             :depends-on #{:book}}}
-                   :devtools      {:preloads  [com.fulcrologic.fulcro.inspect.preload]
-                                   :http-root "resources/public"
-                                   :http-port 9005}}}}
+ :builds   {:book {:target          :browser
+                   :output-dir      "docs/js/book"
+                   :asset-path      "/js/book"
+                   :module-loader   true
+                   :closure-defines {com.fulcrologic.fulcro.inspect.inspect-client/INSPECT true}
+                   :dev             {:compiler-options {:external-config {:ghostwheel {}}}}
+                   :modules         {:book    {:entries [book.main]
+                                               :init-fn book.main/init}
+                                     ; For the dynamic code splitting demo
+                                     :ui-main {:entries    [book.demos.dynamic-ui-main]
+                                               :init-fn    book.demos.dynamic-ui-main/init
+                                               :depends-on #{:book}}}
+                   :devtools        {:preloads  [com.fulcrologic.fulcro.inspect.preload]
+                                     :http-root "resources/public"
+                                     :http-port 9005}}}}
 

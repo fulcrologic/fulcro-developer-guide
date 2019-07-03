@@ -5,6 +5,10 @@ docs/DevelopersGuide.html: DevelopersGuide.adoc
 
 book: docs/DevelopersGuide.html
 
+build-report:
+	npx shadow-cljs run shadow.cljs.build-report book report.html
+	open report.html
+
 bookdemos:
 	rm -rf docs/js/book docs/js/book.js
 	npm install
