@@ -5980,6 +5980,8 @@ Most of your server API should be written with something like https://wilkerluci
 There are also ways to adapt to GraphQL servers, REST APIs, etc.  This chapter will be strictly using a Pathom parser
 to supply data from the servers according to the following database schema and data:
 
+== Load Demo Database
+
 ```
 include::src/book/book/database.cljs[]
 ```
@@ -6029,11 +6031,12 @@ This database and small set of resolvers can resolve quite complex queries:
 
 == The Data Fetch API: `load!` [[DataFetch]]
 
-Let's say we want to load all of our friends from the server. A query has to be rooted somewhere, so we'll invent
-a root-level keyword, `:all-friends`, and join it to the UI query for a `Person`:
+Let's say we want to load all of our friends from the server. A query has to be rooted somewhere, so we've invented
+a root-level keyword, `:all-people` that can query the database for every entity that has a `:person/id`.  In Fulcro
+component queries that would look like this:
 
 ```
-[{:all-friends (comp/get-query Person)}]
+[{:all-people (comp/get-query Person)}]
 ```
 
 What we'd like to see then from the server is a return value with the shape of the query:
@@ -6042,7 +6045,8 @@ What we'd like to see then from the server is a return value with the shape of t
 { :all-friends [ {:person/id 1 ...} {:person/id 2 ...} ...] }
 ```
 
-If we combine that query with that tree result and were to manually call `merge!` we'd end up with this:
+If we combined that query with the tree result and were to manually call `merge/merge!` then
+we'd end up with this in our client database:
 
 ```
 { :all-friends [ [:person/id 1] [:person/id 2] ...]
@@ -6063,62 +6067,63 @@ interaction, and merge):
   (df/load! comp-or-app :all-friends Person)
 ```
 
+The first argument is the component (i.e. `this`) or the application. The next argument is a keyword or an
+ident, and the next argument defines the type of thing (to-one or many) that will be the next "level" of the
+query.
+
 An important thing to notice is that `load!` can be thought of as a function that loads normalized data into the
-root node of your graph (`:all-friends` appears in your root node).
+root node of your graph (`:all-friends` in this scenario would appear in your root node).
 
-This is sometimes what you want, but more often you really want data loaded at some other spot in your graph. We'll
-talk about this more in a moment, first, let's see how to handle that on the server.
+This is sometimes what you want, but often you really want that data loaded at some *other* spot in your graph.
 
-=== Handling a Root Query
+=== Basic Targeting
 
-It is highly recommended that you use https://github.com/wilkerlucio/pathom[pathom] to further
-process queries.  Specifically, we recommend using the "Connect" functionality of Pathom.
+When you want the data from load to appear at some other edge in your database you can simply tell load the
+*normalized* path (which is rarely more than 3 elements) to the location you'd like to place the result.
+For example, if you had list components with IDs, then this:
 
-TODO: Rewrite with pathom
+```
+  (df/load! comp-or-app :all-friends Person {:target [:list/id :people :list/people]})
+```
 
-=== Entity Queries
+might load two people (with IDs 1 and 2) and would result in your database containing:
 
-TODO: Rewrite with pathom
+```
+{:person/id {1 {...} 2 {...}} ; normalized people
+ :list/id   {:people {:list/people [[:person/id 1] [:person/id 2]]
+```
+
+=== Ident-based Loading
+
+You can also simply load (and normalize the sub-tree) a given entity with:
+
+```
+  (df/load! this [:person/id 1] Person)
+```
+
+which will simply update the entries in the tables, but won't add any edges to the graph. You can use targeting
+with these loads in order to that ident in the graph at arbitrary locations:
+
+```
+  (df/load! this [:person/id 1] Person {:target [:current-user]})
+```
+
+which will result in something like this:
+
+```
+{:person/id {1 {:person/id 1 :person/name "Joe"}}
+ :current-user [:person/id 1]}
+```
 
 === A Loading Example
 
-This example shows two very common ways that data is loaded (or reloaded) in an application.
+The two general loading techniques are shown in the following example which uses our database described in
+<<Load Demo Database>>. You should Focus the Inspect tool on this example's database so you can see what
+is happening (via the DB, Transaction, and Network sub-tabs).
 
-On startup, the following loads data after the client has mounted:
-
-```
-(app/fulcro-app
-  {:client-did-mount
-    (fn [app]
-      (df/load! app :people/enemies Person {:target [:lists/by-type :enemies :list/people]})
-      (df/load! app :people/friends Person {:target [:lists/by-type :friends :list/people]}))})
-```
-
-In this demo we're loading lists of people. There are two kinds of people available from the
-server: friends and enemies. We use the a namespaced keyword for an unambiguous "root key", but we do not intend
-for these lists to populate keys at the root of the client database.
-The `:target` key is the path in which to store the result. In this case to a (normalized) entity's property.
-
-Since all components should be normalized, this target path is almost always 2 (loading a whole component into a table)
-or 3 elements (loading one or more things into a property of an existing component).
-
-FIXME: write for pathom
-
-Once started, any given person can be refreshed at any time. Timeouts, user event triggers, etc. There are two ways
-to refresh a given entity in a database. In the code of `Person` below you'll see that we are using `load!` again, but
-this time with an `ident`:
-
-```
-(df/load! this (comp/get-ident this) Person)
-```
-
-All of the parameters of this call can be easily derived when calling it from the component needing refreshed, so
-there is a helper function called `refresh!` that makes this a bit shorter to type:
-
-```
-(df/refresh! this)
-```
-
+Pressing the "Load People" button will load all of the people. Once they are loaded you can refresh any one
+of them. A special resolver on the server for `:server/time-ms` allows us to timestamp the entities with the server's
+time so we can see the refresh taking effect.
 
 .[[LoadingDataBasics]]<<LoadingDataBasics,Loading Data Basics>>
 ====
@@ -6135,65 +6140,38 @@ include::src/book/book/demos/loading_data_basics.cljs[]
 
 === Targeting Loads
 
-A short while ago we noted that loads are targeted at the root of your graph, and that this wasn't always what you
-wanted. After all, your graph database will always have other UI stuff. For example there might be the concept of
-a "current screen" (join from root) that might currently point to a "friends screen", which in turn is where you want
-to load that list of friends:
-
-```
-{ :current-screen [:screens/by-type :friends]
-  ...
-  :screens/by-type { :friends { :friends/list [] ... }}}
-```
-
-If you've followed our earlier recommendations then your application's UI is normalized and any given
-spot in your graph is really just an entry in a top-level table. Thus, the path to the desired location
-of our friends is usually just 3 deep. In this case: `[:screens/by-type :friends :friends/list]`.
-
-If we were to merge the earlier load into that database we could get what we want by just moving graph edges (where
-a to-one edge is an ident, and a to-many edge is a vector of idents):
-
-```
-{ :all-friends [ [:person/id 1] [:person/id 2] ...]  ; (1) MOVE this to (2)
-  :person/id { 1 { :db/id 1 ...}
-                  2 { :db/id 2 ...}
-  :current-screen [:screens/by-type :friends]
-  :screens/by-type { :friends { :friends/list [] ... }}} ; (2) where friends *should* be
-```
-
-Since the graph database is just nodes and edges, there really aren't many more operations to worry about!
-You've essentially got to *normalize a tree*, *merge normalized data*, and *move/invent graph edges*.
-
-The load API supports several kinds of graph edge targeting to allow you to put data where you want it in your
-graph.
+We covered a little bit about targeting in <<Basic Targeting>>. It turns out that the targeting system
+gives you a bit more power than what we showed there. This section covers targeting in a bit more detail.
 
 ==== Simple Targeting
 
-The simplest targeting is to put it somewhere besides root. The `load!` function can do
-that with a simple additional parameter:
+The simplest targeting is to put a "root" result somewhere besides root, or to add an additional ident (edge) when
+you've loaded something by ident:
 
 ```
-(df/load comp :all-friends Person {:target [:screens/by-type :friends :friends/list]})
+(df/load comp :all-people Person {:target [:list/id :people :list/people]})
 ```
 
 So, the server will still see the well-known query for `:all-friends`, but your local UI graph will end up seeing the
 results in the list on the friends screen.
 
-Using a plain target is equivalent to full replacement of the edge.
+This is equivalent to the full replacement of the edge. Anything that existed at the target path will be overridden
+by an ident (to-one) or a vector of idents (to-many). Remember that the cardinality is determined based on the
+actual result (not some kind of client-side schema).
 
 ==== Advanced Targets
 
-You can also ask the target parameter to modify to-many edges instead of replacing them. For example, say you
-were loading one new person, and wanted to append it to the current list of friends:
+You can also ask the target parameter to *modify* to-many edges instead of replacing them. For example, say you
+were loading one new person, and wanted to append it to the current list:
 
 ```
-(df/load comp :best-friend Person {:target (targeting/append-to [:screens/by-type :friends :friends/list])})
+(df/load comp [:person/id 42] Person {:target (df/append-to [:list/id :people :list/people])})
 ```
 
-The `append-to` function in the `targeting` namespace augments the target to indicate that the incoming items
+The `append-to` function augments the target to indicate that the incoming items
 (which will be normalized) should have their idents appended onto the to-many edge found at the given location.
 
-NOTE: `append-to` will not create duplicates.
+NOTE: `append-to` will not create duplicates in the list of idents.
 
 There is also `prepend-to`.
 
@@ -6201,65 +6179,29 @@ You may also ask the targeting system to place the result(s) at more than one pl
 with the `multiple-targets` wrapper:
 
 ```
-(df/load comp :best-friend Person {:target (targeting/multiple-targets
-                                              (targeting/append-to [:screens/by-type :friends :friends/list])})
+(df/load comp :best-friend Person {:target (df/multiple-targets
+                                              (df/append-to [:screens/by-type :friends :friends/list])})
                                               [:other-spot]
-                                              (targeting/prepend-to [:screens/by-type :summary :friends]))})
+                                              (df/prepend-to [:screens/by-type :summary :friends]))})
 ```
 
 Note that `multiple-targets` can use plain target vectors (replacement) or any of the special wrappers.
-
-==== An Example of Targeting
-
-In the example below, you'll see we've set up two panes in a panel, and each pane can render a person.
-
-Initially, there are no people loaded (none in initial state). The load buttons in the root component
-let you see entity loads targeted at one or both of them.
-
-The main loader looks like this (and is called from root):
-
-```
-(defn load-random-person [component where]
-  (let [load-target  (case where
-                       (:left :right) [:pane/id where :pane/person]
-                       :both (df/multiple-targets
-                               [:pane/id :left :pane/person]
-                               [:pane/id :right :pane/person]))
-        person-ident [:person/id (rand-int 100)]]
-    (df/load! component person-ident Person {:target load-target})))
-```
-
-The server is rather simple. It just makes up a person for any given random ID.
-
-
-
-.[[LoadingDataandTargetingEntities]]<<LoadingDataandTargetingEntities,Loading Data and Targeting Entities>>
-====
-++++
-<button class="inspector" onClick="book.main.focus('loading-data-targeting-entities')">Focus Inspector</button>
-<div class="short narrow example" id="loading-data-targeting-entities"></div>
-<br/>
-++++
-[source,clojure,role="source"]
-----
-include::src/book/book/demos/loading_data_targeting_entities.cljs[]
-----
-====
-
 
 === Other Load Options [[LoadOptions]]
 
 Loads allow a number of additional arguments. Many of these are discussed in more detail in later sections:
 
 [horizontal]
-`:post-mutation` and `:post-mutation-params`:: A mutation to run once the load is complete (local data transform only).
+`:post-mutation` and `:post-mutation-params`:: A mutation to run once the load is complete, and the parameters to pass to it.
 `:remote`:: The name of the remote you want to load from.
 `:parallel`:: Boolean. Defaults to false. When true, bypasses the sequential network queue. Allows multiple loads to run at once, but causes you to lose any guarantees about ordering since the server might complete them out-of-order.
-`:fallback`:: A mutation to run if the server throws an error during the load.
+`:fallback`:: A mutation to run if your configured `remote-error?` returns true on the network result.
 `:focus`:: A subquery to filter from your component query. Covered in Incremental Loading.
 `:without`:: A set of keywords to elide from the query. Covered in Incremental Loading.
 `:update-query`:: A function that will take the component original query and should return a query that will be sent to the remote
 `:params`:: A map. If supplied the params will appear as the params of the query on the server.
+
+See the docstring of the `load!` function for more.
 
 ==== Parallel vs. Sequential Loading
 
@@ -6276,8 +6218,6 @@ at least 3x your server latency to complete from the time you click the first on
 If you rapidly click the parallel buttons, then the loads will not be sequenced and you will see them all complete in roughly
 1x your server latency (from the time you click the last one).
 
-
-
 .[[Parallelvs.SequentialLoading]]<<Parallelvs.SequentialLoading,Parallel vs. Sequential Loading>>
 ====
 ++++
@@ -6291,10 +6231,10 @@ include::src/book/book/demos/parallel_vs_sequential_loading.cljs[]
 ----
 ====
 
-
 == Initializing Loaded Items
 
-See the section on <<PreMerge, Pre-merge>>.
+There are two main ways to augment the items you load. One is using post-mutations, and the
+other is <<PreMerge, Pre-merge>>.
 
 === Post Mutations – Morphing Loaded Data
 
@@ -6349,8 +6289,10 @@ distinct advantages:
 
 ==== Using `defsc` For Server Queries
 
-It is perfectly legal to use `defsc` to define a graph query (and normalization) for something like this that doesn't exactly
-exist on your UI. This can be quite useful in the presence of post mutations that can re-shape the data.
+If you are taking the approach we've described then you have a problem: None of your UI matches the query that we
+need for the *server*! It turns out that
+it is perfectly legal (and recommended) to use `defsc` to define a graph query (and normalization) for something like
+this that doesn't exactly exist on your UI.
 
 Simply code your (nested) queries using `defsc`, and skip writing the body:
 
@@ -6359,6 +6301,9 @@ Simply code your (nested) queries using `defsc`, and skip writing the body:
   {:query [:db/id :item/name {:item/category (comp/get-query CategoryQuery)}]
    :ident [:items/id :db/id]})
 ```
+
+and now you can load (and normalize) the data that the server knows how to provide, and then use a post-mutation
+to re-shape it to suit your needs:
 
 ```
 (df/load! this :all-items ItemQuery {:post-mutation `group-items})
@@ -6370,8 +6315,7 @@ The example below simulates post mutations to show how a load of simple data cou
 that the UI wants to display. In  this case we're pretending that the load has brought in a number of items
 (as a collection) and normalized it, but we'd prefer to show the items organized by category.
 
-You can interact with it and view the database to A/B compare the before/after state.
-
+You should interact with it and <<Install Fulcro Inspect,view the database in Inspect>> to A/B compare the before/after state.
 
 .[[MorphingExample]]<<MorphingExample,Morphing Example>>
 ====
@@ -6385,7 +6329,6 @@ You can interact with it and view the database to A/B compare the before/after s
 include::src/book/book/server/morphing_example.cljs[]
 ----
 ====
-
 
 == Pre-Merge [[PreMerge]]
 
