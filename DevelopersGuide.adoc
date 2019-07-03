@@ -6029,6 +6029,35 @@ This database and small set of resolvers can resolve quite complex queries:
    :person/addresses [{:address/street "101 Main St"}]}]}
 ----
 
+=== Playing with the Database
+
+If you're running the live book with <<Install Fulcro Inspect, Inspect installed>> you can leverage a really nice feature
+of that tool: When you use Pathom as your parser it is able to send an autocomplete index to your tools, which allows you
+play with the parser on your server to see what it can do!
+
+Try the following:
+
+. Go to the <<LoadingDataBasics, Loading Data Basics>> example.
+. Open Fulcro Inspect
+. Focus the inspector on that example (Use the "Focus Inspector" button).
+. In Inspect, choose the Query sub-tab.
+. In the while bar just below the tabs there is a round grey button and a "Run query". Button. *Press the grey button*. This
+will load the indexes from the Pathom server. The button should turn green.
+. Place your cursor in the left half of the query tool. This is where you type in queries. Autocomplete should be
+working (try typing `:` inside of the vector)!
+
+.Server Query Autocomplete
+====
+image::query-autocomplete-1.png[Server Query Autocomplete]
+====
+
+If you write a legal query and press "Run query", it will contact the server and give you the result.
+
+.Server Query Result
+====
+image::query-autocomplete-2.png[Server Query Autocomplete]
+====
+
 == The Data Fetch API: `load!` [[DataFetch]]
 
 Let's say we want to load all of our friends from the server. A query has to be rooted somewhere, so we've invented
@@ -6697,8 +6726,6 @@ include::src/book/book/demos/pre_merge/countdown_mutation.cljs[]
 ----
 ====
 
-
-
 == Incremental Loading [[IncrementalLoading]]
 
 It is very common for your UI query to have a lot more in it than you want to load at any given time. In some cases,
@@ -6720,59 +6747,59 @@ Sometimes your UI graph asks for things that you'd like to load incrementally. L
 post that has comments. Perhaps you'd like to load the comments later:
 
 ```
-(df/load app :server/blog Blog {:params {:id 1 }
-                                :target [:screens/by-name :blog :current-page]
+(df/load app :server/blog Blog {:params {:id 1}
                                 :without #{:blog/comments}})
 ```
 
 The `:without` parameter can be used to elide portions of the query (it works recursively). The query sent to the
 server will *not* ask for `:blog/comments`. Of course, your server has to parse and honor the exact details
 of the query for this to work (if the server decides it's going to returns the comments, you get them...but this is why
-we disliked REST, right?)
-
-```
-(server/defquery-root :server/blog
-  (value [{:keys [query]} {:keys [id]}] ; query will be the query of Blog, without the :comments
-     ; use a parser on query to get the proper blog result. See Server Interactions - Query Parsing
-     (get-blog id query)))
-```
+we disliked REST, right?). Of course, Pathom makes this quite easy since it honors the query presented to it.
 
 === Filling in the Subgraph
 
 Later, say when the user scrolls to the bottom of the screen or clicks on "show comments" we can load the rest
-from of this previously partially-loaded graph within the Blog itself using `load-field`, which does the opposite
-of `:without` on the query:
+from of this previously partially-loaded graph within the Blog itself. We can do this using `df/load-field!`, which
+does the opposite of `:without` on the query:
 
 ```
 (defsc Blog [this props]
-  {:ident  [:blog/id :db/id]
-   :query  [:db/id :blog/title {:blog/content (comp/get-query BlogContent)} {:blog/comments (comp/get-query BlogComment)}]}
+  {:ident  :blog/id
+   :query  [:blog/id :blog/title {:blog/content (comp/get-query BlogContent)} {:blog/comments (comp/get-query BlogComment)}]}
   (dom/div
      ...
-     (dom/button {:onClick #(load-field this :blog/comments)} "Show Comments")
+     (dom/button {:onClick #(df/load-field! this :blog/comments {})} "Show Comments")
      ...)))
 ```
 
-The `load-field` function prunes everything from the query *except* for the branch
-joined through the given key. It also generates an *entity rooted query* based on the calling component's ident:
+The `load-field!` function finds the query on the component (via `this`) and prunes everything from that query *except*
+for the branch joined through the given key. It also generates an *entity rooted query* based on the calling component's ident:
 
 ```
 [{[:table ID] subquery}]
 ```
 
-where the `[:table ID]` are the ident of the invoking component, and subquery is `(comp/get-query invoking-component)`, but
-focused down to the one field. In the example above, this would end up something like this:
+In the example above, this would end up something like this:
 
 ```
-[{[:blog/id 1] [{:blog/comments [:db/id :comment/author :comment/body]}]}]
+[{[:blog/id 1] [{:blog/comments [:comment/id :comment/author :comment/body]}]}]
 ```
 
-This kind of query can be handled on the server with `defquery-entity` (which is triggered on these kinds of ident joins):
+This kind of query can be handled automatically by Pathom as long as there is a resolver that takes `:blog/id` as
+an input, and resolvers exist to fulfill the subgraph from there!
 
 ```
-(server/defquery-entity :blog/id
-  (value [{:keys [query]} id params]
-    (get-blog id query))) ; SAME HANDLER WORKS!!!
+(pc/defresolver blog-resolver [env {:blog/keys [id]}]
+  {::pc/input #{:blog/id}
+   ::pc/output [... {:blog/comments [:comment/id]}]}
+  ...)
+
+(pc/defresolver comment-resolver [env {:comment/keys [id]}]
+  {::pc/input #{:comment/id}
+   ::pc/output [:comment/body {:comment/author [:author/id]}]}
+  ...)
+
+;; and so on
 ```
 
 ==== Load Focus
@@ -6831,7 +6858,7 @@ Then you get out the query:
 This makes sure you will keep all union branches.
 
 ;; ================================================================================
-;; TODO: Network activity indicator stuff
+;; CONTINUE HERE
 ;; ================================================================================
 = Network Activity Indicators
 
