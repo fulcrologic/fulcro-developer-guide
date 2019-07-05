@@ -126,6 +126,7 @@ code. This book adopts the following general set of requires and aliases:
 (ns your-ns
   (:require [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
             [com.fulcrologic.fulcro.application :as app]
+            [com.fulcrologic.fulcro.data-fetch :as df]
             [com.fulcrologic.fulcro.dom :as dom]
             [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
             [com.fulcrologic.fulcro.algorithms.misc :as util]
@@ -10839,6 +10840,46 @@ my compile times quite low even as the source grows.  Technically this could pro
 it is a "hard problem" that may not be solved for some time (if ever).
 . You might want to use a [linter](https://github.com/candid82/joker) to detect unused requires.
 . Keep the compiler up-to-date. I've seen 10-20% performance boosts in single releases.
+
+== Callbacks causing Over-rendering
+
+A lot of people don't realize that placing lambdas in their DOM can cause performance problems of various kinds:
+
+- A lambda closes over the surrounding environment, so it is regenerated every time it is executed.
+- The value of a lambda won't compare as equal to the new one, meaning `shouldComponentUpdate` checks end up being useless.
+
+The following code snippet contains both kinds of problems:
+
+```
+(defsc Comp [this props]
+  {:query ...}
+  (dom/div
+    ;; computed props affect shouldComponentUpdate. The child will render any time the parent does, even if nothing
+    ;; else changed but the lamda
+    (ui-child (comp/computed child-props {:onDelete #(comp/transact! this [(delete-child {:id %})])}))
+    ;; The lamda in the on-click will be regenerated on every render
+    (dom/button {:onClick #(js/alert "Click!!!"))))
+```
+
+Most of the time these kinds of functions can be fixed by generating the functions in a different context:
+
+```
+;; if there is no real data dependency on the component, just use a normal function defn
+(defn click-alert! []
+  (js/alert "Click!"))
+
+(defsc Comp [this props]
+  {:query ...
+   :initLocalState (fn [this]
+                     ;; put the onDelete (which needs to close over `this`) into component-local state
+                     {:onDelete #(comp/transact! this [(delete-child {:id %})])})}
+  (let [{:keys [onDelete]} (comp/get-state this)]
+    (dom/div
+      ;; The computed props are no longer changing, so shouldComponentUpdate will be accurate on child-props
+      (ui-child (comp/computed child-props {:onDelete onDelete}))
+      ;; The onClick now points to a pre-calculated value
+      (dom/button {:onClick click-alert!))))
+```
 
 == Poor Query Performance
 
