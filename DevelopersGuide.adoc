@@ -6906,38 +6906,32 @@ the simple names but deprecate them.
 
 Alternate remote implementations and client network middleware can certainly expand/modify this as needed.
 
-== Global Network Activity Markers
+== Global Network Activity
 
-TODO: Fulcro 3 has not yet re-added this particular feature. This will probably be implemented like this for bw compat, but
-may include some preferred alternative.
+Fulcro tracks the general idea that network activity is happening in the state database under
+the key :com.fulcrologic.fulcro.application/active-remotes. The value is a set of remote names
+(keywords) that have scheduled remote activity that has yet to complete. A remote will appear in
+this set from the time the desire for remote content enters the transaction processing system until
+that desire is met (or fails).
 
-Fulcro will automatically maintain a global network activity marker at the top level of the app state under the
-keyword `:ui/loading-data`. This key will have a `true` value when there are network *loads* awaiting a response from
-the server, and will have a `false` value when there are no network requests in process.
+This global set can easily be queried for by a component that wants to track the status of network
+activity by simply querying for it with a root link element in the query: `[::app/active-remotes '_]`.
 
-You can access this marker from any component that composes to root by including a link in your component's query:
+NOTE: Any component querying for the network active remotes will see a lot of re-renders. It is recommended
+that such a component be a leaf in the UI graph so you don't trigger refresh on entire subtrees due
+to network activity status updates.
 
 ```
-(defsc Item ... )
-(def ui-item (comp/factory Item {:keyfn :id}))
-
-(defsc List [this {:keys [title items ui/loading-data]}]
-  {:query [:id :title {:items (comp/get-query Item)} [:ui/loading-data '_]]}
+(defsc GlobalStatus [this {::app/keys [active-remotes]}]
+  {:query [[::app/active-remotes '_]]
+   :ident (fn [] [:component/id :activity])
+   ;; important: components that query only for root data need to have at least some empty state of their own
+   :initial-state {}}
   ...
-  (if (and loading-data (empty? items))
-    (dom/div "Loading...")
-    (dom/div
-      (dom/h1 title)
-      (map ui-item items))))
+  (let [loading? (boolean (seq active-remotes))]
+    (when loading?
+      (dom/div "Loading..."))))
 ```
-
-TODO: May or may not re-implement the following in 3.
-
-There is a top-level key called :fulcro.client.network/status that holds a map from remotes to their
-current general status (`:inactive` or `:active`).  These are correct for all Fulcro remotes you've added to the
-application, and can be used (via a link query) to watch for global activity.  Since these are not tied to specific
-requests, they have only minor advantages over the older `:ui/loading-data` marker: They are correct for loads
-*and* mutations, and are split out by remote.
 
 == Blocking the UI During Operation
 
@@ -6947,21 +6941,24 @@ use to allow the network activity to complete before allowing the user to contin
 . The Load API has a number of parameters that can allow you to plug in your own code for dealing with results.
 . For mutations: use the action/ok-action/error-action to do a sequence of optimistically blocking the UI, sending the
 request, and then using the ok-action/error-action as the place to unblock the UI and report the result. This is the
-most similar to an approach you are likely accustomed to.
+most similar to the approach other libraries use.
 . Use pessimistic transactions. This is a mode of transaction processing that allows each mutation in a single top-level
 transaction (call to `transact!`) to complete (full-stack) before anything from the next one begins. This mode has
 the advantage of making the sequence visible at the transaction layer, but requires you share progressive data through
-the app state itself.
+the app state itself. Some people prefer this because the "happy path" can be expressed clearly in the UI, even though
+the details are still within the mutation. Something like
+`(comp/transact! this [(submit-form) (process-result)] {:optimistic? false})` is more directly informative to the reader
+than `(comp/transact! this [(submit-form)])` (implied post-processing hidden in the mutation `ok-action`).
 
-There are also some more advanced techniques that allow you to leverage more generalized control:
+There are also some more advanced techniques that allow you to leverage more global control:
 
 . Change the `default-result-action` for mutations and provide application-specific defaults for error handling.
-. Change the `internal-load` mutation for loads to add in global changes.
+. Change the `internal-load` mutation for loads to add in whatever global changes you desire.
 
-The above two techniques typically leverage the default implementations so that the pre-defined operations still
+The above two techniques typically leverage the default implementations so that the pre-defined behaviors still
 work, but include mechanisms you define to handle common cases without having to code them repeatedely. If you want
 to explore these advanced techniques expect to use the source. See `mutations.cljc` and `data_fetch.cljc` for the
-default implementations.
+default implementations, and the docstring of `app/fulcro-app` for the options you can use to override the defaults.
 
 === Tracking Specific Loads
 
@@ -6973,14 +6970,14 @@ a normalized table, allowing you to query for them in the components that need t
 Load markers are normalized into a well-known table via an ID that you choose.
 You can use just about any value (except a boolean) for the id. This has the following behavior:
 
-. Load markers are placed the top-level table (the var com.fulcrologic.fulcro.data-fetch/marker-table holds the table name),
+. Load markers are placed the top-level table (the var `com.fulcrologic.fulcro.data-fetch/marker-table` holds the table name),
 using your marker value as their ID.
 . You can explicitly query for them using an ident-based join.
 
 ==== Working with Normalized Load Markers
 
-The steps are rather simple: Include the `:marker` parameter with load, and a query for the load marker
-the marker on a UI component. The table name for markers is stored in the data-fetch namespace in the var `df/marker-table`.
+The steps are rather simple: Include the `:marker` parameter with load, and add a query for the load marker
+on a UI component.
 
 ```
 (defsc SomeComponent [this props]
@@ -7000,7 +6997,8 @@ to detect what state the load is in:
 * `(df/loading? m)` - Returns true if the item is still in progress (of any kind)
 * `(df/failed? m)` - Returns true if the item failed, according to your definition of an error.
 
-The marker will disappear from the table when network activity completes.
+The marker will disappear from the table when network activity completes successfully, but will remain in place
+on failures.
 
 The rendering is up to you, but that is really all there is to it.
 
@@ -7017,8 +7015,8 @@ load marker table into a component with a link query:
     ...))
 ```
 
-Beware, though, that querying for the entire marker table will tend to include the given component in all refreshes
-where load markers change, since the props for them will also change.
+Beware, though, that querying for the entire marker table will tend to "over render" the given component (every time any
+load marker changes).
 
 ;; ================================================================================
 ;; CONTINUE HERE
