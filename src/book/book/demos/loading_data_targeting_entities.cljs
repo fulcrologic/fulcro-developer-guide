@@ -5,6 +5,7 @@
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.wsscode.pathom.connect :as pc]))
 
 ;; SERVER
@@ -51,7 +52,7 @@
 (defn load-random-person [component where]
   (let [load-target  (case where
                        (:left :right) [:pane/by-id where :pane/person]
-                       :both (df/multiple-targets
+                       :both (targeting/multiple-targets
                                [:pane/by-id :left :pane/person]
                                [:pane/by-id :right :pane/person]))
 

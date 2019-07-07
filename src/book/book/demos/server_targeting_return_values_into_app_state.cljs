@@ -3,25 +3,25 @@
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [fulcro.server :as server]
     [com.fulcrologic.fulcro.data-fetch :as df]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def ids (atom 1))
+#_#_#_(def ids (atom 1))
 
-(server/defmutation trigger-error [_]
-  (action [env]
-    {:error "something bad"}))
+    (server/defmutation trigger-error [_]
+      (action [env]
+        {:error "something bad"}))
 
-(server/defmutation create-entity [{:keys [db/id]}]
-  (action [env]
-    (let [real-id (swap! ids inc)]
-      {:db/id        real-id
-       :entity/label (str "Entity " real-id)
-       :tempids      {id real-id}})))
+    (server/defmutation create-entity [{:keys [db/id]}]
+      (action [env]
+        (let [real-id (swap! ids inc)]
+          {:db/id        real-id
+           :entity/label (str "Entity " real-id)
+           :tempids      {id real-id}})))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLIENT:
@@ -52,9 +52,9 @@
                 ; strip the where?...it is for local use only (not server)
                 (m/with-params (dissoc params :where?)))
         ; Add the targeting...based on where?
-        (= :append where?) (m/with-target (df/append-to path-to-target)) ; where to put it
-        (= :prepend where?) (m/with-target (df/prepend-to path-to-target))
-        (= :replace-first where?) (m/with-target (df/replace-at (conj path-to-target 0)))))))
+        (= :append where?) (m/with-target (targeting/append-to path-to-target)) ; where to put it
+        (= :prepend where?) (m/with-target (targeting/prepend-to path-to-target))
+        (= :replace-first where?) (m/with-target (targeting/replace-at (conj path-to-target 0)))))))
 
 (defsc Entity [this {:keys [entity/label]}]
   {:ident [:entity/by-id :db/id]

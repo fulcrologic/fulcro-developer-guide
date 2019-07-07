@@ -131,7 +131,7 @@ code. This book adopts the following general set of requires and aliases:
             [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
             [com.fulcrologic.fulcro.algorithms.misc :as util]
             [com.fulcrologic.fulcro.algorithms.merge :as merge]
-            [com.fulcrologic.fulcro.algorithms.data-targeting :as target]
+            [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
             [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
             [com.fulcrologic.fulcro.algorithms.normalize :as fnorm]
             [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
@@ -5468,7 +5468,7 @@ These helpers all work on `env` and return `env`, and the remote sections accept
     (-> env
       (m/with-params (merge params {:api-token "cygnus x-1"}))
       (m/returning Item)
-      (m/with-target (df/append-to [:path :to :field])))))
+      (m/with-target (targeting/append-to [:path :to :field])))))
 ```
 
 All special targets are supported:
@@ -5480,9 +5480,9 @@ All special targets are supported:
     (-> ast
       (m/returning state Item)
       (m/with-target
-        (df/multiple-targets
-          (df/append-to [:table 3 :field])
-          (df/prepend-to [:table-2 4 :field]))))))
+        (targeting/multiple-targets
+          (targeting/append-to [:table 3 :field])
+          (targeting/prepend-to [:table-2 4 :field]))))))
 ```
 
 ==== Demo of Mutation Joins
@@ -5534,9 +5534,9 @@ which is targeting to-many so we can demo more features.
                 ; strip the where?...it is for local use only (not server)
                 (m/with-params (dissoc params :where?)))
         ; Add the targeting...based on where?
-        (= :append where?) (m/with-target (df/append-to path-to-target)) ; where to put it
-        (= :prepend where?) (m/with-target (df/prepend-to path-to-target))
-        (= :replace-first where?) (m/with-target (df/replace-at (conj path-to-target 0)))))))
+        (= :append where?) (m/with-target (targeting/append-to path-to-target)) ; where to put it
+        (= :prepend where?) (m/with-target (targeting/prepend-to path-to-target))
+        (= :replace-first where?) (m/with-target (targeting/replace-at (conj path-to-target 0)))))))
 ```
 +
 The server mutation just returns the entity.
@@ -6200,7 +6200,7 @@ You can also ask the target parameter to *modify* to-many edges instead of repla
 were loading one new person, and wanted to append it to the current list:
 
 ```
-(df/load comp [:person/id 42] Person {:target (df/append-to [:list/id :people :list/people])})
+(df/load comp [:person/id 42] Person {:target (targeting/append-to [:list/id :people :list/people])})
 ```
 
 The `append-to` function augments the target to indicate that the incoming items
@@ -6214,10 +6214,10 @@ You may also ask the targeting system to place the result(s) at more than one pl
 with the `multiple-targets` wrapper:
 
 ```
-(df/load comp :best-friend Person {:target (df/multiple-targets
-                                              (df/append-to [:screens/by-type :friends :friends/list])})
+(df/load comp :best-friend Person {:target (targeting/multiple-targets
+                                              (targeting/append-to [:screens/by-type :friends :friends/list])})
                                               [:other-spot]
-                                              (df/prepend-to [:screens/by-type :summary :friends]))})
+                                              (targeting/prepend-to [:screens/by-type :summary :friends]))})
 ```
 
 Note that `multiple-targets` can use plain target vectors (replacement) or any of the special wrappers.
@@ -6868,21 +6868,25 @@ This makes sure you will keep all union branches.
 Most applications have to contend with network latency. A good user experience requires that applications be able
 to give feedback to the user about the progress of network operations. The optimistic nature of Fulcro means that you
 can often give the user the impression of zero latency (the UI changes before the networking even starts); however,
-there are certain circumstances where you would like to give the user some assurance that the full-stack operation
+there are many circumstances where you would like to give the user some assurance that the full-stack operation
 is complete before moving on. For example, when saving a form you usually don't want to pop up some kind of error
 about the submission of that form when the user has already moved on to a new screen.
 
 You've certainly seen a number of different ways this can be handled. Network applications like Google Docs give the
-user an indicate of when their changes have been saved, which allows the user to work in an uninterrupted fashion where
-they only need to worry about the network when they are done with the entire application. More and more applications
+user a continuous indication of when their changes are pending vs. when they have been saved, which allows the user
+to work in an uninterrupted fashion where
+they only need to worry about the network when they are done with the entire session. More and more applications
 save data from things like settings screens as the changes are made, removing the need for a user "save step" as well.
+
+Still others do more complex schemes that persist data into browser local storage as a method of preventing data loss
+even if the network is spotty or the browser crashes while unsaved changes are queued.
 
 Fulcro gives you the power to express any user experience, and this chapter covers some of the techniques you can
 use to provide the experience you desire.
 
 == Defining "Remote Errors"
 
-Fulcro's concept of error detection is configurable. It defaults to a function that returns true if the network result
+Fulcro's concept of a "remote error" is configurable. It defaults to a function that returns true if the network result
 includes a `:status-code` attribute that is not 200. However, it is common for applications to define errors more widely.
 For example, you might consider certain data return values to be indications of an error.
 
@@ -7018,10 +7022,6 @@ load marker table into a component with a link query:
 Beware, though, that querying for the entire marker table will tend to "over render" the given component (every time any
 load marker changes).
 
-;; ================================================================================
-;; CONTINUE HERE
-;; ================================================================================
-
 == Full-Stack Error Handling [[FullStackErrorHandling]]
 
 The first thing I want to challenge you to think about is this: why do errors happen, and what can we do about them?
@@ -7030,12 +7030,12 @@ In the early days of web apps, our UI was completely dumb: the server did all of
 were clear, because it wasn't even a distributed app: it was a *remote display* of an app running on a *remote machine*.
 In other words, the context of the error handling was available at the same time as our request to do the operation.
 
-So we often block the UI so that the user cannot get ahead of things (like
+In more modern apps we often block the UI so that the user cannot get ahead of things (like
 submit a form and move on before the server has confirmed the submission).
 Over the years we've gotten a little more clever with our error handling, but largely our users (and our ability
 to reason about our programs) has kept us firmly rooted to the block-until-we-know method of error handling because
-it is actually *less like* a distributed system. Unfortunately, such UI interactions are doomed to feel sluggish
-in congested or bandwidth-limited environments.
+that behavior is simple: it is much less like an actual distributed system. Unfortunately, such UI interactions are
+doomed to feel sluggish in congested or bandwidth-limited environments.
 
 More and more code is moving to the client machine. In the world of single-page apps we want
 things to "make sense" and we also want them to be snappy. Unfortunately, we still also have security concerns
@@ -7074,32 +7074,31 @@ But of course there is more to the story, and the devil is in the details.
 
 === Programming with Pure Optimism
 
-The general philosophy of a Fulcro application is that optimistic updates are not even triggered on the client
+The _general_ philosophy of a Fulcro application is that optimistic updates are not even triggered on the client
 unless they expect to succeed on the server. In other words, you write the application in such a way that operations cannot be triggered
 from the UI unless you're certain that a *functioning server* will execute them. A server should not throw an exception
 and trigger a need for error handling unless there is a real, non-recoverable situation.
 
-If this is true, then a functioning server *does* need to do sanity checking for security reasons, but in general you
+If this is true then a functioning server *does* need to do sanity checking for security reasons, but in general you
 don't need to give friendly errors when those checks fail: you should assume they are attempted hacks. Other serious
 problems are similar: there is usually nothing you can do but throw an exception and let the user contact support.
-Exceptions to this rule certainly exist, but they are few and far between.
+Exceptions to this rule certainly exist, but they are not the central concern.
 
 There are some cases where the server has to be involved in a validation interaction non-optimistically. Login is a great
-example of this. However, invalid credentials on login *need not be treated as an error*! Instead they can be treated as
-a response to a question. "Can I log in with these credentials?". Yes or no. This is a *query* and *response*, *not* an
-error handling interaction. Thus, something like login can be handled with a query (to get the answer) and post-mutation
-(to update the screen with a message or change the UI route).
+example of this. However, invalid credentials on login need not be treated as an *error*. Instead they can be treated as
+a response to a question. "Can I log in with these credentials?". Yes or no. This allows the UI to show the correct
+result without treating anything as a distributed-systems/data-consistency kind of error.
 
 This philosophy eases the overhead in general application programming. You need not write a bunch of code in the UI
 that gives a nice friendly message for every kind of error that can possibly occur (nor does anyone really do that
-anywhere anyhow). If an error occurs, you can pretty much assume
+anywhere anyhow, since it is quite expensive). If an error occurs, you can pretty much assume
 it is either a bug or a real outage. In both cases, there isn't a lot you can do that will work "well" for the user. If
 it is a bug, then you really have no chance of predicting what will fix it, otherwise you would have already fixed the
 bug. If it's an outage you might be able to do retries, but in many cases you have no way of knowing what has gone wrong.
 
 So, one approach is to treat most error conditions as a rare problem that needs fairly radical recovery.
 One such method is to use a global error handler that is configured during
-the setup of your client application (you have to explicitly configure networking). This function could update application
+the setup of your client application. This function could update application
 state to show some kind of top-level modal dialog that describes the problem, possibly allows the user to submit
 application history (for support viewer) to your servers, and then re-initializes the application in some way.
 
@@ -7130,6 +7129,10 @@ small number of additions.
 However, even with these fancy tricks that make our applications better, there are times when we'd just like to
 block until something is complete.
 
+
+;; ================================================================================
+;; CONTINUE HERE
+;; ================================================================================
 === Detecting Errors From the Server
 
 The built-in remote and networking in Fulcro has a few hooks for dealing with errors:
