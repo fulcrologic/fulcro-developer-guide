@@ -21,6 +21,7 @@
     book.ui-routing
     book.simple-router-1
     book.simple-router-2
+    book.dynamic-router-example
     book.tree-to-db
     book.merge-component
     book.html-converter
@@ -148,6 +149,7 @@
 
 (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :remotes book.main/example-server)
 ;(defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :remotes book.main/example-server)
+(defexample "Dynamic Router" book.dynamic-router-example/Root "dynamic-router-example")
 (defexample "Dynamic UI Routing" book.demos.dynamic-ui-routing/Root "dynamic-ui-routing"
   :client-did-mount book.demos.dynamic-ui-routing/application-loaded
   :remotes book.main/example-server)

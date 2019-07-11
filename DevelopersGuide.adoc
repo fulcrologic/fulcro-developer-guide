@@ -8207,7 +8207,7 @@ You can also pass specific event data when you trigger events, so you can trigge
 
 = Dynamic Router
 
-IMPORTANT: THIS CHAPTER IS OUT OF DATE AND HAS NOT BEEN PROOFREAD. THE PORTED CODE IS UNTESTED.
+IMPORTANT: THIS CHAPTER HAS NOT BEEN CAREFULLY PROOFREAD.
 
 The dynamic router in Fulcro 3 uses dynamic queries to change the route, and was designed with the following
 requirements in mind:
@@ -8287,7 +8287,7 @@ IMPORTANT: Routers are true singletons. A router ends up with a dynamic query ke
 
 == Routing Targets
 
-Most of the novelty about routes can now be encoded into normal components with simple declarations.  The routing novelty is specified by two protocols:
+Most of the novelty about routes can now be encoded into normal components with simple declarations.
 
 ```
 (ns app
@@ -8298,28 +8298,25 @@ Most of the novelty about routes can now be encoded into normal components with 
 
 (defsc X [this props]
  {...
- ;; FIXME: Not sure arg lists are right...
-  :route-segment   (fn [] ...path segments...)
+  :route-segment   ["path"] ; the portions of the path that this component represents. typically just one, or one with params
   :will-enter      (fn [app route-params] ...defer or immediate...)
   :route-cancelled (fn [route-params] ...called if deferred route to here is cancelled before it completes...)
-  :will-leave      (fn [props] ...true or false...)]}
+  :will-leave      (fn [this props] ...return true or false to accept being removed from screen...)]}
  (dom/div ...))
 ```
 
-`:route-segment`:: A (relative) path segment that this component can "consume" from an incoming route. This is purely static data, and the argument is the class itself (to satisfy protocols). The current composition of routing targets in the UI determines the overall "absolute" path of a route. Each `router` in the UI should be thought of as a stand-in for a "/" in an HTML5 URI path.
-`:will-enter`:: A notification that this route target should be shown.  Can return a value indicating a desire to do so immediately, or that it would like a delay (for some I/O). This method is called *before* the component is on-screen, so it cannot receive a react component instance.  It is instead passed the reconciler and router parameters which can be used to do things like issues loads and run mutations.
+`:route-segment`:: A (relative) path segment that this component can "consume" from an incoming route. This is purely static data. The current composition of routing targets in the UI determines the overall "absolute" path of a route. Each `router` in the UI should be thought of as a stand-in for a "/" in an HTML5 URI path.
+`:will-enter`:: A notification that this route target should be shown.  Can return a value indicating a desire to do so immediately, or that it would like a delay (for some I/O). This method is called *before* the component is on-screen, so it cannot receive a react component instance.  It is passed the app and router parameters which can be used to do things like issues loads and run mutations.
 `:route-cancelled`:: A notification that this route target was in a deferred state but the user made some other routing decision during that delay. This can be used to cancel heavy I/O operations for this target.
 `:will-leave`:: A method that can prevent a route change that causes this component to leave the screen. This is called on the instance, so `this` and `props` are available. A request to change routes will signal this method from deepest child towards the parent, and will stop if any returns false.
 
 WARNING: `will-enter` SHOULD NOT side-effect (order of operations could cause strange behavior), but must instead do
 any I/O in the lambda passed to `route-deferred`.
 It must also trigger the `dr/target-ready` mutation to indicate that the route is ready. You can use plain `transact!`
-to start a mutation with route-deferred, but the mutation must use `target-ready!` to send the signal (since you're already in a mutation
-at that point).
+to start a mutation within route-deferred, and the mutation can use `target-ready!` to send the signal.
 
-Route targets can be singletons or regular components that have multiple instances.  In the latter case you must be sure that the ident returned from `will-enter` points to valid data in state by the time the route is resolved.
-
-NOTE: There is a complete working demo in https://github.com/fulcrologic/fulcro-incubator/blob/develop/src/workspaces/fulcro/incubator/routing_ws.cljs[`routing_ws.cljs`].
+Route targets can be singletons or regular components that have multiple instances.  In the latter case you must be sure that
+the ident returned from `will-enter` points to valid data in state by the time the route is resolved.
 
 == Initial Route
 
@@ -8431,18 +8428,15 @@ IMPORTANT: The `will-enter` method *MUST* return the value of a call to either `
 === Target Ready within Mutations
 
 The mutation `target-ready` is meant for use with loads as a post-mutation.  The assumption is that there will be
-some natural delay before it is called.  The routers use UI state machines internally, whose event triggering works
-on a delay so they can be used in mutations.  Unfortunately, this make it impossible to write a simple mutation
-helper.
+some natural delay before it is called.
 
-If you need to signal that a target is ready from within a mutation, please use the following (non-standard) pattern
-instead:
+If you need to signal that a target is ready from within a mutation (instead of in the lambda of the
+`route-deferred`), please use the following:
 
 ```
 (defmutation do-stuff-and-finish-routing [params]
-  (action [{:keys [reconciler]}]
-    (js/console.log "Pretending to do stuff to app state before finishing the route")
-    (dr/target-ready! reconciler ident-of-target)))
+  (action [{:keys [app]}]
+    (dr/target-ready! app ident-of-target)))
 ```
 
 earlier versions had a mutation helper, but that is insufficient in this case and that helper was useless (and
@@ -8510,7 +8504,7 @@ the keyword name of the router:
 ```
 (defrouter MyRouter [this props]
   {:router-target ...
-   :componentDidUpdate (fn [pprops pstate]
+   :componentDidUpdate (fn [this pprops pstate]
       (let [current-state (uism/current-state this :MyRouter)
             route-props (:fulcro.incubator.dynamic-routing/current-route pprops)]
          ...))
@@ -8547,6 +8541,22 @@ Something like:
 ```
 
 TODO: A dynamic code load means that there may be path segments in the current route that cannot be evaluated until the code load is complete.  It may be necessary to "re-trigger" a route after a code load to ensure that the path segments have been fully evaluated.  This would be a good use of a relative change route function, which could be run on the newly-loaded sub-components with the remaining path.  I think it should be relatively easy to just defer the rest of the sub-routing until the given route is resolved...that is probably best, as it doesn't require user intervention. The problem with that is that sub-routes may also want to queue I/O, and getting it all queued at once might be preferable to delaying. We could support something like `route-blocked` which would resume routing after the ready signal, and allow the `route-deferred` to continue down the route resolving sub-paths and queuing I/O.  Undecided.
+
+== Live Router Example
+
+.[[DynamicRouter]]<<DynamicRouter,Dynamic Router Example>>
+====
+++++
+<button class="inspector" onClick="book.main.focus('dynamic-router-example')">Focus Inspector</button>
+<div class="short narrow example" id="dynamic-router-example"></div>
+<br/>
+++++
+[source,clojure,role="source"]
+----
+include::src/book/book/dynamic_router_example.cljs[]
+----
+====
+
 = Fulcro and GraphQL
 
 GraphQL is rapidly becoming the standard for writing graph-based servers.  As a result there are many existing
