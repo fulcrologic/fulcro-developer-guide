@@ -25,7 +25,7 @@
    :route-segment ["main"]
    :will-enter    (fn [app route-params]
                     (log/info "Will enter main" route-params)
-                    (dr/route-immediate [:component/id ::settings]))
+                    (dr/route-immediate [:component/id ::main]))
    :will-leave    (fn [this props]
                     (log/info (comp/get-ident this) "props" props)
                     true)}
