@@ -8867,7 +8867,7 @@ that is based on Clojure Spec but is completely pluggable.
 
 = Form State Support [[FormState]]
 
-The namespace `fulcro.ui.form-state` (aliased to `fs` in this chapter) includes functions and mutations for
+The namespace `com.fulcrologic.fulcro.algorithms.form-state` (aliased to `fs` in this chapter) includes functions and mutations for
 working with your entity as a form. This support brings functions for dealing with common state storage and form transitions
 with minimal opinion or additional complexity.
 
@@ -8887,18 +8887,9 @@ So, a minimal form-state-compatible component looks like this:
 
 ```
 (defsc NameForm [this props]
-  {:query [:id :name fs/form-config-join] ; fs is fulcro.ui.form-state
+  {:query [:id :name fs/form-config-join]
    :ident [:name-form/id :id]
    :form-fields #{:name}} ; MUST be a set of keywords from your query
-  ...)
-```
-
-Technically this adds a protocol to the generated component. If you're using `defui`, it looks like this:
-
-```
-(defui NameForm
-  static fs/IFormFields
-  (form-field [this] #{:name})
   ...)
 ```
 
