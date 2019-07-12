@@ -211,7 +211,7 @@
   (db/seed-database))
 
 (defn ^:export focus [app-id]
-  (encore/when-let [app (get @book.macros/app-registry app-id)
-                    state-map (app/current-state app)
+  (encore/when-let [app        (get @book.macros/app-registry app-id)
+                    state-map  (app/current-state app)
                     inspect-id (get state-map :fulcro.inspect.core/app-uuid)]
     (inspect/set-active-app inspect-id)))

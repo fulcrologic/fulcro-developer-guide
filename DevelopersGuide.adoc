@@ -7130,38 +7130,28 @@ small number of additions.
 However, even with these fancy tricks that make our applications better, there are times when we'd just like to
 block until something is complete.
 
+=== Detecting Errors From the Server
+
+You should use the `:fallback` or `:error-action` options of `df/load!` for reads, and the `result-action` or
+`error-action` section of mutations for dealing with mutation full-stack errors.
+
+The entire system is quite custimizable...
 
 ;; ================================================================================
 ;; CONTINUE HERE
 ;; ================================================================================
-=== Detecting Errors From the Server
-
-The built-in remote and networking in Fulcro has a few hooks for dealing with errors:
-
-. A global network error handler for dealing with actual network errors (i.e. you can't talk to the server).
-. A global root node value (at `:fulcro/server-error`) you can query that holds the last network error.
-(You manually clear this if you wish to use it to track errors over time.)
-. The ability to run a mutation if a load fails with an *application-level* error (load option `:fallback`). See <<Fallbacks, fallbacks>>.
-. Mutation <<Fallbacks,fallbacks>> for responding to full-stack *application-level* mutation errors.
 
 ==== Global Error Handler
 
-This is only available if you use the built-in remote with the Fulcro client. If you write your own networking then
-you can handle errors at the network layer any way you want. To install a network error handler on the default
-remote support simply write a function like this:
+When you create your application you can set a global function that is called on any kind of network error that
+happens against any remote. The function will be called with the `env`, which will contain things like the AST,
+network result, etc.
 
 ```
-;; this function is called on *every* network error, regardless of cause
-(defn error-handler "To be used as network-error-callback"
-  [state status-code error]
-  (log/warn "Global callback:" error " with status code: " status-code))
+(app/fulcro-app {:global-error-action (fn [env] ...))
 ```
 
-and install it:
-
-```
-(fc/make-fulcro-client {:network-error-callback error-handler})
-```
+You can of course swap against the state atom, use the app from the `env` to submit a new transaction, etc.
 
 ==== Server Error Demo
 
@@ -7344,81 +7334,11 @@ include::src/book/book/server/ui_blocking_example.cljs[]
 ----
 ====
 
-=== Fallbacks [[Fallbacks]]
-
-If you're running a mutation is likely to trigger server errors then you can explicitly encode a fallback behavior
-with the mutation. Fallbacks are triggered the mutation on the server throws an error that is
-detectable, or if there is a network error.
-
-The requirement for a server mutation to trigger fallbacks is for it to throw an `ex-info` exception and
-include `{:type :com.fulcrologic.fulcro.components/abort}` in the data. Otherwise the server-side parser will swallow
-the exception and continue with the transaction.
-
-Defining a fallback for a transaction is done by including a special mutation in the transaction that names the
-mutation to invoke on error:
-
-```
-(comp/transact! this `[(some/mutation) (com.fulcrologic.fulcro.data-fetch/fallback {:action handle-failure})])
-```
-
-```
-(require [com.fulcrologic.fulcro.mutations :refer [mutate]]
-         [com.fulcrologic.fulcro.components :as comp)
-
-(defmutation handle-failure [{:keys [error ::comp/ref] :as params}]
-  ;; fallback mutations are designed to recover the client-side app state from server failures
-  ;; THEY DO NOT CHECK FOR REMOTE. You cannot chain a remote interaction in a fallback.
-  (action [{:keys [state]}]
-    (swap! state undo-stuff error)))
-```
-
-Assuming that `some-mutation` is remote, then if the server throws a hard error (e.g. status code not 200)
-then the fallback action's mutation symbol (a dispatch key for mutate) is invoked on the
-client with params that include an `:error` key that includes the details of the server exception (error type, message,
-and ex-info's data). Be sure to only include serializable data in the server exception!
-
-If triggered due to a *mutation* fallback (not load), then the fallback will also receive the ident of the component
-that invoked the original transaction in parameters under the key `com.fulcrologic.fulcro.components/ref`.
-
-You can have any number of fallbacks in a tx, and they will run in order if the transaction fails.
-
-NOTE: It is not recommended that you rely on fallbacks for very much. They are provided for cases where you'd
-like to code instance-targeted recovery, but we believe this to be a rarely useful feature.
-You're much better off preventing errors by coding your UI to validate,
-authorize, and error check things on the client before sending them to the server. The server should still verify
-sanity for security reasons, but optimistic systems like Fulcro put more burden on the client code in order to
-provide a better experience under normal operation. See the earlier discussion about <<FullStackErrorHandling,error handling>>.
-
-If you do use fallback then you probably also need to clear the network queue so that additional queued
-operations don't continue to fail.
-
 === Clearing Network Queue
 
-If the server sends back a failure it may be desirable to clear any pending network requests from the client
-network queue. For example, if you're adding an item to a list and get a server error you might have a mutation waiting
-in your network queue that was some kind of modification to that (now failed) item. Continuing the network processing
-might just cause more errors.
+WARNING: Not officially in F3 yet, but you could do it manually by manipulating the runtime-atom in the app.
 
-The FulcroApplication protocol (implemented by your client app) includes the protocol method
-`clear-pending-remote-requests!` which will drain all pending network requests.
-
-```
-(fulcro.client/clear-pending-remote-requests! my-app)
-```
-
-A common recovery strategy from errors could be to clean the network queue and run a mutation that resets your application
-to a known state, possibly loading sane state from the server.
-
-=== Pessimistic Transaction Fallbacks
-
-The fallback mechanism described for error handling works in `ptransact!`. Fallbacks are clustered to the remote they follow
-up until the next remote mutation (with one exception: fallbacks at the beginning of the entire tx are clustered to the first remote mutation):
-
-```
-(ptransact! this `[(L) (df/fallback {...}) (L) (R) (df/fallback {...}) (L2) (R2) (L3) (df/fallback {...}) ])
-```
-
-will associate the first two fallbacks with remote call `R`, and the last one with `R2`.
+TODO
 
 = Building a Server [[BuildingAServer]]
 
