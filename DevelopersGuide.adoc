@@ -6267,6 +6267,65 @@ include::src/book/book/demos/parallel_vs_sequential_loading.cljs[]
 ----
 ====
 
+== Tracking Specific Loads
+
+It is very often the case that you might have a number of loads running to populate different
+parts of your UI all at once. In this case it is quite useful to have some kind of load-specific marker that you
+can use to show that activity. Fulcro provides a pre-built facility in the load API that can put markers into
+a normalized table, allowing you to query for them in the components that need to show the activity of interest.
+
+Load markers are normalized into a well-known table via an ID that you choose.
+You can use just about any value (except a boolean) for the id. This has the following behavior:
+
+. Load markers are placed the top-level table (the var `com.fulcrologic.fulcro.data-fetch/marker-table` holds the table name),
+using your marker value as their ID.
+. You can explicitly query for them using an ident-based join.
+
+=== Working with Normalized Load Markers
+
+The steps are rather simple: Include the `:marker` parameter with load, and add a query for the load marker
+on a UI component.
+
+```
+(defsc SomeComponent [this props]
+  {:query [:data :prop2 :other [df/marker-table :marker-id]]} ; an ident in queries pulls in an entire entity
+  ;; important: `get`, NOT `get-in`.
+  (let [marker (get props [df/marker-table :marker-id])]
+    ...)))
+
+...
+
+(df/load this :key Item {:marker :marker-id})
+```
+
+The data fetch load marker will be missing if no loading is in progress. You can use the following functions
+to detect what state the load is in:
+
+* `(df/loading? marker)` - Returns true if the item is still in progress (of any kind)
+* `(df/failed? marker)` - Returns true if the item failed, according to your definition of an error.
+
+The marker will disappear from the table when network activity completes successfully, but will remain in place
+on failures.
+
+The rendering is up to you, but that is really all there is to it.
+
+==== Notes on Marker IDs
+
+Marker IDs can be any value that supports equivalence, including data structures. You can also pull the entire
+load marker table into a component with a link query:
+
+```
+(defsc Component [_ props]
+  {:query [... [df/marker-table '_] ...]}
+  (let [table (get props df/marker-table)
+        marker (get table id-of-marker)]
+    ...))
+```
+
+Beware, though, that querying for the entire marker table will tend to "over render" the given component (every time any
+load marker changes).
+
+
 == Initializing Loaded Items
 
 There are two main ways to augment the items you load. One is using post-mutations, and the
@@ -6864,7 +6923,13 @@ Then you get out the query:
 
 This makes sure you will keep all union branches.
 
-= Network Latency, Error Handling, and User Experience
+== Load Errors
+
+The `load!` function includes a number of options for dealing with problems during load. The docstring `load!`
+describes your options, and we leave that discussion to the <<UserExperience, chapter on overall error handling
+and user experience>>.
+
+= Network Latency, Error Handling, and User Experience [[UserExperience]]
 
 Most applications have to contend with network latency. A good user experience requires that applications be able
 to give feedback to the user about the progress of network operations. The optimistic nature of Fulcro means that you
@@ -6884,32 +6949,6 @@ even if the network is spotty or the browser crashes while unsaved changes are q
 
 Fulcro gives you the power to express any user experience, and this chapter covers some of the techniques you can
 use to provide the experience you desire.
-
-== Defining "Remote Errors"
-
-Fulcro's concept of a "remote error" is configurable. It defaults to a function that returns true if the network result
-includes a `:status-code` attribute that is not 200. However, it is common for applications to define errors more widely.
-For example, you might consider certain data return values to be indications of an error.
-
-You can define the meaning of "remote errors" when you create your Fulcro application via the `:remote-error?` option:
-
-```
-(app/fulcro-app {:remote-error? (fn [result] boolean)})
-```
-
-where the result value is the raw value that your selected remote encodes. Fulcro's HTTP remote encodes result as:
-
-TODO: I think I may want to namespace these so alternate networking can expand this without conflicting. Probably leave
-the simple names but deprecate them.
-
-```
-{:body raw-result
- :transaction outgoing-tx
- :status-code n
- ...}
-```
-
-Alternate remote implementations and client network middleware can certainly expand/modify this as needed.
 
 == Global Network Activity
 
@@ -6938,7 +6977,20 @@ to network activity status updates.
       (dom/div "Loading..."))))
 ```
 
-== Blocking the UI During Operation
+.[[NetworkActivity]]<<NetworkActivity,Network Activity>>
+====
+++++
+<button class="inspector" onClick="book.main.focus('network-activity')">Focus Inspector</button>
+<div class="short narrow example" id="network-activity"></div>
+<br/>
+++++
+[source,clojure,role="source"]
+----
+include::src/book/book/server/network_activity.cljs[]
+----
+====
+
+== Pessimistic Operation
 
 Fulcro is optimistic by default, but pessimism is also a supported mode. There are a couple of clear techniques you can
 use to allow the network activity to complete before allowing the user to continue:
@@ -6960,68 +7012,10 @@ There are also some more advanced techniques that allow you to leverage more glo
 . Change the `default-result-action` for mutations and provide application-specific defaults for error handling.
 . Change the `internal-load` mutation for loads to add in whatever global changes you desire.
 
-The above two techniques typically leverage the default implementations so that the pre-defined behaviors still
-work, but include mechanisms you define to handle common cases without having to code them repeatedely. If you want
+The above two techniques typically would leverage the default implementations so that the pre-defined behaviors still
+work, but might include mechanisms you define to handle common cases without having to code them repeatedly. If you want
 to explore these advanced techniques expect to use the source. See `mutations.cljc` and `data_fetch.cljc` for the
 default implementations, and the docstring of `app/fulcro-app` for the options you can use to override the defaults.
-
-=== Tracking Specific Loads
-
-It is very often the case that you might have a number of loads running to populate different
-parts of your UI all at once. In this case it is quite useful to have some kind of load-specific marker that you
-can use to show that activity. Fulcro provides a pre-built facility in the load API that can put markers into
-a normalized table, allowing you to query for them in the components that need to show the activity of interest.
-
-Load markers are normalized into a well-known table via an ID that you choose.
-You can use just about any value (except a boolean) for the id. This has the following behavior:
-
-. Load markers are placed the top-level table (the var `com.fulcrologic.fulcro.data-fetch/marker-table` holds the table name),
-using your marker value as their ID.
-. You can explicitly query for them using an ident-based join.
-
-==== Working with Normalized Load Markers
-
-The steps are rather simple: Include the `:marker` parameter with load, and add a query for the load marker
-on a UI component.
-
-```
-(defsc SomeComponent [this props]
-  {:query [:data :prop2 :other [df/marker-table :marker-id]]} ; an ident in queries pulls in an entire entity
-  ;; important: `get`, NOT `get-in`.
-  (let [marker (get props [df/marker-table :marker-id])]
-    ...)))
-
-...
-
-(df/load this :key Item {:marker :marker-id})
-```
-
-The data fetch load marker will be missing if no loading is in progress. You can use the following functions
-to detect what state the load is in:
-
-* `(df/loading? m)` - Returns true if the item is still in progress (of any kind)
-* `(df/failed? m)` - Returns true if the item failed, according to your definition of an error.
-
-The marker will disappear from the table when network activity completes successfully, but will remain in place
-on failures.
-
-The rendering is up to you, but that is really all there is to it.
-
-===== Notes on Marker IDs
-
-Marker IDs can be any value that supports equivalence, including data structures. You can also pull the entire
-load marker table into a component with a link query:
-
-```
-(defsc Component [_ props]
-  {:query [... [df/marker-table '_] ...]}
-  (let [table (get props df/marker-table)
-        marger (get table id-of-marker)]
-    ...))
-```
-
-Beware, though, that querying for the entire marker table will tend to "over render" the given component (every time any
-load marker changes).
 
 == Full-Stack Error Handling [[FullStackErrorHandling]]
 
@@ -7128,198 +7122,8 @@ lifecycle timers to show progress updates will improve the overall feel, but the
 small number of additions.
 
 However, even with these fancy tricks that make our applications better, there are times when we'd just like to
-block until something is complete.
-
-=== Detecting Errors From the Server
-
-You should use the `:fallback` or `:error-action` options of `df/load!` for reads, and the `result-action` or
-`error-action` section of mutations for dealing with mutation full-stack errors.
-
-The entire system is quite custimizable...
-
-;; ================================================================================
-;; CONTINUE HERE
-;; ================================================================================
-
-==== Global Error Handler
-
-When you create your application you can set a global function that is called on any kind of network error that
-happens against any remote. The function will be called with the `env`, which will contain things like the AST,
-network result, etc.
-
-```
-(app/fulcro-app {:global-error-action (fn [env] ...))
-```
-
-You can of course swap against the state atom, use the app from the `env` to submit a new transaction, etc.
-
-==== Server Error Demo
-
-The live example below does various things to demonstrate various ways of reacting to errors.
-There is a load that fails and uses a fallback to log a message.
-
-The next button tries a mutation that fails (by throwing on the server in a way that propagates the
-error back to the client). The final one tries a read that will fail, but does nothing with the error, though
-you'll still see that the global indicator updates.
-
-
-
-.[[ErrorHandling]]<<ErrorHandling,Error Handling>>
-====
-++++
-<button class="inspector" onClick="book.main.focus('server-error-handling')">Focus Inspector</button>
-<div class="short narrow example" id="server-error-handling"></div>
-<br/>
-++++
-[source,clojure,role="source"]
-----
-include::src/book/book/demos/server_error_handling.cljs[]
-----
-====
-
-=== UI Blocking
-
-Fulcro defaults to optimistic updates, which in turn encourages you to write a UI that is very responsive. However,
-as soon as you start writing remote mutations you start worrying about the fact that your user submitted some data
-but you let them go off and do other things (like leave the screen they're on) before the server has responded.
-In effect, we've told the user "success", but we know we're kind of lying to them.
-
-Another way of looking at it is: we're letting them leave the *visual context* of the information, but we know that if a
-server error happens then we need to inform them about that error. We'd like to be sure they understand the error
-by still seeing that context when it arrives.
-
-This is a rather complicated way of saying something like "if their email change didn't work, then we'd like to
-show the error next to the email input box".
-
-There is nothing in Fulcro that prevents you from writing a blocking UI. You just have to remember that the UI is a
-pure rendering of application state: meaning that if you want to block the UI, then you need a way to put a "block the ui"
-marker in state (that renders in a way that prevents navigation), and remove that marker when the operation is complete.
-
-Fulcro has a number of ways that you can accomplish this, but we'll cover the simplest and most obvious.
-
-==== Blocking on Remote Mutations
-
-This technique uses the following pattern:
-
-1. We use the `comp/ptransact!` to submit a transaction, which will run each mutation in pessimistic mode (each element
-runs only after the prior element has completed a round-trip to the server).
-2. The first call in the tx will block the UI, and do the remote operation. We'll also leverage mutation return values
-so the server can indicate success to us.
-3. Once the first call finishes, the second call in the tx can choose to unblock the UI, or handle any problem it
-sees. The mutation return value is merged (and visible) in app state.
-
-Unlike normal mode, pessimistic transactions expect that you might have to nest another one within a mutation in order to retry a
-prior call. This is a supported use, and you will find the reconciler in the mutation's `env` parameter to facilitate it as
-shown in the example below.
-
-To show how this all works we'll use an in-browser server emulation and show you a working example.
-
-First, we need something to block our UI (which in the card measures 400x100 px). It is a simple div with some style
-that will overlay the main UI and prevent further interactions while also showing some kind of feedback message. The CSS
-sucks, but let's ignore that for now.
-
-We define it, along with some helper functions that can manipulate its state. It does not have an ident, and we
-plan to just place it in root at `:overlay`:
-
-```
-(defn set-overlay-visible* [state tf] (assoc-in state [:overlay :ui/active?] tf))
-(defn set-overlay-message* [state message] (assoc-in state [:overlay :ui/message] message))
-
-(defsc BlockingOverlay [this {:keys [ui/active? ui/message]}]
-  {:query         [:ui/active? :ui/message]
-   :initial-state {:ui/active? false :ui/message "Please wait..."}}
-  (dom/div (clj->js {:style {:position        :absolute
-                             :display         (if active? "block" "none")
-                             :zIndex          65000
-                             :width           "400px"
-                             :height          "100px"
-                             :backgroundColor "rgba(0,0,0,0.5)"}})
-    (dom/div (clj->js {:style {:position  :relative
-                               :top       "40px"
-                               :color     "white"
-                               :textAlign "center"}}) message)))
-```
-
-The main UI is just a simple one-field form and submission button. Note, however, that it submits the form
-with `ptransact!`, which will force each call to complete before the next one can start. Thus the second call can
-check the result and run whatever in response to it.
-
-```
-(defsc Root [this {:keys [ui/name overlay]}]
-  {:query         [:ui/name {:overlay (comp/get-query BlockingOverlay)}]
-   :initial-state {:overlay {} :ui/name "Alicia"}}
-  (dom/div {:style (clj->js {:width "400px" :height "100px"})}
-    (ui-overlay overlay)
-    (dom/p "Name: " (dom/input {:value name}))
-    (dom/button {:onClick #(comp/ptransact! this `[(submit-form) (retry-or-hide-overlay)])}
-      "Submit")))
-```
-
-Now a bit of information about our "server". It has the following definition of the remote mutation:
-
-```
-(server/defmutation submit-form [params]
-  (action [env]
-    (if (> 0.5 (rand))
-      {:message "Everything went swell!"
-       :result  0}
-      {:message "There was an error!"
-       :result  1})))
-```
-
-As you can see it's just a stub that randomly responds with success or error. The client mutation looks like this:
-
-```
-(defmutation submit-form [params]
-  (action [{:keys [state]}] (swap! state set-overlay-visible* true))
-  (remote [{:keys [state ast] :as env}]
-    (m/returning ast state MutationStatus)))
-```
-
-It just shows the overlay, and goes remote. Notice the remote part is  using `returning` from the mutations namespace
-to indicate a merge of the result value of the mutation. For that we've defined a singleton component (for its query only):
-
-```
-(defsc MutationStatus [this props]
-  {:ident (fn [] [:remote-mutation :status])
-   :query [:message :result]})
-```
-
-This means that when this remote mutation is done, we should see a the return value of the server mutation
-at `[:remote-mutation :status]` (which is the constant ident of `MutationStatus`).
-
-Now for our second client mutation. First, we need a function that can look in state and see if the mutation
-status looks ok:
-
-```
-(defn submit-ok? [env] (= 0 (some-> env :state deref :remote-mutation :status :result)))
-```
-
-Then we can leverage that to make something that reads well:
-
-```
-(defmutation retry-or-hide-overlay [params]
-  (action [{:keys [reconciler state] :as env}]
-    (if (submit-ok? env)
-      (swap! state (fn [s]
-                     (-> s
-                       (set-overlay-message* "Please wait...") ; reset the overlay message for the next appearance
-                       (set-overlay-visible* false))))
-      (do
-        (swap! state set-overlay-message* (str (-> state deref :remote-mutation :status :message) " (Retrying...)"))
-        (comp/ptransact! reconciler `[(submit-form {}) (retry-or-hide-overlay {})])))))
-```
-
-It's the real work-horse. The optimistic side can assume the result is updated, so it looks for the result code via
-`submit-ok?`. If things are OK, then it resets the overlay message and hides it.
-
-If the submission had an error, then it
-
-- Adds "retrying" to the server message and puts that on the overlay
-- Does a new call to `ptransact!`.
-
-You can try out the finished product in the example below. Try it a few times so you can see the error-handling in action.
-
+block until something is complete. The following example is a common way to do UI blocking with the mechanisms
+you've already seen. It overrides the default `result-action` to look at the response from the server and decide what to do.
 
 .[[UIBlocking]]<<UIBlocking,UI Blocking>>
 ====
@@ -7334,11 +7138,71 @@ include::src/book/book/server/ui_blocking_example.cljs[]
 ----
 ====
 
-=== Clearing Network Queue
+=== Defining "Remote Errors"
 
-WARNING: Not officially in F3 yet, but you could do it manually by manipulating the runtime-atom in the app.
+Fulcro's concept of a "remote error" is configurable. It defaults to a function that returns true if the network result
+includes a `:status-code` attribute that is not 200. However, it is common for applications to define errors more widely.
+For example, you might consider certain data return values to be indications of an error.
 
-TODO
+You can define the meaning of "remote errors" when you create your Fulcro application via the `:remote-error?` option:
+
+```
+(app/fulcro-app {:remote-error? (fn [result] boolean)})
+```
+
+where the result value is the raw value that your selected remote encodes. Fulcro's HTTP remote encodes result as:
+
+```
+{:body raw-result
+ :transaction outgoing-tx
+ :status-code n
+ ...}
+```
+
+This result is determined by the remote implementation and client network middleware can certainly expand/modify this as needed.
+
+=== Global Error Handler
+
+When you create your application you can set a global function that is called on any kind of network error that
+happens against any remote. The function will be called with the `env`, which will contain things like the AST,
+network result, etc.
+
+```
+(app/fulcro-app {:global-error-action (fn [env] ...))
+```
+
+You can of course swap against the state atom, use the app from the `env` to submit a new transaction, etc.
+
+=== Load Errors
+
+Loads can define a mutation symbol that should be used to trigger a transaction on errors.  Loads may also choose
+to specify a lambda
+
+=== Server Error Demo
+
+We recommend using Pathom for the server, and one of the recommended plugins for Pathom will convert exceptions
+into data errors on the response.  This allows pathom to give partial responses where it can partially fufill a
+request for data.
+
+Fulcro does not default to considering these particular kinds of errors as "hard errors", and leaves them up
+to your interpretation; however, it is simply enough to redefine what Fulcro things of as hard errors
+by setting the `:remote-error?` option on your application.
+
+The live example below demonstrates redefining the meaning of hard errors to look for these Pathom values,
+and shows the resulting use of the built-in `error-action` support of mutations.
+
+.[[ErrorHandling]]<<ErrorHandling,Error Handling>>
+====
+++++
+<button class="inspector" onClick="book.main.focus('server-error-handling')">Focus Inspector</button>
+<div class="short narrow example" id="server-error-handling"></div>
+<br/>
+++++
+[source,clojure,role="source"]
+----
+include::src/book/book/demos/server_error_handling.cljs[]
+----
+====
 
 = Building a Server [[BuildingAServer]]
 

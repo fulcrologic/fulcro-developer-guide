@@ -16,11 +16,11 @@
 (pc/defmutation server-error-mutation [env params]
   {::pc/sym `error-mutation}
   ;; Throw a mutation error for the client to handle
-  (throw (ex-info "Server error" {:type :com.fulcrologic.fulcro.components/abort :status 401 :body "Unauthorized User"})))
+  (throw (ex-info "Mutation error" {})))
 
 (pc/defresolver child-resolver [env input]
   {::pc/output [:fulcro/read-error]}
-  (throw (ex-info "other read error" {:status 403 :body "Not allowed."})))
+  (throw (ex-info "read error" {})))
 
 (def resolvers [server-error-mutation child-resolver])
 
@@ -28,37 +28,33 @@
 ;; CLIENT:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmutation disable-button [{:keys [::comp/ref] :as params}]
-  (action [{:keys [state]}]
-    (js/alert "Mutation error -- disabling button due to error from mutation invoked at " ref)
-    (swap! state assoc-in [:error.child/by-id :singleton :ui/button-disabled] true)))
-
-(defmutation log-read-error [{:keys [::comp/ref] :as params}]
-  (action [{:keys [state]}]
-    (js/alert "Read failed.")))
+;; Mutation used as a fallback for load error: In this case the `env` from the load result *is* the params to this mutation
+(defmutation read-error [params]
+  (action [env]
+    (js/alert "There was a read error")
+    (log/info "Result from server:" (:result params))
+    (log/info "Original load params:" (:load-params params))))
 
 ;; an :error key is injected into the fallback mutation's params argument
 (defmutation error-mutation [params]
-  (ok-action [env] (js/console.log :ok))
-  (error-action [{:keys [app ref]}]
-    ;; in order for this to be called, you have to set up your error detection properly on the app.
-    (comp/transact! app [(disable-button {::comp/ref ref})]))
+  (ok-action [env] (log/info "Optimistic action ran ok"))
+  ;; Error action is only called if `:remote-error?` for the application is defined to consider the response an error.
+  (error-action [{:keys [app ref result]}]
+    (js/alert "Mutation error")
+    (log/info "Result " result))
   (remote [env] true))
 
-(defsc Child [this {:keys [fulcro/server-error ui/button-disabled]}]
-  ;; you can query for the server-error using a link from any component that composes to root
-  {:initial-state (fn [p] {})
-   :query         (fn [] [[:fulcro/server-error '_] :ui/button-disabled :fulcro/read-error])
-   :ident         (fn [] [:error.child/by-id :singleton])}  ; lambda so we get a *literal* ident
+(defsc Child [this props]
+  {:initial-state {}
+   :query         ['*]
+   :ident         (fn [] [:error.child/by-id :singleton])}
   (dom/div
     ;; declare a tx/fallback in the same transact call as the mutation
     ;; if the mutation fails, the fallback will be called
-    (dom/button {:onClick #(df/load! this :fulcro/read-error nil {:fallback `log-read-error})}
-      "Click me to try a read with a fallback (logs to console)")
-    (dom/button {:onClick  #(comp/transact! this `[(error-mutation {})])
-                 :disabled button-disabled}
-      "Click me for error (disables on error)!")
-    (dom/div "Server error (root level): " (str server-error))))
+    (dom/button {:onClick #(df/load! this :fulcro/read-error nil {:fallback `read-error})}
+      "Failing read with a fallback")
+    (dom/button {:onClick #(comp/transact! this `[(error-mutation {})])} "Failing mutation")
+    ))
 
 (def ui-child (comp/factory Child))
 
@@ -68,7 +64,7 @@
   (dom/div (ui-child child)))
 
 (defn contains-error?
-  "Check to see if the response contains Pathom error indicators"
+  "Check to see if the response contains Pathom error indicators."
   [body]
   (when (map? body)
     (let [values (vals body)]

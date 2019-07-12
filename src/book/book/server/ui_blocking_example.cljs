@@ -14,7 +14,7 @@
   (if (> 0.5 (rand))
     {:message "Everything went swell!"
      :ok?     true}
-    {:message "There was an error!"
+    {:message "Service temporarily unavailable!"
      :ok?     false}))
 
 ;; CLIENT
@@ -44,7 +44,7 @@
                    (-> s
                      (set-overlay-message* "Working...")
                      (set-overlay-visible* true)))))
-  (ok-action [{:keys [app state result]}]
+  (result-action [{:keys [app state result]}]
     (log/info "Result:" result)
     (let [mutation-result (-> result :body (get `submit-form))
           {:keys [message ok?]} mutation-result]

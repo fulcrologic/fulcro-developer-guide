@@ -25,7 +25,16 @@
     book.tree-to-db
     book.merge-component
     book.html-converter
+
     book.server.morphing-example
+    book.server.network-activity
+    [book.server.ui-blocking-example :as ui-blocking]
+    book.demos.server-error-handling
+    ;book.demos.server-query-security
+    ;book.demos.server-return-values-as-data-driven-mutation-joins
+    ;book.demos.server-targeting-return-values-into-app-state
+    ;book.demos.server-return-values-manually-merging
+
     book.demos.cascading-dropdowns
     book.demos.dynamic-ui-routing
     book.demos.initial-app-state
@@ -45,12 +54,6 @@
     book.demos.pre-merge.countdown-extracted
     book.demos.pre-merge.countdown-mutation
 
-    book.demos.server-error-handling
-    ;book.demos.server-query-security
-    ;book.demos.server-return-values-as-data-driven-mutation-joins
-    ;book.demos.server-targeting-return-values-into-app-state
-    ;book.demos.server-return-values-manually-merging
-    [book.server.ui-blocking-example :as ui-blocking]
     [book.pathom :as po]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [taoensso.timbre :as log]
@@ -77,6 +80,7 @@
                                 book.demos.parallel-vs-sequential-loading/long-query-resolver
                                 book.demos.server-error-handling/resolvers
                                 book.server.ui-blocking-example/submit-form-mutation
+                                book.server.network-activity/silly-resolver
                                 #_book.demos.cascading-dropdowns/model-resolver])
 
 (defonce people-server (po/mock-remote db/general-resolvers {:connection db/connection}))
@@ -131,7 +135,8 @@
 (defexample "Using External React Libraries" victory-example/Root "victory-example")
 (defexample "Unions to Select Type" union-example-1/Root "union-example-1")
 (defexample "UI Blocking" ui-blocking/Root "ui-blocking-example" :remotes book.main/example-server)
-;
+(defexample "Network Activity" book.server.network-activity/Root "network-activity" :remotes book.main/example-server)
+
 ;;; Dynamic queries
 (defexample "Dynamic Query" book.queries.dynamic-queries/Root "dynamic-queries")
 (defexample "Dynamic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters")
