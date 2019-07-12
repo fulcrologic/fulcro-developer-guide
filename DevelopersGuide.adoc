@@ -1965,7 +1965,7 @@ Open your `deps.edn` file and add dependencies so it looks like this:
 ```
 {:paths   ["src/main" "resources"]
  :deps    {org.clojure/clojure    {:mvn/version "1.10.1"}
-           com.fulcrologic/fulcro {:local/root "/Users/tonykay/fulcrologic/fulcro3"}
+           com.fulcrologic/fulcro {:mvn/version "3.0.0-alpha-18"}
            com.wsscode/pathom     {:mvn/version "2.2.15"}
            ring/ring-core         {:mvn/version "1.6.3"}
            http-kit               {:mvn/version "2.3.0"}}
@@ -2026,7 +2026,7 @@ So, we should add a little more to our project.  First, code reloading tools in 
 ```
 {:paths   ["src/main" "resources"]
  :deps    {org.clojure/clojure    {:mvn/version "1.10.1"}
-           com.fulcrologic/fulcro {:local/root "/Users/tonykay/fulcrologic/fulcro3"}
+           com.fulcrologic/fulcro {:mvn/version "3.0.0-alpha-18"}
            com.wsscode/pathom     {:mvn/version "2.2.15"}
            ring/ring-core         {:mvn/version "1.6.3"}
            http-kit               {:mvn/version "2.3.0"}}
