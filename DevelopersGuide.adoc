@@ -8207,14 +8207,12 @@ You can also pass specific event data when you trigger events, so you can trigge
 
 = Dynamic Router
 
-IMPORTANT: THIS CHAPTER HAS NOT BEEN CAREFULLY PROOFREAD.
-
 The dynamic router in Fulcro 3 uses dynamic queries to change the route, and was designed with the following
 requirements in mind:
 
 Composition:: Routers should compose in a flexible manner that includes the easy ability to refactor the application and restructure.
 
-There should be a way to run pessimistic operations *before* moving to a given route::  This should be a chain of operations that is derived from the target routers themselves (or their children?).
+There should be a way to complete network operations *before* moving to a given route::  This should be a chain of operations that is derived from the target routers themselves (or their children?).
 
 UI Code should be able to prevent a route change::  E.g. say there are unsaved changes on some page in a tree: a UI component must be able to "hook into" the routing system in order to prevent changes. NOTE: This is not a feature of the *routers*, but a feature of the *content* under a router.  This can be modelled as a global concern, since routing (esp. that involves URI changes) is a global concern.
 
@@ -8291,7 +8289,6 @@ Most of the novelty about routes can now be encoded into normal components with 
 
 ```
 (ns app
-  (:require-macros [fulcro.incubator.dynamic-routing :as dr :refer [defrouter defsc-route-target]])
   (:require
     ...
     [fulcro.incubator.dynamic-routing :as dr :refer [defrouter]]))
@@ -8543,6 +8540,18 @@ Something like:
 TODO: A dynamic code load means that there may be path segments in the current route that cannot be evaluated until the code load is complete.  It may be necessary to "re-trigger" a route after a code load to ensure that the path segments have been fully evaluated.  This would be a good use of a relative change route function, which could be run on the newly-loaded sub-components with the remaining path.  I think it should be relatively easy to just defer the rest of the sub-routing until the given route is resolved...that is probably best, as it doesn't require user intervention. The problem with that is that sub-routes may also want to queue I/O, and getting it all queued at once might be preferable to delaying. We could support something like `route-blocked` which would resume routing after the ready signal, and allow the `route-deferred` to continue down the route resolving sub-paths and queuing I/O.  Undecided.
 
 == Live Router Example
+
+The router example below uses our people server to demonstrate the various concepts
+covered in this chapter. It loads people by ID (the buttons could be HTML URL segments). If
+the loading is slow, it shows a load marker. If the route changes before the user is loaded
+then a proper console message prints to show you that you could have handled that to
+cancel network operations.
+
+Make sure you use the server controls in the upper-right corner to see the difference between a fast server (under 100ms) and a slow one. Also be sure to crank it up to a large number so you can try moving to a different route while the user is loading.
+
+Finally, the `Person` route includes a checkbox that you can check. When checked the
+`Person` component will prevent all route changes to simulate what you might
+want to do in a dirty form situation.
 
 .[[DynamicRouter]]<<DynamicRouter,Dynamic Router Example>>
 ====

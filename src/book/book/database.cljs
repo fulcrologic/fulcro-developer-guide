@@ -116,10 +116,25 @@
    ::pc/output [:phone/number :phone/type]}
   (d/pull (db connection) parent-query id))
 
+;; Allow a person ID to resolve to (any) one of their addresses
+(pc/defresolver default-address-resolver [{:keys [connection]} {:person/keys [id]}]
+  {::pc/input  #{:person/id}
+   ::pc/output [:address/id]}
+  (let [address-id (d/q '[:find ?a .
+                          :in $ ?pid
+                          :where
+                          [?pid :person/addresses ?addr]
+                          [?addr :address/id ?a]]
+                     (db connection) id)]
+    (when address-id
+      {:address/id address-id})))
+
 ;; Resolve :server/time-ms anywhere in a query. Allows us to timestamp a result.
 (pc/defresolver time-resolver [_ _]
   {::pc/output [:server/time-ms]}
   {:server/time-ms (inst-ms (js/Date.))})
 
-(def general-resolvers [phone-resolver address-resolver person-resolver all-people-resolver time-resolver])
+(def general-resolvers [phone-resolver address-resolver person-resolver
+                        default-address-resolver
+                        all-people-resolver time-resolver])
 

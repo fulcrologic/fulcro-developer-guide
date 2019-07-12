@@ -99,8 +99,8 @@
                              :right           (if hidden? "-179px" "-1px")}})
     (dom/div nil "Latency: " (dom/span nil delay))
     (dom/br nil)
-    (dom/button #js {:disabled (> delay 2000) :onClick #(comp/transact! this `[(po/set-server-latency {:delay ~(+ delay 500)})])} "Slower")
-    (dom/button #js {:disabled (< delay 500) :onClick #(comp/transact! this `[(po/set-server-latency {:delay ~(- delay 500)})])} "Faster")
+    (dom/button #js {:disabled (>= delay 2000) :onClick #(comp/transact! this `[(po/set-server-latency {:delay ~(+ delay 50)})])} "Slower")
+    (dom/button #js {:disabled (<= delay 0) :onClick #(comp/transact! this `[(po/set-server-latency {:delay ~(- delay 50)})])} "Faster")
     (dom/div #js {:onClick #(m/toggle! this :ui/hidden?)
                   :style   #js {:color           "grey"
                                 :backgroundColor "lightgray"
@@ -149,7 +149,8 @@
 
 (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :remotes book.main/example-server)
 ;(defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :remotes book.main/example-server)
-(defexample "Dynamic Router" book.dynamic-router-example/Root "dynamic-router-example")
+(defexample "Dynamic Router" book.dynamic-router-example/Root "dynamic-router-example"
+  :remotes book.main/people-server)
 (defexample "Dynamic UI Routing" book.demos.dynamic-ui-routing/Root "dynamic-ui-routing"
   :client-did-mount book.demos.dynamic-ui-routing/application-loaded
   :remotes book.main/example-server)
@@ -161,7 +162,7 @@
 (defexample "Loading Data Basics" book.demos.loading-data-basics/Root "loading-data-basics" :remotes book.main/people-server)
 ;#?(:cljs (defexample "Loading Data and Targeting Entities" book.demos.loading-data-targeting-entities/Root "loading-data-targeting-entities" :remotes book.main/example-server))
 (defexample "Loading In Response To UI Routing" book.demos.loading-in-response-to-UI-routing/Root "loading-in-response-to-UI-routing" :remotes book.main/example-server)
-(defexample "Loading Indicators" book.demos.loading-indicators/Root "loading-indicators" :remotes book.main/example-server)
+;(defexample "Loading Indicators" book.demos.loading-indicators/Root "loading-indicators" :remotes book.main/example-server)
 (defexample "Initial State" book.demos.initial-app-state/Root "initial-app-state" :remotes book.main/example-server)
 ;#?(:cljs (defexample "Legacy Load Indicators" book.demos.legacy-load-indicators/Root "legacy-load-indicators" :remotes book.main/example-server))
 (defexample "Paginating Lists From Server" book.demos.paginating-large-lists-from-server/Root
@@ -210,7 +211,7 @@
   (db/seed-database))
 
 (defn ^:export focus [app-id]
-  (encore/when-let [app        (get @book.macros/app-registry app-id)
-                    state-map  (app/current-state app)
+  (encore/when-let [app (get @book.macros/app-registry app-id)
+                    state-map (app/current-state app)
                     inspect-id (get state-map :fulcro.inspect.core/app-uuid)]
     (inspect/set-active-app inspect-id)))
