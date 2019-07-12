@@ -690,7 +690,7 @@ Create a `deps.edn` file with this content:
 
 ```
 {:paths   ["src/main" "resources"]
- :deps    {com.fulcrologic/fulcro {:mvn/version "3.0.0-alpha-6"}}
+ :deps    {com.fulcrologic/fulcro {:mvn/version "3.0.0-alpha-18"}}
 
  :aliases {:dev {:extra-paths ["src/dev"]
                  :extra-deps  {binaryage/devtools {:mvn/version "0.9.10"}}}}}
