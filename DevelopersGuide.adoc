@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: July 10, 2019
-:revnumber: 35
+:revdate: July 12, 2019
+:revnumber: 36
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -1906,7 +1906,7 @@ and coupled only to their parent.
 Setting up an alternate build for creating sections of your application in isolation can be a real productivity
 boost.
 
-== Going Remote!
+== Going Remote! [[GoingRemote]]
 
 OK, back to the main story!
 
@@ -7209,131 +7209,38 @@ include::src/book/book/demos/server_error_handling.cljs[]
 It turns out that the server API handling is relatively light. Most of the work goes into getting things set up
 for easy server restart (e.g. making components stop/start) and getting those components into your parsing environment.
 
+In general you should probably use a template project that already has a server set up, along with the
+various bits you need for configuration, restart during development, testing, etc.
+
 If you have an existing server then you've mostly figured out all of that stuff already and just want to plug
 a Fulcro API handler into it.
 
 Here are the basic requirements:
 
-. Make sure your Ring stack has transit-response and transit-params. You can see a sample Ring stack in
-[Fulcro's source](https://github.com/fulcrologic/fulcro/blob/1.2.0/src/main/fulcro/easy_server.clj#L94)
-. Check to see if the incoming request is for "/api". If so:
-. Call [`handle-api-request`](https://github.com/fulcrologic/fulcro/blob/1.2.0/src/main/fulcro/server.clj#L354). Pass
-a parser to it (recommend using `fulcro.server/fulcro-parser`), an environment, and the EDN of the request. It will
-give back a Ring response.
+. Make sure your Ring stack has transit-response and transit-params.
+. Use `handle-api-request` to handle requests for the correct URI (defaults to `/api`)
 
-You're responsible for creating the parser environment. I'd recommend using
-the `fulcro.server/fulcro-parser` because it is already hooked to the server multimethods
-like `defquery-root` and `defmutation`. Those won't work unless you use it, but any parser
-that can deal with the query/mutation syntax is technically legal.
+An example basic Ring stack was demonstrated in the Getting Started chapter's <<GoingRemote, Going Remote>> section.
 
-Here's a complete little server with full defaults/dev/prod configuration support (<<ServerConfig, see configuration>>),
-and hot code reload using https://github.com/tolitius/mount[`mount`] instead of component:
+== Use Pathom to Process the EQL
 
-```
-(ns demo.server
-  (:require
-    [fulcro.server :as server]
-    [immutant.web :as web]
-    [mount.core :refer [defstate]]
-    [ring.middleware.content-type :refer [wrap-content-type]]
-    [ring.middleware.gzip :refer [wrap-gzip]]
-    [ring.middleware.params :refer [wrap-params]]
-    [ring.middleware.multipart-params :refer [wrap-multipart-params]]
-    [ring.middleware.not-modified :refer [wrap-not-modified]]
-    [ring.middleware.resource :refer [wrap-resource]]
-    [ring.util.response :refer [response file-response resource-response]]))
+You can hand-write a server-side parser to handle EQL from the client, but you should really just use Pathom.
+See the https://wilkerlucio.github.io/pathom[Pathom Developer's Guide].
 
-;; You'll need defaults.edn and dev.edn in resources/config with at least {} as content.
-(defstate config :start (server/load-config {:config-path "config/dev.edn"}))
+== Server Configuration
 
-(def ^:private not-found-handler
-  (fn [req]
-    {:status  404
-     :headers {"Content-Type" "text/plain"}
-     :body    "NOPE"}))
-
-(defstate server-parser :start (server/fulcro-parser))
-
-(defn wrap-api [handler uri]
-  (fn [request]
-    (if (= uri (:uri request))
-      (server/handle-api-request
-        server-parser
-        ;; this map is `env`. Put other defstate things in this map and they'll be in the mutations/query env on server.
-        {:config config}
-        (:transit-params request))
-      (handler request))))
-
-(defstate middleware
-  :start
-  (-> not-found-handler
-    (wrap-api "/api")
-    server/wrap-transit-params
-    server/wrap-transit-response
-    (wrap-resource "public")
-    wrap-content-type
-    wrap-not-modified
-    wrap-gzip))
-
-(defstate http-server
-  :start
-  (web/run middleware {:host "0.0.0.0"
-                       :port (get config :port 3000)}) ; defaults to 3000, but can also come from config file
-  :stop
-  (web/stop http-server))
-```
-
-and the user namespace (typically in `src/dev`):
-
-```
-(ns user
-  (:require
-    [clojure.tools.namespace.repl :as tools-ns :refer [set-refresh-dirs]]
-    demo.server
-    [mount.core :as mount]))
-
-(set-refresh-dirs "src/dev" "src/main")
-
-(defn go [] (mount/start))
-
-(defn restart []
-  (mount/stop)
-  (tools-ns/refresh :after 'user/go))
-```
-
-In a REPL, you could start this one up and restart it with:
-
-```
-$ clj -A:dev
-user=> (start)
-user=> (restart)
-...hot code reload/restart...
-```
-
-If you used the lein template to setup your project, see it's README doc for instructions about
-how to run the dev environment.
-
-== Configuration
-
-Since you'll need to configure your web server, it might be useful to note that the configuration used
-by the easy server is a component you can inject into your own server. A number of add-on components for Fulcro
-assume a `:config` keyed component will be in your system, so if you choose to use such components you can
-create a config component via `fulcro.server/new-config`.
-
-It supports pulling in values from the system environment, overriding configs with a JVM option, and more. See
-the section in easy server about <<ServerConfig, configuration>>, and the docstrings on `new-config` for more details.
-
-
-= Configuration Support on the server [ServerConfig]
+Fulcro includes a small set of functions that can help you with managing your server-side configuration data.
+These functions are in the `com.fulcrologic.fulcro.server.config` namespace. The primary function
+is `load-config!`.
 
 Server configuration requires two EDN files:
 
-- `resources/config/defaults.edn`: This file should contain a single EDN map that contains
+- `config/defaults.edn`: This file (from CLASSPATH, typically resources) should contain a single EDN map that contains
 defaults for everything that the application wants to configure.
 - `/abs/path/of/choice`: This file can be named what you want (you supply the name when
-making the server). It can also contain an empty map, but is meant to be machine-local
+making the server). The content can be an empty map, but is meant to be machine-local
 overrides of the configuration in the defaults. This file is required. We chose to do this because
-it keeps people from starting the app in an unconfigured production environment.
+it keeps people from starting the app in an production environment that is missing a configuration file.
 NOTE: If the path is relative it is looked for via CLASSPATH (resource). If it is absolute, the real filesystem
 is searched.
 
@@ -7344,28 +7251,24 @@ is searched.
     ...
 ```
 
-The only parameter that the default server looks for is the network port to listen on:
+The configuration loading has a number of built-in features:
 
-```
-{ :port 3000 }
-```
-
-The configuration component has a number of built-in features:
-
-- You can override the configuration to use with a JVM option: `-Dconfig=filename`
 - The `defaults.edn` is the target of configuration merge. Your config EDN file must be a map, and anything
-in it will override what is in defaults. The merge is a deep merge.
-- Values can take the form `:env/VAR`, which will use the *string* value of that environment variable as the value
-- Values can take the form `:env.edn/VAR`, which will use `read-string` to interpret the environment variable as the value
-- Relative paths for the config file can be used, and will search the CLASSPATH resources. This allows you to package your config with you jar.
+  in it will override what is in defaults. The merge is a deep (recursive) merge.
+- You can override the configuration file that will be used as `:config-path` with a JVM option: `-Dconfig=filename`. This
+  allows you to specify the file on a per-environment basis.
+- Values can take the form `:env/VAR`, which will use the *string* value of that environment variable as the value.
+- Values can take the form `:env.edn/VAR`, which will use `read-string` to interpret the environment variable as the value.
+- Relative paths for the config file can be used, and will search the CLASSPATH instead of local disk. This allows you
+  to package your config with your application.
 
-If you choose not to use components (see https://github.com/tolitius/mount[mount]), then you can use `load-config` directly:
+If you are using something like https://github.com/tolitius/mount[mount], then you will typically use `load-config!` directly:
 
 ```
-(defstate config :start (server/load-config {:config-path "config/dev.edn"}))
+(defstate config :start (server/load-config! {:config-path "config/dev.edn"}))
 ```
 
-and `config` (after start) will simply contain the EDN of the defaults/config file merge.
+and then `config` (after start) will simply contain the EDN of the defaults/config file merge.
 
 = UI State Machines
 
