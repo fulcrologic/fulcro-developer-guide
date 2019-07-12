@@ -2872,17 +2872,9 @@ a complete understanding of normalization and full stack operation, and is cover
 === Component Constructor
 
 It is sometimes useful to be able to run some code once on component construction. In React this is particularly useful
-when you want a function for saving off `:ref` or as other callbacks (so the function isn't changing all the time).
+when you want a function for saving off `:ref` or as other callbacks (so the function isn't changing all the time), or copy something from props into state.
 
-You can include a constructor which will `this` and `props` as explicit parameters.
-
-```
-(defsc Component [this props]
-  {:constructor (fn [this props] ...)}
-  ...
-```
-
-You can also just place code in `:initLocalState` before you return a value. Such code will also run on construction.
+Use `:initLocalState` to do these operations before you return a value.
 
 === React Lifecycle Methods
 
@@ -2896,7 +2888,7 @@ The signatures are:
 
 ```
 (defsc Component [this props]
-    :initLocalState            (fn [this] ...)
+    :initLocalState            (fn [this props] ...)
     :shouldComponentUpdate     (fn [this next-props next-state] ...)
     :componentWillReceiveProps (fn [this next-props] ...)
     :componentWillUpdate       (fn [this next-props next-state] ...)
@@ -11242,7 +11234,7 @@ Most of the time these kinds of functions can be fixed by generating the functio
 
 (defsc Comp [this props]
   {:query ...
-   :initLocalState (fn [this]
+   :initLocalState (fn [this props]
                      ;; put the onDelete (which needs to close over `this`) into component-local state
                      {:onDelete #(comp/transact! this [(delete-child {:id %})])})}
   (let [{:keys [onDelete]} (comp/get-state this)]

@@ -94,7 +94,7 @@
   {:query          [:id :size :marker]
    :initial-state  (fn [_] {:id 0 :size 50 :marker [0.5 0.5]})
    :ident          (fn [] [:child/by-id id])
-   :initLocalState (fn [this] {:coords [-50 -50]})}
+   :initLocalState (fn [this _] {:coords [-50 -50]})}
   ; Remember that this "render" just renders the DOM (e.g. the canvas DOM element). The graphical
   ; rendering within the canvas is done during event handling.
   ; size comes from props. Transactions on size will cause the canvas to resize in the DOM

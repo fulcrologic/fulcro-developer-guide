@@ -10,7 +10,7 @@
                         :editing? false}
    :query              [:db/id :value :editing?]
    :ident              [:field/by-id :db/id]
-   :initLocalState     (fn [this]
+   :initLocalState     (fn [this _]
                          {:save-ref (fn [r] (gobj/set this "input-ref" r))})
    :componentDidUpdate (fn [this prev-props _]
                          (when (and (not (:editing? prev-props)) (:editing? (comp/props this)))
