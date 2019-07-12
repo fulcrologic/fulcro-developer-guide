@@ -1964,13 +1964,16 @@ Open your `deps.edn` file and add dependencies so it looks like this:
 
 ```
 {:paths   ["src/main" "resources"]
- :deps    {com.fulcrologic/fulcro {:local/root "/Users/tonykay/fulcrologic/fulcro3"}
+ :deps    {org.clojure/clojure    {:mvn/version "1.10.1"}
+           com.fulcrologic/fulcro {:local/root "/Users/tonykay/fulcrologic/fulcro3"}
            com.wsscode/pathom     {:mvn/version "2.2.15"}
            ring/ring-core         {:mvn/version "1.6.3"}
            http-kit               {:mvn/version "2.3.0"}}
 
  :aliases {:dev {:extra-paths ["src/dev"]
-                 :extra-deps  {binaryage/devtools {:mvn/version "0.9.10"}}}}}
+                 :extra-deps  {org.clojure/clojurescript {:mvn/version "1.10.520"}
+                               thheller/shadow-cljs      {:mvn/version "2.8.40"}
+                               binaryage/devtools        {:mvn/version "0.9.10"}}}}}
 ```
 
 and then add a `src/main/app/server.clj` namespace:
@@ -2022,13 +2025,16 @@ So, we should add a little more to our project.  First, code reloading tools in 
 
 ```
 {:paths   ["src/main" "resources"]
- :deps    {com.fulcrologic/fulcro {:local/root "/Users/tonykay/fulcrologic/fulcro3"}
+ :deps    {org.clojure/clojure    {:mvn/version "1.10.1"}
+           com.fulcrologic/fulcro {:local/root "/Users/tonykay/fulcrologic/fulcro3"}
            com.wsscode/pathom     {:mvn/version "2.2.15"}
            ring/ring-core         {:mvn/version "1.6.3"}
            http-kit               {:mvn/version "2.3.0"}}
 
  :aliases {:dev {:extra-paths ["src/dev"]
-                 :extra-deps  {binaryage/devtools          {:mvn/version "0.9.10"}
+                 :extra-deps  {org.clojure/clojurescript   {:mvn/version "1.10.520"}
+                               thheller/shadow-cljs        {:mvn/version "2.8.40"}
+                               binaryage/devtools          {:mvn/version "0.9.10"}
                                org.clojure/tools.namespace {:mvn/version "0.2.11"}}}}} ; <1>
 ```
 <1> Tools for reloading namespaces at runtime.
