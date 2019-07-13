@@ -7218,7 +7218,7 @@ a Fulcro API handler into it.
 Here are the basic requirements:
 
 . Make sure your Ring stack has transit-response and transit-params.
-. Use `handle-api-request` to handle requests for the correct URI (defaults to `/api`)
+. Use `api-middleware/handle-api-request` to handle requests for the correct URI (defaults to `/api`)
 
 An example basic Ring stack was demonstrated in the Getting Started chapter's <<GoingRemote, Going Remote>> section.
 
