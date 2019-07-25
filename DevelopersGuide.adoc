@@ -9946,7 +9946,7 @@ for Fulcro that is far more powerful than standard GraphQL, even when GraphQL is
 Full production Fulco apps, just like any other web-based software need some additional attention to ensure that there
 are no security holes that can be exploited.  Fulcro can do nothing for you if you trust user strings in SQL string
 composition or make any of the other "old school" errors like those in
-https://www.owasp.org/index.php/OWASP_Top_Ten_Cheat_Sheet[The OWASP Top Ten List].
+https://www.owasp.org/index.php/OWASP_Proactive_Controls#tab=OWASP_Proactive_Controls_2018[The OWASP Top 10 Proactive Controls].
 
 The most critical part of your application to secure is your network-based API.  This involves low-level network
 security measures, authentication, and then often some additional authorization.
