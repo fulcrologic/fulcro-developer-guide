@@ -128,7 +128,7 @@ code. This book adopts the following general set of requires and aliases:
             [com.fulcrologic.fulcro.application :as app]
             [com.fulcrologic.fulcro.data-fetch :as df]
             [com.fulcrologic.fulcro.dom :as dom]
-            [com.fulcrologic.fulcro.algorithms.application-helpers :as ah]
+            [com.fulcrologic.fulcro.algorithms.lookup :as ah]
             [com.fulcrologic.fulcro.algorithms.misc :as util]
             [com.fulcrologic.fulcro.algorithms.merge :as merge]
             [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
@@ -5794,7 +5794,7 @@ If you would like your multimethod mutation to work like `defmutation` then you 
 (defmethod m/mutate `mutation-symbol [params]
    {...
     :result-action (fn [env]
-                     (when-let [default-action (ah/app-algorithm (:app env) :default-result-action)]
+                     (when-let [default-action (lookup/app-algorithm (:app env) :default-result-action)]
                        (default-action env)))
     ...
     })
