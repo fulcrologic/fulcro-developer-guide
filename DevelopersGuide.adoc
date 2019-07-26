@@ -4613,16 +4613,19 @@ within the mutation.
 
 Some useful functions to know about:
 
-- `merge/merge-component` - A utility function for merging new instances of a (possibly recursive) entity state into
-the normalized database. Usable from within mutations.
-- `merge/merge-state!` - A utility function for merging out-of-band (e.g. push notification) data into your application.
-Includes ident integration options, and honors the Fulcro merge clobbering algorithm (if the query doesn't ask for it,
-then merge doesn't affect it). Also queues rendering for affected components (derived from integration of idents). Generally
-*not* used within mutations (use `merge-component` and `integrate-ident*` instead).
+- `merge/merge-component!` and `merge/merge-component` - merge new instances of a (possibly recursive) entity into
+the normalized database.
+- `merge/merge!` and `merge/merge*` - merge root-level out-of-band data into your application.
 - `fnorm/tree->db` - General utility for normalizing data via a query and chunk of data.
 - `merge/integrate-ident*` - A utility for adding an ident into existing to-one and to-many relations in your database.
 Can be used within mutations.
 - `misc/deep-merge` - A simple implementation of merge that is recursive.
+
+NOTE: The general merge operations all support the option `:remove-missing?`. This option defaults to false. When set
+to true it will cause the merge algorithms to exhibit the Fulcro remote load cleanups: if something is in the query but
+not the data then it will be removed from the state database. The deep merge used by the merge routines is not otherwise
+meant to "write over" existing versions of your entities, since they may have ui-only attributes that the incoming trees
+do not know about. See <<ResultMerge, the section on remote result merging>>.
 
 = Full Stack Operation [[FullStack]]
 
