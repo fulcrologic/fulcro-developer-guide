@@ -734,6 +734,7 @@ In `resources/public/index.html` add this content:
 [source,html]
 ----
 <html>
+ <meta charset="utf-8">
   <body>
     <div id="app"></div>
     <script src="/js/main/main.js"></script>
