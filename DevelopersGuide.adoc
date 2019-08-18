@@ -9316,23 +9316,27 @@ delta. The other button will create a new person, and submissions will send all 
 The load case, as you can see in the code, is very similar to the prior example, but just includes some extra
 code to show you how to put it together with a load interaction.
 
+NOTE: This example is not a fully-baked form. Integrating form control with UI state machines makes it much easier to
+handle the repetitive work of form handling. The form state system is more about for state and data diff, not overall
+form control and user interaction.
 
 .[[NetworkInteractionsandForms]]<<NetworkInteractionsandForms,Network Interactions and Forms>>
 ====
 ++++
 <button class="inspector" onClick="book.main.focus('form-state-demo-2')">Focus Inspector</button>
-<div class="short narrow example" id="form-state-demo-2"></div>
+<div class="tall wide example" id="form-state-demo-2"></div>
 <br/>
 ++++
 [source,clojure,role="source"]
 ----
 include::src/book/book/forms/form_state_demo_2.cljs[]
 ----
+
 ====
 
 == Full Stack Form Demo
 
-TODO: Rewrite to use form-state
+TODO: Rewrite to use semantic UI
 
 === Application Load
 
@@ -10939,7 +10943,8 @@ NOTE: when logging errors, be sure to log the exception first. This is documente
 
 = Demos
 
-NOTE: This chapter has not been completely reviewed for Fulcro 3.
+NOTE: This chapter has not been completely reviewed for Fulcro 3. A number of the demos used Bootstrap support, which was dropped
+from the library, and have not been ported to other CSS.
 
 This chapter includes some additional running demos with source that will give you insight on how to approach various problems. Remember
 that the server latency can be set using the controls in the upper-right corner in the live HTML version, so you can

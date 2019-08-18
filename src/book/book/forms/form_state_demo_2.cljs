@@ -6,11 +6,12 @@
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.algorithms.form-state :as fs]
     [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
+    [com.fulcrologic.fulcro.data-fetch :as df]
     [clojure.string :as str]
     [cljs.spec.alpha :as s]
-    [com.fulcrologic.fulcro.data-fetch :as df]
     [com.wsscode.pathom.connect :as pc]
-    [book.elements :as ele]))
+    [book.elements :as ele]
+    [taoensso.timbre :as log]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Server Code
@@ -133,9 +134,18 @@
    :ident       :person/id}
   (dom/div :.ui.form
     (input-with-label this :person/name "Name:" "Name is required."
-      (dom/input {:value (or name "")}))
+      (dom/input {:value    (or name "")
+                  :onBlur   #(comp/transact! this [(fs/mark-complete! {:entity-ident [:person/id id]
+                                                                       :field        :person/name})
+                                                   :root/person])
+                  :onChange (fn [evt]
+                              (m/set-string! this :person/name :event evt))}))
     (input-with-label this :person/age "Age:" "Age must be between 1 and 120"
-      (dom/input {:value (or age "")}))
+      (dom/input {:value    (or age "")
+                  :onBlur   #(comp/transact! this [(fs/mark-complete! {:entity-ident [:person/id id]
+                                                                       :field        :person/age})
+                                                   :root/person])
+                  :onChange #(m/set-integer! this :person/age :event %)}))
     (dom/h4 "Phone numbers:")
     (when (seq phone-numbers)
       (map ui-phone-form phone-numbers))
@@ -147,7 +157,7 @@
   "Add a person with the given details to the state database."
   [state-map id name age]
   (let [person-ident [:person/id id]
-        person       {:db/id id :person/name name :person/age age}]
+        person       {:person/id id :person/name name :person/age age}]
     (assoc-in state-map person-ident person)))
 
 (defmutation edit-new-person [_]
@@ -187,20 +197,19 @@
       (dom/link {:rel "stylesheet" :href "https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css"})
       (dom/button :.ui.button
         {:onClick #(df/load! this [:person/id 21] PersonForm {:target               [:root/person]
-                                                              :marker               false
                                                               :post-mutation        `edit-existing-person
                                                               :post-mutation-params {:person-id 21}})}
         "Simulate Edit (existing) Person from Server")
       (dom/button :.ui.buton {:onClick #(comp/transact! this `[(edit-new-person {})])} "Simulate New Person Creation")
 
-      (when (:person/name person)
+      (when (:person/id person)
         (dom/div :.ui.segment
           (ui-person-form person)))
 
       (dom/div :.ui.segment
-        (dom/button :.ui.button {:onClick  #(comp/transact! this `[(fs/reset-form! {:form-ident [:person/id ~(:db/id person)]})])
+        (dom/button :.ui.button {:onClick  #(comp/transact! this `[(fs/reset-form! {:form-ident [:person/id ~(:person/id person)]})])
                                  :disabled (not (fs/dirty? person))} "Reset")
-        (dom/button :.ui.button {:onClick  #(comp/transact! this `[(submit-person {:id ~(:db/id person) :diff ~(fs/dirty-fields person false)})])
+        (dom/button :.ui.button {:onClick  #(comp/transact! this `[(submit-person {:id ~(:person/id person) :diff ~(fs/dirty-fields person false)})])
                                  :disabled (or
                                              (fs/invalid-spec? person)
                                              (not (fs/dirty? person)))} "Submit")))))
