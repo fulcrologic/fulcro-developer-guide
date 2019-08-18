@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: July 12, 2019
+:revdate: August 18, 2019
 :revnumber: 36
 :lang: en
 :encoding: UTF-8
@@ -9945,6 +9945,8 @@ for Fulcro that is far more powerful than standard GraphQL, even when GraphQL is
 
 = Security [[Security]]
 
+NOTE: This chapter has not been updated for Fulcro 3. Some information is likely out of date.
+
 Full production Fulco apps, just like any other web-based software need some additional attention to ensure that there
 are no security holes that can be exploited.  Fulcro can do nothing for you if you trust user strings in SQL string
 composition or make any of the other "old school" errors like those in
@@ -10329,219 +10331,13 @@ websocket startup request:
 
 You can play with this by cloning the https://github.com/fulcrologic/security-websockets-demo[complete source for this demo].
 
-= Dev Cards [[DevCards]] and Workspaces
+= Workspaces
 
-WARNING: Not yet working/ported.
-
-Devcards is an external library by Bruce Hauman that is also good for working up components,
-active documentation, or even complete applications piece by piece. Fulcro comes with a macro
-that makes embedding Fulcro Applications into a devcard trivial.
-
-The Fulcro template now include Workspaces instead, but both are quite good. This chapter's
-concepts apply equally to both.
-
-== The Project Setup
-
-Simply include devcards in your dependencies:
-
-```
-[devcards "0.2.4"]
-```
-
-and follow the basic setup instructions from that project's documentation. Typically, a build
-configuration like this when using shadow-cljs:
-
-```
- :cards    {:target           :browser
-            :output-dir       "resources/public/js/cards"
-            :asset-path       "/js/cards"
-            :compiler-options {:devcards true}
-            :modules          {:main {:entries [app.cards]}}
-            :devtools         {:after-load app.cards/refresh
-                               :preloads [fulcro.inspect.preload]
-                               :http-root "resources/public"
-                               :http-port 8023}}
-```
-
-== Developing Component UI
-
-Developing simple components is done as described in the Devcard documentation. Fulcro encourages you to
-use pure rendering, so that means it is quick and easy to make cards that display UI components in
-all of their valid states. This is quite helpful when working out the data model and look of a component.
-If you use component-local CSS this can be an extremely effective way to quickly build up
-components for use in your application.
-
-=== Visual Regression Testing
-
-Developing components in cards allows you to also do a form of visual regression testing. The basic idea is
-to render the valid UI states for components, then have an automated script snapshot each card into an
-image that can be compared with later CI runs.
-
-See https://medium.com/adstage-engineering/how-we-test-our-full-stack-clojure-app-b18d79ee9e00[AdStage's blog]
-for a detailed example of this with the code necessary to make it work.
-
-== Developing Active Screens
-
-The `defcard-fulcro` macro can embed a Fulcro application in a card. It allows any client options
-to be passed to the client, but generates the mount into the card internally. It looks like this:
-
-
-```
-(ns my-cards
-  (:require
-            [devcards.core :as dc :refer-macros [defcard defcard-doc]]
-            [fulcro.client.cards :refer [defcard-fulcro]]))
-
-(defcard-fulcro symbol-for-card
-   AppRootUIComponent
-   {}  ; initial state. Leave empty to use :initial-state from root component
-   {:inspect-data false ; normal devcard options
-    :fulcro { :client-did-mount (fn [app] ...)} ; fulcro client options
-   })
-```
-
-=== Running Devcards Against a Real Server
-
-Shadow-cljs and figwheel embed the hot loading websocket code into the compiled Javascript. This means
-that you can serve devcards *from your real application server* simply by making
-sure the HTML and Javascript for it are accessible through your server.
-
-The Fulcro template even serves a dynamic `/wslive.html` to embed the CSRF token so that this works under the
-security restrictions of your server.
-
-This means that full-stack operations against your real application are trivial
-from within cards.
-
-=== Splitting Your Application
-
-Hopefully you see that the ability to embed a full-stack Fulcro client inside
-of a card is much more powerful than just embedding your *entire* application.
-
-Remember, we have component *normalization*! The mutations and loads for any given part of
-your application work independent of how your UI is nested. This means that you
-can easily write your application in a way that allows you to factor it apart and embed just
-portions into devcards for localized development and testing!
-
-We think this can be quite revolutionary to development, since it allows you
-to build up the application in completely dijoint steps and join them
-together once they're ready!
-
-```
-(defsc ScreenOne [this props]
-  {:ident (fn [] [:screens/id :screen1])}
-  ...)
-
-(defmutation do-screen-1-thing [params]
-  (action [env]
-    ; operations relative to ident of ScreenOne
-    ...)
-
-(defcard-fulcro screen-1
-   ScreenOne
-   {}
-   {:fulcro {:client-did-mount
-              (fn [app]
-                 ; code to establish the context (preloads) that the real application would have done for this screen
-                 )}})
-```
-
-Composition of the pieces can be as simple as dropping them into your UI router at the appropriate place!
-
-== Using External CSS via IFrames [[IFrames]]
-
-If you need to have the content of a devcard use external CSS, then you can use the `fulcro.client.elements/iframe`
-to do so. This cool little tool creates an iframe, but then uses React to render into *from* the parent page. This
-gives you the *isolation* of an iframe with the *convenience* of single-page reasoning!
-
-Here's a quick function that can be used within a card to wrap UI that wants to use Bootstrap CSS:
-
-```
-(defn render-example [width height & children]
-  (ele/ui-iframe {:frameBorder 0 :height height :width width}
-    (apply dom/div {:key "example-frame-key"}
-      (dom/link {:rel "stylesheet" :href "/css/bootstrap.min.css"})
-      children)))
-```
-
-this function can then be used to put a pre-sized iframe into a component like so:
-
-```
-(defsc NavRoot [this props]
-  { :query         [:boo]}
-  (render-example "100%" "150px"
-    (dom/div { :className "row" }
-      (dom/div {:className "col-md-1"}
-         ...))))
-```
-
-this can then be used within a devcard, keeping the external CSS from messing with
-the card layout or other cards.
-
-= Support Viewer
-
-WARNING: Not yet ported/supported.
-
-Fulcro automatically tracks the sequence of steps in the UI in history, including what transactions ran to move your
-application from state to state. This enables you to do time travel for things like debugging and
-error handling, but also allows you to serialize the history and send it to your servers for debugging sessions against
-real user interactions!
-
-The viewer is already written for you, and is in the `fulcro.support-viewer` namespace. There are a few things you
-have to do in order to make it work.
-
-WARNING: You must be careful to follow the rule that "only data goes in the database". Things like anonymous functions
-are not serializable, and therefore if you store them in app state you will break your ability to use history for
-things like support viewer. See the documentation on https://github.com/cognitect/transit-format[Transit] for a
-description of the default types that are serializable and
-for some hints on how you can extend transit to support additional types.
-
-== Sending a Support Request
-
-There is a built-in mutation that can do this called `com.fulcrologic.fulcro.mutations/send-history`. It can accept anything
-as parameters, and will send the support request to `:remote`. All you have to do is run it via UI:
-
-```
-(transact! this `[(m/send-history {:support-id ~(comp/tempid)})])
-```
-
-== Storing the Support Request
-
-Basically you just have to write something to handle the `com.fulcrologic.fulcro.mutations/send-history` mutation, save the
-data, and return a tempid remapping (optional, since the client itself won't care):
-
-```
-(server/defmutation com.fulcrologic.fulcro.mutations/send-history [params]
-  (action [env]
-     ...save the history from params...
-     ...send an email to a developer with the saved id?...))
-```
-
-== Using the Support Viewer
-
-The support viewer is a simple UI that is pre-programmed in the `fulcro.support-viewer` namespace. When started, it
-will issue a load in order to obtain the history you saved in the prior step. It will then run the application
-(which you also have to point to) with that history in a DVR-style playback.
-
-You can see how simple the
-[client setup](https://github.com/fulcrologic/fulcro-todomvc/blob/master/src/main/fulcro_todomvc/support_viewer.cljs) is here, and
-look at the defmutation for the `send-history` and query for `:support-request` in this file:
-[Server API](https://github.com/fulcrologic/fulcro-todomvc/blob/master/src/main/fulcro_todomvc/api.clj)
-
-== Compressible Transactions
-
-The `compressible-transact!` function support compressing transactions that would be otherwise annoying to step through. It works
-as follows:
-
-1. Use `compressible-transact!` instead of `transact!`
-2. If more than one adjacent transaction is marked compressible in history then only the *last* of them is kept.
-
-The built-in mutations that set a value (e.g. `m/set-value!`) are meant to be used with user inputs and already mark their
-transactions this way. This is quite useful when you don't want to pollute (or overflow) history with keystrokes that
-are not interesting.
-
-== Demo
-
-See https://github.com/fulcrologic/fulcro-todomvc/tree/master/src/main/fulcro_todomvc[Fulcro TodoMVC] for an example.
+The https://github.com/fulcrologic/fulcro-template[Fulcro template] includes
+https://github.com/nubank/workspaces[Workspaces]. Please examine the template and Workspaces documentation for an example
+of a detailed setup. Workspace cards can house plain React components, non-active display
+of data-driven components, and complete segments of live applications. This makes them
+a very powerful way to focus your development effort.
 
 = Code Splitting (modules)
 
@@ -10562,9 +10358,6 @@ To demonstrate one technique we'll assume that what you load is a "section" of t
 main application knows to provide the link, but it does not yet have the rendering factory, class, or query.
 
 == Dynamic Routing and Code Splitting
-
-WARNING: There was a bug in dynamic queries prior to 2.6.0, which are used by dynamic routers.  Make sure you're using
-a newer version of Fulcro for this support.
 
 The `com.fulcrologic.fulcro.routing.legacy-ui-routers` namespace includes a second kind of UI router that can be used with the routing tree: `DynamicRouter`.
 
@@ -10699,6 +10492,8 @@ include::src/book/book/demos/dynamic_ui_routing.cljs[]
 
 
 == Code Splitting and Server-Side Rendering
+
+NOTE: This section has not been updated for Fulcro 3 and may not work as described.
 
 Version 2.5.2 of Fulcro added the support functions necessary to support server-side rendering of dynamic routes. The
 basics can be see in this example below:
@@ -10945,15 +10740,10 @@ is about 3x faster at runtime than `(dom/div (dom/div ...))`.
 
 = Testing
 
-Fulcro has a companion library called Fulcro Spec. It is a BDD DSL that wraps Clojure(script) test, and provides you
+Fulcro has a companion library called Fulcro Spec. It includes some BDD helper macros that wraps Clojure(script) test, and provides you
 with a number of helpful features:
 
-//* A browser-based UI that can
-//** Auto-refresh on code changes
-//** Focus in on the tests of concern (you can define what that means)
-//** Run client tests in any number of simultaneous browsers to detect browser differences
-//** Run server-side tests through the same browser-based UI
-* Outline-based specifications.
+* Outline-based specification output.
 * A Mocking/expectation system.
 * Improved assertions with easier labelling.
 * All of the functions from `clojure.test` work inside of specifications (e.g. `is`, `are`, etc).
@@ -11148,6 +10938,8 @@ NOTE: when logging errors, be sure to log the exception first. This is documente
 ```
 
 = Demos
+
+NOTE: This chapter has not been completely reviewed for Fulcro 3.
 
 This chapter includes some additional running demos with source that will give you insight on how to approach various problems. Remember
 that the server latency can be set using the controls in the upper-right corner in the live HTML version, so you can
