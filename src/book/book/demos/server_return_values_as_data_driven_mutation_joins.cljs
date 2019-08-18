@@ -6,7 +6,6 @@
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [fulcro.client :as fc]
     [fulcro.server :as server]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
     [com.fulcrologic.fulcro.data-fetch :as df]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -24,7 +23,7 @@
 
 (server/defmutation change-label [{:keys [db/id item/value]}]
   (action [env]
-    {:db/id id :item/value (str (util/unique-key))}))
+    {:db/id id :item/value (str (random-uuid))}))
 
 (def ids (atom 999))
 

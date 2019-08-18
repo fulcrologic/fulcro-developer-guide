@@ -8071,7 +8071,7 @@ The parameter list (this and props) are used with deferred routing, explained be
 
 The use of query scanning and dynamic queries for routing mean that you can easily add or remove a sub-route just by moving the symbol to a different router.
 
-Such routers are simple Fulcro components, and can be composed into the UI just like any other components. The initial state parameters passed to such a router are *forwarded* to the *default* (first listed) router target (if it has initial state).
+Such routers are simple Fulcro components, and can be composed into the UI just like any other components. The initial state parameters passed to such a router are *forwarded* to the first listed router target (if it has initial state).
 
 IMPORTANT: Routers are true singletons. A router ends up with a dynamic query keyed by the class itself. This means that a given router cannot be used in a UI in more than one place. This seems like a reasonable restriction given that they are so simple to declare at a given tree (sub)root, and are typically very positional in nature.
 
@@ -8130,11 +8130,6 @@ If you are doing SSR, then you will need to simulate calling `change-route` ther
 `dr/ssr-initial-state` (written, but untested) can be used to help you construct the proper state for a given path (which must be used
 for the server-side render, and also as the initial state for the client). Technically, this means that the
 function can also be used to generate initial state for the client on the front-end as well.
-
-== Starting the Routers
-
-Right after you mount your application (e.g. the line of code following `mount!`) you should call `dr/initialize!`. This
-will start the state machines that control routing, and will place them on their initial routes.
 
 == Route Segments and Changing Routes
 

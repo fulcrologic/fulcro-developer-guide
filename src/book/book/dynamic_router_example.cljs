@@ -85,3 +85,10 @@
     (dom/button {:onClick #(dr/change-route this ["person" "1"])} "Go to person 1")
     (dom/button {:onClick #(dr/change-route this ["person" "2"])} "Go to person 2")
     (ui-top-router router)))
+
+(defn client-did-mount
+  "Must be used as :client-did-mount parameter of app creation, or called just after you mount the app."
+  [app]
+  (dr/change-route app ["main"]))
+
+

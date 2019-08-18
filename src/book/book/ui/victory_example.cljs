@@ -5,7 +5,6 @@
     ["victory" :refer [VictoryChart VictoryAxis VictoryLine]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.algorithms.misc :as util]
     [taoensso.timbre :as log]))
 
 (defn us-dollars [n]
@@ -16,7 +15,7 @@
   (fn [props & children]
     (js/React.createElement class
       props
-      (util/force-children children))))
+      (comp/force-children children))))
 
 (defn factory-apply
   [class]
