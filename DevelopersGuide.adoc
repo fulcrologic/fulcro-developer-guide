@@ -129,7 +129,6 @@ code. This book adopts the following general set of requires and aliases:
             [com.fulcrologic.fulcro.data-fetch :as df]
             [com.fulcrologic.fulcro.dom :as dom]
             [com.fulcrologic.fulcro.algorithms.lookup :as ah]
-            [com.fulcrologic.fulcro.algorithms.misc :as util]
             [com.fulcrologic.fulcro.algorithms.merge :as merge]
             [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
             [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
@@ -3457,7 +3456,7 @@ Some important points to understand:
 . You need to explicitly create react elements with factories. The relevant js functions are React.createElement,
 and React.createFactory.
 - Children. JS does not have a built in notion of lazy sequences. Clojurescript does. This can create subtle bugs
-when evaluating the children of a component. `com.fulcrologic.fulcro.algorithms.misc/force-children` helps us in this
+when evaluating the children of a component. `com.fulcrologic.fulcro.components/force-children` helps us in this
 regard by taking a seq and returning a vector.
 
 We can use this to create our own factory function, much like React.createFactory:
@@ -3468,7 +3467,7 @@ We can use this to create our own factory function, much like React.createFactor
   (fn [props & children]
     (js/React.createElement class
       props
-      (util/force-children children))))
+      (comp/force-children children))))
 ```
 
 This is fine, but you will notice that children in our factory may be missing keys. Because we passed a vector in,
@@ -4620,7 +4619,6 @@ the normalized database.
 - `fnorm/tree->db` - General utility for normalizing data via a query and chunk of data.
 - `merge/integrate-ident*` - A utility for adding an ident into existing to-one and to-many relations in your database.
 Can be used within mutations.
-- `misc/deep-merge` - A simple implementation of merge that is recursive.
 
 NOTE: The general merge operations all support the option `:remove-missing?`. This option defaults to false. When set
 to true it will cause the merge algorithms to exhibit the Fulcro remote load cleanups: if something is in the query but
@@ -8132,6 +8130,11 @@ If you are doing SSR, then you will need to simulate calling `change-route` ther
 `dr/ssr-initial-state` (written, but untested) can be used to help you construct the proper state for a given path (which must be used
 for the server-side render, and also as the initial state for the client). Technically, this means that the
 function can also be used to generate initial state for the client on the front-end as well.
+
+== Starting the Routers
+
+Right after you mount your application (e.g. the line of code following `mount!`) you should call `dr/initialize!`. This
+will start the state machines that control routing, and will place them on their initial routes.
 
 == Route Segments and Changing Routes
 
