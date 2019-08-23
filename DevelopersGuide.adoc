@@ -1202,6 +1202,11 @@ dev:cljs.user=> (com.fulcrologic.fulcro.components/get-initial-state app.ui.root
            :list/people [{:person/name "Fred", :person/age 11} {:person/name "Bobby", :person/age 55}]}}
 ----
 
+NOTE: The REPL shown here is a CLJS REPL. Shadow-cljs makes a REPL port available
+when it starts. If you connect to it (as a Remote REPL in IntelliJ) you can interact with a live browser
+session by first typing `(shadow/repl :main)` (where :main is the name of the build).  This
+*requires* a browser be actively running the build output.
+
 It's nothing more than function composition. The initial state option on `defsc` encodes your initial state
 into a function that can be accessed via `get-initial-state` on a class.
 
@@ -1211,14 +1216,14 @@ application state.
 By default, the entire initial state database is passed into your root node on render, so it is
 available for destructuring in Root's props.
 
-If you even want to see your current application state, you can do so through the `app` itself:
+If you want to see your current application state, you can do so through the `app` itself:
 
 [source]
 ----
 dev:cljs.user=> (com.fulcrologic.fulcro.application/current-state app.application/app)
 ----
 
-but usually you'll look at this state via the Fulcro Inspect Chrome development tool.
+but you'll usually look at this state via the Fulcro Inspect Chrome development tool.
 
 Let's move on and see how we program our UI to access the data in the application state!
 
@@ -1917,7 +1922,7 @@ running.
 === The Communication
 
 Fulcro uses https://github.com/cognitect/transit-clj[transit] as the over-the-wire protocol for network requests. There
-is on API endpoint, and an EQL parser on the server will process the requests and return responses.  The overall
+is only one API endpoint, and an EQL parser on the server will process the requests and return responses.  The overall
 network interaction story is essentially just EQL requests and responses.
 
 We recommend using Pathom to process the EQL on the server, and we'll set up a simple Pathom parser for our application's
