@@ -155,6 +155,7 @@
 (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :remotes book.main/example-server)
 ;(defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :remotes book.main/example-server)
 (defexample "Dynamic Router" book.dynamic-router-example/Root "dynamic-router-example"
+  :client-did-mount book.dynamic-router-example/client-did-mount
   :remotes book.main/people-server)
 (defexample "Dynamic UI Routing" book.demos.dynamic-ui-routing/Root "dynamic-ui-routing"
   :client-did-mount book.demos.dynamic-ui-routing/application-loaded

@@ -1,10 +1,10 @@
 {:paths ["src/book"],
 
- :deps  {com.fulcrologic/fulcro              {:mvn/version "3.0.0-alpha-20"}
+ :deps  {com.fulcrologic/fulcro              {:local/root "/Users/tonykay/fulcrologic/fulcro"}
          camel-snake-kebab                   {:mvn/version "0.4.0"}
          com.fulcrologic/fulcro-garden-css   {:mvn/version "3.0.4"}
-         com.fulcrologic/semantic-ui-wrapper {:mvn/version "1.0.0-SNAPSHOT"}
-         gnl/ghostwheel                      {:mvn/version "0.4.0-SNAPSHOT"}
+         com.fulcrologic/semantic-ui-wrapper {:mvn/version "1.0.0"}
+         gnl/ghostwheel                      {:mvn/version "0.3.9"}
          com.wsscode/pathom                  {:mvn/version "2.2.14"}
          devcards                            {:mvn/version "0.2.6"}
          bidi                                {:mvn/version "2.1.5"},
