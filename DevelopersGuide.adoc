@@ -213,7 +213,7 @@ What about Server-Side Rendering?::
 Fulcro is written in CLJC. The intention is to be able to set up and "run" an application in a headless
 JS OR Java VM environment and either actively control a DOM or just render "frames" as strings.
 The server-side implementation of the DOM methods let you render Fulcro
-UI in a Java VM without needing to resort to a js engine at all.
+UI in a Java VM without needing to resort to a JS engine at all.
 
 == Server Schema vs. UI Graph
 
@@ -418,7 +418,7 @@ addresses that you modelled on a sub-component. If you compose those together ev
   ...)
 ```
 
-The using load or merge against such a component
+Then using load or merge against such a component
 
 ```
 (merge-component! app Person {:person/id 1 :person/address {:address/id 42 ...}})
@@ -573,7 +573,7 @@ Most UIs end up with a mess of logic spread out in ways that are hard to reason 
 an application.  Are you logged in? Are we checking the server to see if our session is valid?  Should I show a "wait" indicator?
 
 We've known for years that state machines are a great way to manage this kind of complexity, but they are traditionally
-a bit of work to integrate into any give "UI library".
+a bit of work to integrate into any given "UI library".
 
 Fulcro's central normalized database and mutation model made an internal version of state machines a very good match. Not
 only is it easy to define them, the model makes them reusable: that is to say you can indicate which UI components
@@ -620,7 +620,7 @@ https://developers.google.com/web/tools/chrome-devtools/customize[developer tool
 * Under "Network": "Disable Cache (while devtools is open)"
 
 and always keep devtools open when you're working on your apps.  This ensures you'll not be confused by caching issues
-and will be able to see clojure data structures as Clojure, and not low-level js objects.
+and will be able to see clojure data structures as Clojure, and not low-level JS objects.
 
 == Install Supporting Tools
 
@@ -741,7 +741,7 @@ In `resources/public/index.html` add this content:
 </html>
 ----
 
-We really only need to load our one (generated) js file and supply a `div` with an ID.  Our React application will be
+We really only need to load our one (generated) JS file and supply a `div` with an ID.  Our React application will be
 rendered on that `div`. You may, of course, include other content around that: CSS, other divs, etc.
 
 === Application Source
@@ -924,7 +924,7 @@ performance problem.
 
 React components receive their data through props and state (which is local mutable state on the component).
 In Fulcro you will usually use props for most things.
-The data passed to a component can be accessed (as a cljs map) by
+The data passed to a component can be accessed (as a CLJS map) by
 calling `comp/props` on `this`, or by destructuring in the second argument of `defsc`.
 
 So, let's define a `Person` component to display details about
@@ -995,7 +995,7 @@ a new file `src/main/app/ui.cljs` with this content:
     (ui-person {:person/name "Joe" :person/age 22})))
 ```
 
-and now you can pare your `client.cljs` down to just the initialization code:
+and now you can trim your `client.cljs` down to just the initialization code:
 
 ```
 (ns app.client
@@ -1014,7 +1014,7 @@ and now you can pare your `client.cljs` down to just the initialization code:
   (js/console.log "Hot reload"))
 ```
 
-Splitting up your source will also typically help with overall incremental compile speed.
+Splitting up your source will also typically help with overall incremental compilation speed.
 
 === Composing
 
