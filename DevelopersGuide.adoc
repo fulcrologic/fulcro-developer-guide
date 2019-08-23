@@ -191,7 +191,7 @@ top of my list of "Questions that Don't Matter".  If you came to Fulcro looking 
 Where are the "reducers"?::
 Re-frame and Redux are very popular choices for front-end work, and for good reason.
 Fulcro is basically a graph-centric full-stack CQRS-style library.  Mutations are the "commands" that
-are queued (like events in a reducer system), but Fulco adds a some very important things:
+are queued (like events in a reducer system), but Fulcro adds a some very important things:
 graph data support, auto-normalization of central database, and a centralized transaction
 processing system.
 +
@@ -602,7 +602,7 @@ stack frame analysis and proper clojure names for things!  These tools will save
 Fulcro Inspect is a free extension for Chrome, and Binaryage devtools is a library that can be injected via a preload
 (which shadow-cljs does for you if it is in your dependencies).
 
-ALl of the examples in the book have a "Focus Inspector" button. If you open Chrome devtools, choose the Fulcro Inspect
+All of the examples in the book have a "Focus Inspector" button. If you open Chrome devtools, choose the Fulcro Inspect
 tab, and then press that button you will focus the inspector on that example so you can see its database. The first
 example in this book looks like this when you do that:
 
@@ -781,7 +781,7 @@ Your project source tree should now look like this:
 
 [source,bash]
 ----
-$ tree .
+$ tree -I node_modules .
 .
 ├── deps.edn
 ├── package.json
@@ -927,7 +927,7 @@ In Fulcro you will usually use props for most things.
 The data passed to a component can be accessed (as a CLJS map) by
 calling `comp/props` on `this`, or by destructuring in the second argument of `defsc`.
 
-So, let's define a `Person` component to display details about
+So, let's define a `Person` component in `src/main/app/client.cljs` to display details about
 a person. We'll assume that we're going to pass in name and age as properties:
 
 ```
@@ -1139,7 +1139,7 @@ It looks like this:
 ```
 (ns app.ui
   (:require
-    [fulcro.client.dom :as dom]
+    [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
 
 (defsc Person [this {:person/keys [name age]}]
@@ -9956,7 +9956,7 @@ for Fulcro that is far more powerful than standard GraphQL, even when GraphQL is
 
 NOTE: This chapter has not been updated for Fulcro 3. Some information is likely out of date.
 
-Full production Fulco apps, just like any other web-based software need some additional attention to ensure that there
+Full production Fulcro apps, just like any other web-based software need some additional attention to ensure that there
 are no security holes that can be exploited.  Fulcro can do nothing for you if you trust user strings in SQL string
 composition or make any of the other "old school" errors like those in
 https://www.owasp.org/index.php/OWASP_Proactive_Controls#tab=OWASP_Proactive_Controls_2018[The OWASP Top 10 Proactive Controls].
