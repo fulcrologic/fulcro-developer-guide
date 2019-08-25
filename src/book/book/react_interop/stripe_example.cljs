@@ -11,6 +11,7 @@
 
 (def test-key "pk_test_crQ5GM8nCR8tM06YZcgunnmZ00qjGWhSNV")
 
+;; Wrap the stripe UI components in interop factories
 (def ui-stripe-provider (interop/react-factory StripeProvider))
 (def ui-elements (interop/react-factory Elements))
 (def ui-card-element (interop/react-factory CardNumberElement))
@@ -18,7 +19,6 @@
 (def ui-cvc-element (interop/react-factory CardCvcElement))
 
 (defn handle-result [result]
-  (js/console.log result)
   (let [{{:keys [message]} :error
          {:keys [id]}      :token} (js->clj result :keywordize-keys true)]
     (when message
@@ -55,6 +55,8 @@
                                 (.catch (fn [result] (handle-result result)))))}
         "Pay"))))
 
+;; NOTE: The js library says you should call injectStripe(FormComponent) to get your wrapped component,
+;; so use interop to do that:
 (def ui-cc-form (interop/hoc-factory CCForm injectStripe))
 
 (defsc Root [this {:keys [root/cc-form] :as props}]
@@ -62,6 +64,8 @@
    :initial-state {:root/cc-form {}}}
   (dom/div
     (dom/h2 "Payment Form")
+    ;; Stripe documentation says to wrap a stripe provider around the whole thing, and use the
+    ;; HOC form.
     (ui-stripe-provider #js {:apiKey test-key}
       (ui-elements #js {}
         ;; NOTE: Remember to pass parent's `this` to the child when using an HOC factory.
