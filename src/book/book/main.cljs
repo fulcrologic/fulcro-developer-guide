@@ -9,6 +9,11 @@
     [book.ui.hover-example :as hover-example]
     [book.ui.victory-example :as victory-example]
     [book.queries.union-example-1 :as union-example-1]
+
+    book.react-interop.google-maps-example
+    book.react-interop.stripe-example
+    book.react-interop.react-motion-example
+
     book.queries.dynamic-queries
     book.queries.dynamic-query-parameters
     book.queries.recursive-demo-1
@@ -131,7 +136,10 @@
 (defexample "Sample Example" ex1/Root "example-1")
 (defexample "D3" d3-example/Root "ui-d3")
 (defexample "Input Focus and React Refs/Lifecycle" focus-example/Root "focus-example")
+(defexample "Google Maps Example" book.react-interop.google-maps-example/Root "google-maps-example")
+(defexample "Stripe Example" book.react-interop.stripe-example/Root "stripe-example")
 (defexample "Drawing in a Canvas" hover-example/Root "hover-example")
+(defexample "React Motion Example" book.react-interop.react-motion-example/Root "motion-example")
 (defexample "Using External React Libraries" victory-example/Root "victory-example")
 (defexample "Unions to Select Type" union-example-1/Root "union-example-1")
 (defexample "UI Blocking" ui-blocking/Root "ui-blocking-example" :remotes book.main/example-server)

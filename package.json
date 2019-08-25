@@ -7,10 +7,13 @@
   "devDependencies": {
     "codemirror": "^5.42.2",
     "d3": "^5.7.0",
+    "google-maps-react": "^2.0.2",
     "react": "16.8.6",
     "react-dom": "16.8.6",
-    "shadow-cljs": "2.8.39",
+    "react-motion": "^0.5.2",
+    "react-stripe-elements": "^4.0.1",
     "semantic-ui-react": "^0.87.2",
+    "shadow-cljs": "2.8.39",
     "victory": "^31.1.0"
   },
   "repository": {
