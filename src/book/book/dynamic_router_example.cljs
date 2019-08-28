@@ -78,7 +78,7 @@
 
 (defsc Root [this {:root/keys [router]}]
   {:query         [{:root/router (comp/get-query TopRouter)}]
-   :initial-state {:root/router {}}}
+   :initial-state {:root/router (comp/get-initial-state TopRouter {})}}
   (dom/div
     (dom/button {:onClick #(dr/change-route this ["main"])} "Go to main")
     (dom/button {:onClick #(dr/change-route this ["settings"])} "Go to settings")
