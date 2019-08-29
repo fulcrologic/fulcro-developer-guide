@@ -7728,8 +7728,11 @@ Most of the novelty about routes can now be encoded into normal components with 
 (defsc X [this props]
  {...
   :route-segment   ["path"] ; the portions of the path that this component represents. typically just one, or one with params
+  ;; optional: defaults the the component's ident (singletons only)
   :will-enter      (fn [app route-params] ...defer or immediate...)
+  ;; optional, defaults to nothing
   :route-cancelled (fn [route-params] ...called if deferred route to here is cancelled before it completes...)
+  ;; optional, defaults to true
   :will-leave      (fn [this props] ...return true or false to accept being removed from screen...)]}
  (dom/div ...))
 ```
@@ -7738,19 +7741,22 @@ Most of the novelty about routes can now be encoded into normal components with 
 A (relative) path segment that this component can "consume" from an incoming route.
 This is purely static data.
 The current composition of routing targets in the UI determines the overall "absolute" path of a route.
-Each `router` in the UI should be thought of as a stand-in for a "/" in an HTML5 URI path.
+Each `router` in the UI should be thought of as a stand-in for a "/" in an HTML5 URI path. MUST contain
+only strings and keywords.
 `:will-enter`::
 A notification that this route target should be shown.
 Can return a value indicating a desire to do so immediately, or that it would like a delay (for some I/O).
 This method is called *before* the component is on-screen, so it cannot receive a react component instance.
 It is passed the app and router parameters which can be used to do things like issues loads and run mutations.
+Defaults to `(route-immediate (get-ident class {}))`
 `:route-cancelled`::
 A notification that this route target was in a deferred state but the user made some other routing decision during that delay.
-This can be used to cancel heavy I/O operations for this target.
+This can be used to cancel heavy I/O operations for this target. Defaults to no-op.
 `:will-leave`::
 A method that can prevent a route change that causes this component to leave the screen.
 This is called on the instance, so `this` and `props` are available.
 A request to change routes will signal this method from deepest child towards the parent, and will stop if any returns false.
+Optional.
 
 WARNING: `will-enter` SHOULD NOT side-effect (order of operations could cause strange behavior), but must instead do any I/O in the lambda passed to `route-deferred`.
 It must also trigger the `dr/target-ready` mutation to indicate that the route is ready.
