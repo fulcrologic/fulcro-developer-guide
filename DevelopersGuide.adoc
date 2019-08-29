@@ -1148,7 +1148,7 @@ You can see that there is no magic if you just pull the initial tree at the REPL
 
 [source%nowrap]
 ----
-dev:cljs.user=> (com.fulcrologic.fulcro.components/get-initial-state app.ui.root/Root {})
+dev:cljs.user=> (com.fulcrologic.fulcro.components/get-initial-state app.ui/Root {})
 {:friends {:list/label "Friends",
            :list/people [{:person/name "Sally", :person/age 32} {:person/name "Joe", :person/age 22}]},
  :enemies {:list/label "Enemies",
@@ -1236,7 +1236,7 @@ The function
 
 [source]
 ----
-dev:cljs.user=> (fdn/db->tree [{:friends [:list/label]}] (comp/get-initial-state app.client/Root {}) {})
+dev:cljs.user=> (fdn/db->tree [{:friends [:list/label]}] (comp/get-initial-state app.ui/Root {}) {})
 {:friends {:list/label "Friends"}}
 ----
 
@@ -1636,7 +1636,7 @@ Using these conventions the prior example would have looked like this:
 === Automatic Normalization
 
 Fortunately, you don't have to hand-normalize your data.
-The components have everything they need to do it for you, other than the actual value of the _ident_.
+The components have everything they need to do the normalization for you, other than the actual value of the _ident_.
 So, we'll add one more option to your components (and we'll add IDs to the data at this point, since you can't easily normalize things that don't have them):
 
 The program will now look like this:
