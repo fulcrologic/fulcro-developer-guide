@@ -8626,7 +8626,16 @@ The namespace `com.fulcrologic.fulcro.algorithms.form-state` (aliased to `fs` in
 This support brings functions for dealing with common state storage and form transitions with minimal opinion or additional complexity.
 
 Your UI is still built and rendered identically to what you're already used to.
-The form state support simply adds some additional state tracking that can help you manage things like field validation and minimal delta submissions to the server.
+The form state support simply adds some additional state tracking that can help you manage things like field validation
+and minimal delta submissions to the server.
+
+IMPORTANT: The form state support is about just that: form state. It basically keeps a "pristine" copy of the data
+of one or more entities and allows you to track if (and how) a particular field has been interacted with. You can think of it as
+some bookkeeping and diff helpers.
+It is not *intended* to be a complete forms solution. You are still responsible for establishing
+a lifecycle for your forms, a UI, etc.  Most forms will benefit from things like the UI State Machine support to keep
+track of your user experience in more specific detail. Automagic forms could be built on top of it, but providing all of
+the "knobs" that would allow you to customize such a system for general-purpose use is way beyond the goals of Fulcro core.
 
 == Defining the Form Component
 
