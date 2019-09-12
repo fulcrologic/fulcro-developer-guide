@@ -1,7 +1,7 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: August 25, 2019
-:revnumber: 37
+:revdate: September 12, 2019
+:revnumber: 38
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -72,10 +72,7 @@ This is a stand-alone developer's guide for version 3 of Fulcro.
 It is intended to be be used by beginners and experienced developers and covers most of the library in detail.
 Fulcro has a pretty extensive set of resources on the web tailored to fit your learning style.
 
-TODO:
-Update these links:
-There is this book, the docstrings/clojure docs, and even a series of
-https://youtu.be/pLFOVhWsxMM?list=PLVi9lDx-4C_Rwb8LUwW4AdjAu-39PHgEE[YouTube videos],
+There is this book, the https://cljdoc.org/d/com.fulcrologic/fulcro/3.0.0-beta-13/doc/readme[docstrings/clojure docs], and even a series of https://www.youtube.com/playlist?list=PLVi9lDx-4C_T7jkihlQflyqGqU4xVtsfi[YouTube videos],
 
 A lot of time and energy went into creating these libraries and materials and providing them free of charge.
 If you find them useful please consider
@@ -106,7 +103,7 @@ See <<Install Fulcro Inspect>> for details on how to set that up and use it.
 All of the full stack examples use a mock server embedded in the browser to simulate any network interaction, but the source that you'll read for the application is identical to what you'd write for a real server.
 
 WARNING: If you're viewing this directly from the GitHub repository then you won't see the live code!
-Use http://book.fulcrologic.com instead (TODO: publish the new version there, and move the old one somewhere else).
+Use http://book.fulcrologic.com/fulcro3 instead.
 
 The mock server has a built-in latency to simulate a moderately slow network so you can observe behaviors over time.
 You can control the length of this latency in milliseconds using the "Server Controls" in the upper-right corner of this document (if you're reading the HTML version with live examples).
@@ -551,9 +548,7 @@ Concepts are introduced as we go, and given a very cursory definition in the int
 Once you've got the general idea you can use other materials to refine your understanding.
 
 IMPORTANT: This document assumes you're working with Fulcro 3.x and above.
-Please see older versions of the Developer's Guide if you're working with an older version.
-(TODO:
-Link to old version)
+Please see http://book.fulcrologic.com[older version of the Developer's Guide] if you're working with an older version.
 
 == Install Fulcro Inspect
 
@@ -589,7 +584,7 @@ This ensures you'll not be confused by caching issues and will be able to see cl
 
 == Install Supporting Tools
 
-You'll normally want to build a real application based on the Fulcro template (TODO, in progress).
+You'll normally want to build a real application based on the https://github.com/fulcrologic/fulcro-template[Fulcro template].
 It contains a lot of boilerplate on things like server configuration, CSRF, testing, better error message formatting, and so on.
 This can save you quite a bit of setup and development time.
 
@@ -3319,9 +3314,9 @@ Clicking to save the box position and resizing the container are real transactio
 
 == Using Javascript React Components
 
-One of the great parts about React is the ecosystem. There are some great libraries out there.
-Many libraries will work without issue as long as you're using shadow-cljs as your compiler; However, the interop story requires
-a few adaptations.
+One of the great parts about React is the ecosystem.
+There are some great libraries out there.
+Many libraries will work without issue as long as you're using shadow-cljs as your compiler; However, the interop story requires a few adaptations.
 The goal of this section is to make that story a little clearer.
 
 === Factory Functions for JS React Components
@@ -3331,12 +3326,14 @@ This book is not a tutorial on the fundamental js ecosystem.
 Some important points to understand:
 
 . If you are importing third party components, you should be importing the class, not a factory.
-. You need to explicitly create react elements with factories. The relevant js functions are React.createElement, and React.createFactory.
-. Children. JS does not have a built in notion of lazy sequences. Clojurescript does. This can create subtle bugs when
-evaluating the children of a component. `com.fulcrologic.fulcro.components/force-children` helps us in this regard by taking a seq and returning a vector.
+. You need to explicitly create react elements with factories.
+The relevant js functions are React.createElement, and React.createFactory.
+. Children.
+JS does not have a built in notion of lazy sequences.
+Clojurescript does.
+This can create subtle bugs when evaluating the children of a component. `com.fulcrologic.fulcro.components/force-children` helps us in this regard by taking a seq and returning a vector.
 
-The `react-iterop` namespace includes a pre-written function for generating factories that can accept CLJS maps and children,
-and properly takes the normal corrective actions:
+The `react-iterop` namespace includes a pre-written function for generating factories that can accept CLJS maps and children, and properly takes the normal corrective actions:
 
 ```
 (ns app
@@ -3516,9 +3513,7 @@ https://en.wikipedia.org/wiki/Decorator_pattern[Decorator pattern] in object-ori
 
 Some React reusable components provide HOC components to wrap cross cutting logic needed for the wrapped components to work.
 
-For example https://github.com/fullstackreact/google-maps-react/[google-maps-react] provides `GoogleApiWrapper` HOC that
-handles dynamic loading and initialisation of Google Maps Javascript library so it doesn't have to be handled manually
-in every place where Google Maps React component (like `Map` or `Marker`) is used.
+For example https://github.com/fullstackreact/google-maps-react/[google-maps-react] provides `GoogleApiWrapper` HOC that handles dynamic loading and initialisation of Google Maps Javascript library so it doesn't have to be handled manually in every place where Google Maps React component (like `Map` or `Marker`) is used.
 In this particular example, `GoogleApiWrapper` creates a wrapper component class that behaves in the following way:
 
 - it will display a placeholder "Loading" component and trigger Google Maps script loading and initialisation
@@ -3526,15 +3521,14 @@ In this particular example, `GoogleApiWrapper` creates a wrapper component class
 
 === Fulcro and React HOC
 
-There are two things that need to be "patched" in order for Fulcro components to function properly as targets of the HOC
-pattern:
+There are two things that need to be "patched" in order for Fulcro components to function properly as targets of the HOC pattern:
 
-* Raw React libraries pass props as js objects. Fulcro normally wraps/unwraps these for you.
+* Raw React libraries pass props as js objects.
+Fulcro normally wraps/unwraps these for you.
 * Fulcro wraps in some special items to props that carry along context for transactional operation.
 
-Fulcro includes an interop function for your convenience that should work for many examples of this pattern
-"in the wild". The `com.fulcrologic.fulcro.algorithms.react-interop` namespace includes a function that does
-the necessary props and context manipulation for you:
+Fulcro includes an interop function for your convenience that should work for many examples of this pattern "in the wild".
+The `com.fulcrologic.fulcro.algorithms.react-interop` namespace includes a function that does the necessary props and context manipulation for you:
 
 ```
 ;; injected-props in the computed section passes in the raw js props that the HOC passed in (a js map)
@@ -3543,9 +3537,7 @@ the necessary props and context manipulation for you:
 (def ui-target-of-hoc (interop/hoc-factory TargetOfHOC hocFunction))
 ```
 
-
-The following two live examples show you how to use this function in the context of the Google Maps React API,
-and the Stripe Elements API.
+The following two live examples show you how to use this function in the context of the Google Maps React API, and the Stripe Elements API.
 
 .[[HOCGoogleMaps]]<<HOCGoogleMaps,HOC With Google Maps>>
 ====
@@ -3577,13 +3569,10 @@ include::src/book/book/react_interop/stripe_example.cljs[]
 
 === How It Works
 
-The property passing is relatively simple: pull the props apart at the correct time (and from the correct type)
-and pass them through as needed.
+The property passing is relatively simple: pull the props apart at the correct time (and from the correct type) and pass them through as needed.
 
 The other thing that has to happen is maintaining context from the Fulcro component parent as discussed earlier.
-The `components` namespace
-includes a `with-parent-context` function that can do this in any scenario where some subtree of Fulcro components
-will be rendered by some function outside of the normal Fulcro tree:
+The `components` namespace includes a `with-parent-context` function that can do this in any scenario where some subtree of Fulcro components will be rendered by some function outside of the normal Fulcro tree:
 
 ```
 (defsc Component [this {:keys [child-props] :as props}]
@@ -3593,8 +3582,7 @@ will be rendered by some function outside of the normal Fulcro tree:
                                      (ui-fulcro-child child-props)))})))
 ```
 
-If you look at the source of `react-interop`, you'll see that both things are being done in order to make the
-target child component tolerant of being wrapped by a HOC pattern.
+If you look at the source of `react-interop`, you'll see that both things are being done in order to make the target child component tolerant of being wrapped by a HOC pattern.
 
 = EQL -- The Query and Mutation Language
 
@@ -7556,11 +7544,6 @@ The `trigger-remote-mutation` function also support abort IDs using the `::txn/a
 TIP: Aborting mutations is a risky business.
 Doing so leaves you in an unknown state since you don't know how much the server actually saw or did; also, aborting the network request usually does not affect the server processing once the mutation has been sent.
 
-== Full Example
-
-TODO:
-Embed live demo.
-
 == Parting Thoughts
 
 This relatively small set of primitives gives you quite a bit of power.
@@ -7741,8 +7724,8 @@ Most of the novelty about routes can now be encoded into normal components with 
 A (relative) path segment that this component can "consume" from an incoming route.
 This is purely static data.
 The current composition of routing targets in the UI determines the overall "absolute" path of a route.
-Each `router` in the UI should be thought of as a stand-in for a "/" in an HTML5 URI path. MUST contain
-only strings and keywords.
+Each `router` in the UI should be thought of as a stand-in for a "/" in an HTML5 URI path.
+MUST contain only strings and keywords.
 `:will-enter`::
 A notification that this route target should be shown.
 Can return a value indicating a desire to do so immediately, or that it would like a delay (for some I/O).
@@ -7751,7 +7734,8 @@ It is passed the app and router parameters which can be used to do things like i
 Defaults to `(route-immediate (get-ident class {}))`
 `:route-cancelled`::
 A notification that this route target was in a deferred state but the user made some other routing decision during that delay.
-This can be used to cancel heavy I/O operations for this target. Defaults to no-op.
+This can be used to cancel heavy I/O operations for this target.
+Defaults to no-op.
 `:will-leave`::
 A method that can prevent a route change that causes this component to leave the screen.
 This is called on the instance, so `this` and `props` are available.
@@ -7851,7 +7835,8 @@ Of course you should do something in this method to change the UI so the user kn
 This is a non-static method and receives the component, so it can `transact!`, etc.
 
 TODO:
-Probably needs more parameters, such as the "route being attempted" in case the component wants to save it for a later "continue" operation (e.g. "Are You Sure?", "Yes").
+Needs to be a bit more capable: the "route being attempted" should be available somehow in case the component wants to save it for a later "continue" operation (e.g. "Are You Sure?", "Yes").
+Perhaps as a `retry` lambda that is passed in as a parameter.
 
 == Deferred Routing
 
@@ -8174,14 +8159,11 @@ The correct form for the resulting mutation is:
 
 There is also a top-level API call `comp/set-query!` if you want to change a query outside of a mutation.
 
-;; ================================================================================ ;; TODO:
-Move legacy routers to appendix or perhaps even diff library?
-;; ================================================================================
-
 = Legacy UI Routers [[UIRouting]]
 
 NOTE: This chapter describes routers from Fulcro 2 that are a bit harder to use and less feature-rich than the
 <<Dynamic Router>>.
+The basic union-based router is a great router for performance reasons, but is only concerned with swapping between queries/views at a single layer and *nothing* else.
 
 UI Routing is an important task in Fulcro, as it is an important part of keeping your application running quickly.
 You see, any given sub-tree of your application can query for quite a bit of data and very often a good portion of the side branches are not currently on-screen.
@@ -8626,16 +8608,15 @@ The namespace `com.fulcrologic.fulcro.algorithms.form-state` (aliased to `fs` in
 This support brings functions for dealing with common state storage and form transitions with minimal opinion or additional complexity.
 
 Your UI is still built and rendered identically to what you're already used to.
-The form state support simply adds some additional state tracking that can help you manage things like field validation
-and minimal delta submissions to the server.
+The form state support simply adds some additional state tracking that can help you manage things like field validation and minimal delta submissions to the server.
 
-IMPORTANT: The form state support is about just that: form state. It basically keeps a "pristine" copy of the data
-of one or more entities and allows you to track if (and how) a particular field has been interacted with. You can think of it as
-some bookkeeping and diff helpers.
-It is not *intended* to be a complete forms solution. You are still responsible for establishing
-a lifecycle for your forms, a UI, etc.  Most forms will benefit from things like the UI State Machine support to keep
-track of your user experience in more specific detail. Automagic forms could be built on top of it, but providing all of
-the "knobs" that would allow you to customize such a system for general-purpose use is way beyond the goals of Fulcro core.
+IMPORTANT: The form state support is about just that: form state.
+It basically keeps a "pristine" copy of the data of one or more entities and allows you to track if (and how) a particular field has been interacted with.
+You can think of it as some bookkeeping and diff helpers.
+It is not *intended* to be a complete forms solution.
+You are still responsible for establishing a lifecycle for your forms, a UI, etc.
+Most forms will benefit from things like the UI State Machine support to keep track of your user experience in more specific detail.
+Automagic forms could be built on top of it, but providing all of the "knobs" that would allow you to customize such a system for general-purpose use is way beyond the goals of Fulcro core.
 
 == Defining the Form Component
 
@@ -9018,7 +8999,7 @@ We have a very simple database that looks like this on the server:
 The server query handler is just:
 
 ```
-;; TODO: PATHOM
+;; TODO: PATHOM Demo
 ```
 
 === The UI
@@ -9056,29 +9037,31 @@ Thus, the application must do a few things in order for editing to work:
 
 TODO: example
 
-
-;; ================================================================================ ;; TODO:
-SSR Needs review:
-;; ================================================================================
-
 = Server-side Rendering
 
 Single-page applications have a couple of concerns when it comes to how they behave on the internet at large.
 
 The first is size.
+
 It is not unusual for a SPA to be several megabytes in size.
 This means that users on slow networks may wait a while before they see anything useful.
 Network speeds are continually on the rise (from less than 1kbps in the 80's to an average of about 10Mbps today).
 This is becoming less and less of an issue, and if this is your only concern, then it might be poor accounting to complicate your application just to shave a few ms off the initial load.
+
 After all, with proper serving you can get their browser to cache the js file for all but the first load of your site.
 
-The second more important concern is SEO. If you have pages on your application that do not require login and you would like to have in search engines, then a blank HTML page with a javascript file isn't going to cut it.
+You often, in fact, would do well to follow examples like gmail that simply show a loading progress bar.
+You're writing client-side *applications*, and this is often quite good enough (and much simpler).
 
-Fortunately, Fulcro has you covered!
+Another concern is SEO. If you have pages on your application that do not require login and you would like to have in search engines, then a blank HTML page with a javascript file may have a more limited reach (though search engines are getting better and better about indexing even SPAs).
+
+Fortunately, Fulcro has you covered for any of these options!
+
 Server-side rendering not only works well in Fulcro, the central mechanisms of Fulcro (a client-side database with mutations) and the fact that you're writing in one language actually make server-side rendering shockingly simple, even for pages that require data from a server-side store!
+
 After all, all of the functions and UI component queries needed to normalize the tree that you already know how to generate on your server can be in CLJC files and can be used without writing anything new!
 
-If you're writing your UI in CLJC files in 2.5 to support server-side rendering then you need to make sure you use a conditional reader to pull in the proper server DOM functions for Clojure:
+If you're writing your UI in CLJC files to support server-side rendering then you need to make sure you use a conditional reader to pull in the proper server DOM functions for Clojure:
 
 ```
 (ns app.ui
@@ -9088,17 +9071,21 @@ If you're writing your UI in CLJC files in 2.5 to support server-side rendering 
 == Recommendations
 
 In order to get the most out of your code base when supporting server-side rendering, here are some general recommendations about how to write your application.
+
 These are pretty much what we recommend for all applications, but they're particularly important for server-side rendering:
 
 === Use Initial State on Components That Appear on Client Start
 
 This is true for every application.
-We always encourage it.
 It helps with refactoring, initial startup, etc.
+
 When doing server-side rendering you won't need this initial state on the client (the server will push a built-up state); however, the server does need the base minimum database on which it will build the state for the page that will be rendered.
 
 IMPORTANT: For SSR you will *move* initial state from *just* your `Root` node to a function.
 The reason for this is that Fulcro ignores explicit application state at startup if it can find initial state on the root node, and we want to force state into the client.
+
+FIXME:
+Fulcro 3's startup handling of initial state is a bit different than this now, though the idea is very close.
 
 This will become clearer when we get to examples.
 
@@ -9138,19 +9125,23 @@ This has a very positive effect on your code: composition and re-use!
 
 Of course composition is re-use, but now that your client db mutation implementation is available in clj and cljs you can use it to initialize state for your server-side render!
 
-NOTE: The new mutation `^:intern` support also gives you a way to get a function that applies the mutations actions on a state atom.
+NOTE: In Fulcro 3 you can also start the application on the server in a "headless" mode (simply don't mount a UI).
+All of Fulcro's APIs are written in CLJC, and can operate on the same footing on the JVM as well as a browser (the primary exception is remotes, which are typically tied to js APIs).
+This means you can simulate doing all of the steps to get your application to the correct state just as you would on the client by implementing some kind of "loopback" remote for server use.
+The limiting factor is that some libraries and namespaces may not have not been tested this way, so your success may require an occasional PR or tweak.
 
 === Use HTML5 Routing
 
 You have to be able to detect the different pages via URL, and your application also needs to respond to them.
 As a result you will need to make all of the pages that are capable of server-side also have some distinct URI representation.
+The Dynamic Router system should make this simpler.
 
 == Overall Structure
 
 Here's how to structure your application to support SSR:
 
 . Follow the above recommendations for the base code
-. The server will use the client initial app state plus a sequence of mutation implementations to build a normalized database
+. The server will use the client initial app state plus a sequence of mutation implementations to build a normalized database.
 . The server will serve the same basic HTML page (from code) that has the following:
 * The CSS and other head-related stuff and the div on which your app will mount.
 * A div with the ID of your SPA's target mount, which will contain the HTML of the server-rendered application state
@@ -9200,7 +9191,11 @@ will generate a string that contains the current HTML rendering of that database
 Now, while you have the correct initial look, you will still need to get this database state into the client.
 While you could technically try loading your UI's initial state, it would make the UI flicker because when React mounts it needs to see the exact DOM that is already there.
 So, you must pass the server-side generated-database as initial-state to your client.
-The function `fulcro.server-render/initial-state->script-tag` will give you a `<script>` tag that includes a string-encoded EDN data structure (using transit).
+
+TODO:
+This function has not been tested since porting from Fulcro 2.
+
+The function `com.fulcrologic.fulcro.algorithms.server-render/initial-state->script-tag` will give you a `<script>` tag that includes a string-encoded EDN data structure (using transit).
 
 We now combine what we learned about generating the application's rendering with this to get the overall response from the server:
 
@@ -9233,28 +9228,20 @@ Now let's move on to the client.
 
 When creating your client, you will now be explicit about initial state and use a helper function (provided) to decode the server-sent state:
 
+TODO:
+Untested in version 3.
+
 ```
-(defonce app (atom (fc/make-fulcro-client {:initial-state (fulcro.server-render/get-SSR-initial-state}))))
+(defonce app (atom (app/fulcro-app {:initial-state (fulcro.server-render/get-SSR-initial-state}))))
 ```
 
 Of course, you could use `:client-did-mount` to do various other bits (like start your HTML5 routing), but this completes the essential pattern.
 No other client modifications need to be made!
 
-== A Complete Working Example
-
-There is a complete working example of these techniques (including the HTML5 routing) in the
-
-[fulcro-template]
-(https://github.com/fulcrologic/fulcro-template).
-
-* [Server-side logic](https://github.com/fulcrologic/fulcro-template/blob/master/src/main/fulcro_template/server.clj)
-* [HTML5 Routing](https://github.com/fulcrologic/fulcro-template/blob/master/src/main/fulcro_template/ui/html5_routing.cljc)
-* [Client-side Initial State Generation and Modifications](https://github.com/fulcrologic/fulcro-template/blob/master/src/main/fulcro_template/ui/root.cljc) (see `initial-app-state-tree`)
-* [Client Start-up](https://github.com/fulcrologic/fulcro-template/blob/master/src/main/fulcro_template/client.cljs) Note this example tolerates a failure of the server to send initial state, so it runs initial startup steps if it detects that.
-
 == Rendering via Node.js
 
 WARNING: This section is a Fulcro 2 example.
+
 TODO:
 Needs porting to version 3.
 
@@ -9364,7 +9351,7 @@ Can be relative or a complete URL, assuming you have security set to allow you t
 
 == Client Response Middleware
 
-The response will, by default, be sent through the pre-written middleware function `fulcro.client.network/wrap-fulcro-response`
+The response will, by default, be sent through the pre-written middleware function `http-remote/wrap-fulcro-response`
 which contains the logic to properly decode an API response (which is essentially just a transit decode).
 If you specify response middleware you will want to compose that middleware in or normal API responses won't work.
 
@@ -9403,13 +9390,15 @@ This is the `body`.
 . Any mutation keys in the response are pulled off and run through migrate to get tempid migrations.
 . The remainder of the k/v pairs in the map are then run through normal merge (which requires a query, assumed to be in `transaction`).
 
-So, this gives you a *ton* of power in your response middleware to customize everything from error handling to doing post-operations on mutations.
+So, this gives you a *ton* of power in your response middleware to customize everything from error handling to doing
+post-operations on mutations.
 
 Let's say you want to write response middleware that does the following:
-If there is an error, skip Fulcro's error pipeline and instead put the information in `:my-error` key at root (which perhaps you have set up to pop a modal in your UI code).
+If there is an error, skip Fulcro's error pipeline and instead put the information in `:my-error` key at root (which
+perhaps you have set up to pop a modal in your UI code).
 
-So, your desired merge transaction is `[:my-error]` (rewriting the transaction "as if" you had "asked" for the error), and the body is `{:my-error {...data for error...}}`!
-The entire middleware component is:
+So, your desired merge transaction is `[:my-error]` (rewriting the transaction "as if" you had "asked" for the error),
+and the body is `{:my-error {...data for error...}}`! The entire middleware component is:
 
 ```
 (defn wrap-errors [handler]
@@ -9481,40 +9470,24 @@ If you deviate from the standard format then those functions will not work witho
 
 == Interfacing with Alternate Network Protocols
 
+Fulcro's pluggable remotes make it relatively easy to plug in alternate communication methods.
+You can interface with things like REST or GraphQL servers with relative ease, especially if you use the
+https://wilkerlucio.github.io/pathom/DevelopersGuide.html[Pathom] parser library.
+
 === File Uploads [[FileUpload]]
 
 TODO:
 This section needs to be rewritten, and should include a basic full example.
 
-Fulcro may soon include pre-written software to accomplish file uploads for you.
-In the meantime you can just copy code from http://github.com/awkay/file-upload-demo[the file upload demo project]
-as a basis for your own projects.
-
-The basic scheme is as follows (and is well-documented in that project):
-
-* Attach a `js/File` object to a mutation's parameters (typically as metadata to avoid various tool overhead)
-* Include a tempid in the parameters
-* The mutation should using an network object that has custom middleware for file upload/error handling
-* The local side of the mutation puts the file information into app state with a tempid
-* The remote's middleware encodes the headers/body into a proper multipart form upload, and includes the tempid
-* Progress reports are handled as usual.
-The parameters of the progress mutation should include the tempid so that progress can be written to the file's state.
-* The remote uses normal Fulcro response middleware (which can decode tempid remappings)
-* The server accepts the file, assigns it a real ID, and returns a transit response with tempid remapping to that real ID.
-
-When complete, the UI has an ID for the uploaded file, and can interact with the server via that ID (e.g. for generating file serving URLs for images, send delete mutations, etc.).
-
-The server for this would need middleware watching for file uploads at `/file-uploads` that returns a transit+json encoded map for the mutation (the mutation name is irrelevant in the response):
-
-```
-{`upload-file {:tempids {file-temp-id newly-assigned-id}}}
-```
-
-Fulcro's pluggable remotes make it relatively easy to plug in alternate communication methods.
-You can interface with things like REST or GraphQL servers with relative ease, especially if you use the
-https://wilkerlucio.github.io/pathom/DevelopersGuide.html[Pathom] parser library.
+File uploads can be accomplies by augmenting the middleware of an http-remote on the client side, and managing the
+file upload server-side middleware.  A fulcro 2 example should be pretty close, though the response/progress is
+a bit easier with version 3's network stack.  See https://github.com/awkay/file-upload-demo[this Fulcro 2 Example] for
+a start.
 
 ==== A REST Example
+
+TODO: This is an unported Fulcro 2 example. The pathom network support for fulcro is for version 2 at the moment, so
+this example would require a bit more work.
 
 Here's a simple example to give you an idea of how simple it can be:
 
@@ -9556,9 +9529,9 @@ It is written to take an atom that will hold your Fulcro app, so that resolvers 
 Simply add the remote into your networking on the client:
 
 ```
-(fc/make-fulcro-client
-  {:networking {:remote     (fulcro-http-remote ...)
-                :rest       (rr/rest-remote app)}})
+(app/fulcro-app
+  {:remotes {:remote     (fulcro-http-remote ...)
+             :rest       (rr/rest-remote app)}})
 ```
 
 and you can use the newly defined `defresolver` to define Pathom resolvers for satisfying REST API requests, like so:
@@ -9669,6 +9642,8 @@ When deploying to production you should stop using the "easy" server and roll yo
 This section will cover the steps you need to do so, and you can also clone the https://github.com/fulcrologic/fulcro-security-demo[complete source of this example].
 
 ==== The Server Config and Middleware
+
+TODO: This chapter is still based on Fulcro 2. Most of the code is correct, but minor name tweaks are required (and of course testing).
 
 Our demo app is going to take the approach of embedding the CSRF token in the HTML page that serves our Fulcro app.
 This is relatively easy to understand, and is as secure as form-based CSRF embedding.
@@ -9869,104 +9844,6 @@ The websocket remote need only be passed the CSRF token:
 ```
 
 See the documentation on general websockets for more information on their server-side setup other general options, but be sure to include the anti-forgery middleware so it runs before your API if you want to enforce CSRF protections.
-
-==== Securing Sente Websockets (Fulcro 2.6.x and Sente Prior to 1.14) [[OldSenteCSRF]]
-
-WARNING: Do not use this approach for new apps!
-Upgrade Fulcro and sente instead.
-
-Sente has an internal CSRF support, which it uses to deal with augmenting the POST requests it might make (it supports alternate network techniques to get around missing websocket support).
-Unfortunately, it exchanges the CSRF from `wrap-anti-forgery` within a (js-accessible) handshake.
-This *can* be ok *as long as that handshake never happens without CSRF protection *already in place*.
-Otherwise you are open to websocket hijacking, and also exposing the CSRF token and compromising your *other* remote processing as well!
-(This was a reported issue on Sente, and is fixed in 1.14.0-RC1)
-
-Fulcro's websocket contruction function allows you to pass a parameters through sente, and you can use these to include the CSRF token, and then add a bit of additional middleware to require that in front of your websocket setup code on the server.
-This ensures that Sente cannot do a handshake (and expose the token) without proving that the source page *already knows* the token.
-
-WARNING: I know I've said this more than once now, but here it is a different way:
-Sente will stop warning about the lack of CSRF as *soon* as you add the anti-forgery middleware; however, that does not secure your app.
-You must verify that the client talking to you is valid before starting the handshake or you are open to websocket hijacking attacks.
-
-The code to do this all is very similar to the normal remotes, so we'll just show the differences.
-
-Of course, you need websocket middleware, and it needs to do CSRF checks *before* the Sente handshake:
-
-```
-...
-
-(defn- is-wsrequest? [{:keys [uri]}] (= "/chsk" uri))
-
-(defn enforce-csrf!
-  "Checks the CSRF token. If it is ok, runs the `ok-response-handler`; otherwise returns a 403 response
-  and logs the CSRF violation."
-  [{:keys [anti-forgery-token params]} ok-response-handler]
-  (let [{:keys [csrf-token]} params
-        token-matches? (and (seq csrf-token) (= csrf-token anti-forgery-token))]
-    (timbre/debug "Setting up websocket request. Incoming security token is: " csrf-token)
-    (timbre/debug "Expected CSRF token is " anti-forgery-token)
-    (if token-matches?
-      (ok-response-handler)
-      (do
-        (timbre/error "CSRF FAILURE. The token received does not match the expected value.")
-        (-> (response/response "Cross site requests are not supported.")
-          (response/status 403))))))
-
-(defn wrap-websockets
-  "Add websocket middleware.  This middleware does a CSRF check on the GET (normal Ring only checks POSTS)
-  to ensure we don't start a Sente handshake unless the client has already proven it knows the CSRF token."
-  [base-request-handler]
-  (fn [{:keys [request-method] :as req}]
-    (if (is-wsrequest? req)
-      (let [{:keys [ring-ajax-post ring-ajax-get-or-ws-handshake]} websockets]
-        ;; The enforcement is really on GET, which ring's middleware won't block,
-        ;; but which exposes the token in the handshake
-        (enforce-csrf! req (fn []
-                             (case request-method
-                               :get (ring-ajax-get-or-ws-handshake req)
-                               :post (ring-ajax-post req)))))
-      (base-request-handler req))))
-
-...
-
-(defstate middleware
-  :start
-  (let [defaults-config (:ring.middleware/defaults-config config)
-        legal-origins   (get config :legal-origins #{"localhost"})]
-    (timbre/debug "Configuring middleware-defaults with" (with-out-str (pprint defaults-config)))
-    (timbre/info "Restricting origins to " legal-origins)
-    (when-not (get-in defaults-config [:security :ssl-redirect])
-      (timbre/warn "SSL IS NOT ENFORCED: YOU ARE RUNNING IN AN INSECURE MODE (only ok for development)"))
-    (-> not-found-handler
-      wrap-websockets
-      server/wrap-transit-params
-      server/wrap-transit-response
-      (server/wrap-protect-origins {:allow-when-origin-missing? true
-                                    :legal-origins              legal-origins})
-      (wrap-uris {"/"           generate-index
-                  "/index.html" generate-index})
-      (wrap-defaults defaults-config)
-      wrap-gzip)))
-```
-
-The only thing different in the stack itself is switching from normal remoting to websockets.
-
-The client change is also quite small: switch over to using websockets and send the page-embedded token with the websocket startup request:
-
-```
-(fc/make-fulcro-client
-      {:networking {:remote
-                    (fws/make-websocket-networking
-                      {:websockets-uri "/chsk"
-                       :push-handler   push-handler
-                       ;; we use params instead of Sente's ajax-options (which would be nice for setting headers)
-                       ;; because Sente doesn't use those for the initial socket request :(
-                       ;; Not ideal, since the CSRF token might end up stored in browser caches, proxy servers, etc.
-                       ;; Perhaps someone would make a PR to Sente?
-                       :req-params     {:csrf-token (or js/fulcro_network_csrf_token "TOKEN-NOT-IN-HTML!")}})}})
-```
-
-You can play with this by cloning the https://github.com/fulcrologic/security-websockets-demo[complete source for this demo].
 
 = Workspaces
 
@@ -10322,7 +10199,7 @@ Most of the time these kinds of functions can be fixed by generating the functio
 
 == Poor Query Performance
 
-This is by far the most common source of performance issues in Fulcro UIs.
+This is a potential source of performance issues in Fulcro UIs.
 Evaluating the UI query is relatively fast, but *relative* is the key word.
 The larger the query, the more work that has to be done to get the data for it.
 Remember that you compose all component queries to the root.
@@ -10330,26 +10207,38 @@ If you do this with *only* joins and props, then your root query will ask for *e
 This will perform poorly as your application gets large.
 
 The solution to this is to ensure that your query contains only the currently relevant things.
-There are two primary solutions for this: use union or dynamic queries.
+There are two primary solutions for this: use union or dynamic queries. Fortunately this is what you naturally want
+to do anyhow to get UI "routing".
 
-The `com.fulcrologic.fulcro.routing.legacy-ui-routers` namespace includes primitives for building UI routes using unions (the unions are written for you).
-It has a number of features, including the ability to nicely integrate with HTML5 history events for full HTML5 routing in your application.
+The `com.fulcrologic.fulcro.routing.legacy-ui-routers` namespace includes primitives for building UI routes using unions
+(the unions are written for you).
+It has a number of features, including the ability to nicely integrate with HTML5 history events for full HTML5 routing
+in your application.
 
-In the dynamic query approach you use `comp/set-query!` to actually change the query of a component at runtime in response to user events.
+In the dynamic query approach you use `comp/set-query!` to actually change the query of a component at runtime in
+response to user events.
 
 There are two "dynamic routers" that use dynamic queries to change their current query so it only includes the "current" route.
 The older of these is present in the `legacy-ui-routers` namespace for legacy support, and should probably not be used for new projects.
 
 It is also important to note that you need not normalize things that are really just big blobs of data that you don't intend to mutate.
 An example of this is large reports where the data is read-only and only displayed in one place.
-You could write a big nested bunch of components, normalize all of the parts, and write a query that joins it all back together; however, that incurs a lot of overhead both in loading the data, and every time you render.
+You could write a big nested bunch of components, normalize all of the parts, and write a query that joins it all back
+together; however, that incurs a lot of overhead both in loading the data, and every time you render.
 
-Instead, realize that a property query like `[:report-data]` can pull *any* kind of (serializable, if you want tools support) value from the application state.
-You can put a `js/Date` there.
-You can put a map there.
-Anything.
+Instead, realize that a property query like `[:report-data]` can pull *any* kind of (serializable, if you want tools
+support) value from the application state. You can put a `js/Date` there. You can put a map there. Anything.
+
 Furthermore, this query is super-fast since it just pulls that big blob of data from app state and adds it to the result tree.
 Structural sharing makes that a very simple and fast operation.
+
+Link queries back to the root node that do not use a join are also quite fast.  You can query for an entire
+(normalized) table or other root prop (from anywhere) with the query element `[:table-name '_]` (that would go
+*inside* of the query vector). That is fast because it just puts a reference to the entire map into the props
+result with no further processing.  This is particularly good when you're trying to let the user select something
+from a table, and denormalizing the items in the table (and keeping a list of idents) would be somewhat slow. You can
+easily process 1000's of items from a table in a UI component on-the-fly using this query trick, since it has so little
+overhead itself.
 
 == Poor React Performance
 
@@ -10359,21 +10248,25 @@ Remember, however, that there are a number of stages in rendering, and each of t
 Large UIs can have negative performance impacts at both the query and DOM layers.
 
 Since React does your rendering it is best to understand how to best optimize it using their suggestions and documentation.
-Note that Fulcro already ensures that `shouldComponentUpdate` is defined to an optimal value that should prevent a regen/diff of VDOM when data hasn't really changed.
+Note that Fulcro already ensures that `shouldComponentUpdate` is defined to an optimal value that should prevent a
+regen/diff of VDOM when data hasn't really changed.
 
 Some general tips to start with in React are:
 
 1. Make sure your components have a *stable* react key.
 If the key changes, React will ignore the diff and redo the DOM. This is *very* slow.
 So, if you've generated keys using something like random numbers just to get warnings to go away, then you're asking for trouble.
-2. You're generally better off changing CSS classes than DOM structure.
-For example, having a `(when render? (dom/div ...))` will cause entire sections to be inserted and removed from the DOM. Using a class is much more efficient: `(dom/div {:classes [(when-not render? " hidden")]} ...)`.
-3. Large DOM. React is pretty good with eliminating unnecessary changes, but that is still no reason to try to render a table with 1000's of rows.
-Paginate.
+2. You're generally better off changing CSS classes than DOM structure to affect visibility.
+For example, having a `(when render? (dom/div ...))` will cause entire sections to be inserted and removed from the DOM.
+Using a class is much more efficient: `(dom/div {:classes [(when-not render? " hidden")]} ...)`.
+3. Large DOM. React is pretty good with eliminating unnecessary changes, but that is still no reason to try to render a
+table with 1000's of rows. Paginate. Use virtual scrolling.
 4. Use <<defscForOptimization, query-free `defsc` components>> to break up large UI within a component.
-In this case the idea is that you may not need subcomponents for query/normalization, but if you define them they will provide the `shouldComponentUpdate` optimization for the props you pass them.
+In this case the idea is that you may not need subcomponents for query/normalization, but if you define them they will
+provide the `shouldComponentUpdate` optimization for the props you pass them.
 5. DO include empty props maps, even though they are optional.
-The DOM generators in Fulcro allow you to elide the props if you don't have any, but doing so means the macro cannot do certain compile-time optimizations. `(dom/div {} (dom/div {} ...))`
+The DOM generators in Fulcro allow you to elide the props if you don't have any, but doing so means the macro cannot do
+certain compile-time optimizations. `(dom/div {} (dom/div {} ...))`
 is about 3x faster at runtime than `(dom/div (dom/div ...))`.
 
 = Testing
