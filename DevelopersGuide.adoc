@@ -1,7 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: September 12, 2019
-:revnumber: 38
+:revdate: September 25, 2019
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -9038,6 +9037,11 @@ Thus, the application must do a few things in order for editing to work:
 TODO: example
 
 = Server-side Rendering
+
+NOTE: This chapter has not been updated for Fulcro 3. Some testing has been done, and SSR generally works; however, please
+note that dynamic queries and therefore dynamic routers use metadata in state that cannot be serialized to the client
+easily. Until these internal shortcomings are corrected you should probably use legacy union routers for routing if you
+want SSR to display anything but the (same) initial screen.
 
 Single-page applications have a couple of concerns when it comes to how they behave on the internet at large.
 
