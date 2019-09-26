@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: September 25, 2019
+:revdate: September 26, 2019
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -9038,125 +9038,75 @@ TODO: example
 
 = Server-side Rendering
 
-NOTE: This chapter has not been updated for Fulcro 3. Some testing has been done, and SSR generally works; however, please
-note that dynamic queries and therefore dynamic routers use metadata in state that cannot be serialized to the client
-easily. Until these internal shortcomings are corrected you should probably use legacy union routers for routing if you
-want SSR to display anything but the (same) initial screen.
-
 Single-page applications have a couple of concerns when it comes to how they behave on the internet at large.
 
 The first is size.
 
 It is not unusual for a SPA to be several megabytes in size.
 This means that users on slow networks may wait a while before they see anything useful.
-Network speeds are continually on the rise (from less than 1kbps in the 80's to an average of about 10Mbps today).
-This is becoming less and less of an issue, and if this is your only concern, then it might be poor accounting to complicate your application just to shave a few ms off the initial load.
+Network speeds are continually on the rise so
+this is becoming less and less of an issue. If this is your only concern then it might be poor accounting to
+complicate your application just to shave a few ms off the initial load.
 
 After all, with proper serving you can get their browser to cache the js file for all but the first load of your site.
 
 You often, in fact, would do well to follow examples like gmail that simply show a loading progress bar.
 You're writing client-side *applications*, and this is often quite good enough (and much simpler).
 
-Another concern is SEO. If you have pages on your application that do not require login and you would like to have in search engines, then a blank HTML page with a javascript file may have a more limited reach (though search engines are getting better and better about indexing even SPAs).
+Another concern is SEO. If you have pages on your application that do not require login and you would like to have in
+search engines, then a blank HTML page with a javascript file may have a more limited reach (though search engines are
+getting better and better about indexing even SPAs).
 
 Fortunately, Fulcro has you covered for any of these options!
 
-Server-side rendering not only works well in Fulcro, the central mechanisms of Fulcro (a client-side database with mutations) and the fact that you're writing in one language actually make server-side rendering shockingly simple, even for pages that require data from a server-side store!
+Server-side rendering not only works well in Fulcro, the central mechanisms of Fulcro (a client-side database with mutations)
+and the fact that you're writing in one language actually make server-side rendering shockingly simple, even for pages
+that require data from a server-side store!
 
-After all, all of the functions and UI component queries needed to normalize the tree that you already know how to generate on your server can be in CLJC files and can be used without writing anything new!
+After all, all of the functions and UI component queries needed to normalize the tree that you already know how to
+`generate on your server can be in CLJC files and can be used without writing anything new!
 
-If you're writing your UI in CLJC files to support server-side rendering then you need to make sure you use a conditional reader to pull in the proper server DOM functions for Clojure:
+If you're writing your UI in CLJC files to support server-side rendering then you need to make sure you use a
+conditional reader to pull in the proper server DOM functions for Clojure:
 
 ```
 (ns app.ui
-  (:require #?(:clj [com.fulcrologic.fulcro.dom-server :as dom] :cljs [fulcro.client.dom :as dom]))
+  (:require
+    #?(:clj [com.fulcrologic.fulcro.dom-server :as dom]
+       :cljs [com.fulcrologic.fulcro.dom :as dom]))
 ```
-
-== Recommendations
-
-In order to get the most out of your code base when supporting server-side rendering, here are some general recommendations about how to write your application.
-
-These are pretty much what we recommend for all applications, but they're particularly important for server-side rendering:
-
-=== Use Initial State on Components That Appear on Client Start
-
-This is true for every application.
-It helps with refactoring, initial startup, etc.
-
-When doing server-side rendering you won't need this initial state on the client (the server will push a built-up state); however, the server does need the base minimum database on which it will build the state for the page that will be rendered.
-
-IMPORTANT: For SSR you will *move* initial state from *just* your `Root` node to a function.
-The reason for this is that Fulcro ignores explicit application state at startup if it can find initial state on the root node, and we want to force state into the client.
-
-FIXME:
-Fulcro 3's startup handling of initial state is a bit different than this now, though the idea is very close.
-
-This will become clearer when we get to examples.
-
-=== Write Mutations via Helper Functions on State Maps
-
-When writing a mutation, first write a helper function.
-Perhaps end its name with `-impl` or even `*`.
-The helper function should take the application database state map (*not* atom) and any arguments needed to accomplish the task.
-It should then return the updated state map:
-
-```
-; in a CLJC file!
-(defn todo-set-checked-impl [state-map todo-id checked?]
-   (assoc-in state-map [:todo/id todo-id :item/checked?] checked?))
-```
-
-Then write your mutation using that function:
-
-```
-; CLJS-only, either separate file or conditionally in CLJC
-(defmutation todo-set-checked [{:keys [id checked?]}]
-  (action [{:keys [state]}]
-    (swap! state todo-set-checked-impl id checked?)))
-```
-
-This has a very positive effect on your code: composition and re-use!
-
-```
-; composition
-(defmutation do-things [params]
-  (action [{:keys [state]}]
-    (swap! state (fn [s] (-> s
-                             (do-thing-1-impl)
-                             (do-thing-2-impl)
-                             ...))))
-```
-
-Of course composition is re-use, but now that your client db mutation implementation is available in clj and cljs you can use it to initialize state for your server-side render!
-
-NOTE: In Fulcro 3 you can also start the application on the server in a "headless" mode (simply don't mount a UI).
-All of Fulcro's APIs are written in CLJC, and can operate on the same footing on the JVM as well as a browser (the primary exception is remotes, which are typically tied to js APIs).
-This means you can simulate doing all of the steps to get your application to the correct state just as you would on the client by implementing some kind of "loopback" remote for server use.
-The limiting factor is that some libraries and namespaces may not have not been tested this way, so your success may require an occasional PR or tweak.
-
-=== Use HTML5 Routing
-
-You have to be able to detect the different pages via URL, and your application also needs to respond to them.
-As a result you will need to make all of the pages that are capable of server-side also have some distinct URI representation.
-The Dynamic Router system should make this simpler.
 
 == Overall Structure
 
 Here's how to structure your application to support SSR:
 
-. Follow the above recommendations for the base code
-. The server will use the client initial app state plus a sequence of mutation implementations to build a normalized database.
+. Write the entire client in CLJC.
+* Any pure js components from NPM will need to have wrappers that emit something "sane" for clojure.
+. The server will use the client initial app state plus a sequence of mutation implementations to build a "starting
+  state" normalized database based on the route.
 . The server will serve the same basic HTML page (from code) that has the following:
 * The CSS and other head-related stuff and the div on which your app will mount.
 * A div with the ID of your SPA's target mount, which will contain the HTML of the server-rendered application state
-* A script at the top that embeds the normalized db as a transit-encoded string on `js/window`.
+* A script tag that embeds the server-generated normalized db (the one used in to render on the server) as a transit-encoded string on `js/window`.
 * A script tag at the bottom that loads your client SPA code
-. The client will look for initial state via a var set on `js/window` (transit-encoded string) and start
-. The client will do an initial render, which will cause react to hook up to the existing DOM
+. The client will look for initial state via a var set on `js/window` (transit-encoded string), and use that as the initial state of the app.
+. The client will mount (using the `:hydrate?` application option), which will cause react to hook up to the existing DOM.
 
 === Building the App State on the Server
 
-The `fulcro.server-render` namespace has a function called `build-initial-state` that takes the root component and an initial state tree.
+There are two approaches to building the app state on the server.
+
+Headless App:: You can actually run the application itself in a
+headless mode with "loopback" remotes (e.g. a remote that directly calls your parser instead of doing network ops), trigger
+mutations, wait for things to settle down (queues are done on timeouts), and then get the props from that app's state
+for rendering. This is currently *not* the recommended approach since the feature is not well-tested and is missing a
+few hooks that would make it more approachable. Contributions desired.
+State Building:: You can grab the initial state using `build-initial-state`, and then run a series of mutation helpers
+(functions from state db -> state db) to evolve the state into the one desired, and then use that db to generate props,
+render the first frame, and send that state for use on the client. This the preferred approach, since it is free from
+timing issues.
+
+The `com.fulcrologic.fulcro.algorithms.server-render` namespace has a function called `build-initial-state` that takes the root component and an initial state tree.
 It normalizes this and plugs in any union branch data that was not in the tree itself (by walking the query and looking for components that have initial state and are union branches).
 It returns a *normalized* client application db that would be what you'd have on the client at initial startup if you'd started the client normally.
 
@@ -9167,7 +9117,7 @@ It will render exactly what the state says the application is in!
 ```
 (let [base-state (ssr/build-initial-state (my-app/get-initial-state) my-app/Root)
       user       (get-current-user (:session req))
-      user-ident (util/get-ident my-app/User user)]
+      user-ident (comp/get-ident my-app/User user)]
    (-> base-state
      (todo-check-item-impl 3 true) ; some combo of mutation impls
      (assoc :current-user user-ident) ; put normalized user into root
@@ -9183,9 +9133,10 @@ Of course, the whole point is to pre-render the page.
 Now that you have a complete client database this is trivial:
 
 ```
-(let [props                (comp/db->tree (comp/get-query app/Root normalized-db) state-map state-map)
+(let [props                (fdn/db->tree (comp/get-query app/Root normalized-db) state-map state-map)
       root-factory         (comp/factory app/Root)]
-  (dom/render-to-str (root-factory props)))
+  (binding [comp/*app* YOUR-APP] ; some APIs look for your fulcro-app in this bound var.
+    (dom/render-to-str (root-factory props))))
 ```
 
 will generate a string that contains the current HTML rendering of that database state!
@@ -9196,18 +9147,15 @@ Now, while you have the correct initial look, you will still need to get this da
 While you could technically try loading your UI's initial state, it would make the UI flicker because when React mounts it needs to see the exact DOM that is already there.
 So, you must pass the server-side generated-database as initial-state to your client.
 
-TODO:
-This function has not been tested since porting from Fulcro 2.
-
 The function `com.fulcrologic.fulcro.algorithms.server-render/initial-state->script-tag` will give you a `<script>` tag that includes a string-encoded EDN data structure (using transit).
 
 We now combine what we learned about generating the application's rendering with this to get the overall response from the server:
 
 ```
-(defn top-html [normalized-db root-component-class]
+(defn top-html [app normalized-db root-component-class]
   (let [props                (db->tree (get-query root-component-class) normalized-db normalized-db)
         root-factory         (factory root-component-class)
-        app-html             (dom/render-to-str (root-factory props))
+        app-html             (binding [comp/*app* app] (dom/render-to-str (root-factory props)))
         initial-state-script (ssr/initial-state->script-tag normalized-db)]
     (str "<!DOCTYPE) html>\n"
       "<html lang='en'>\n"
@@ -9222,6 +9170,7 @@ We now combine what we learned about generating the application's rendering with
       app-html
       "</div>\n"
       "<script src='js/app.js' type='text/javascript'></script>\n"
+      "<script src='js/app.js' type='text/javascript'>app.client.start_from_ssr();</script>\n"
       "</body>\n"
       "</html>\n")))
 ```
@@ -9232,67 +9181,21 @@ Now let's move on to the client.
 
 When creating your client, you will now be explicit about initial state and use a helper function (provided) to decode the server-sent state:
 
-TODO:
-Untested in version 3.
-
 ```
-(defonce app (atom (app/fulcro-app {:initial-state (fulcro.server-render/get-SSR-initial-state}))))
-```
+(ns app.client
+  (:require ...))
 
-Of course, you could use `:client-did-mount` to do various other bits (like start your HTML5 routing), but this completes the essential pattern.
-No other client modifications need to be made!
+(defonce app (app/fulcro-app))))
 
-== Rendering via Node.js
-
-WARNING: This section is a Fulcro 2 example.
-
-TODO:
-Needs porting to version 3.
-
-Since node.js is powered by V8, the same javascript engine that powers chrome web browser getting isomorphic support including fulcro networking is really easy.
-
-For fulcro networking to work in nodejs you need to provide a substitute for the browser's XMLHttpRequest that is used by xhrio.
-You can install the https://www.npmjs.com/package/xmlhttprequest npm package and then set it globally.
-
-```
-(ns app.server
- (:require
-    ["xmlhttprequest" :as npm-xmlhttprequest]))
-
-(set! js/global.XMLHttpRequest (.-XMLHttpRequest npm-xmlhttprequest))
+(defn ^:export start-from-ssr
+  "Start the application after a server-side render"
+  []
+  (let [db (ssr/get-SSR-initial-state)]
+    (reset! (::app/state-atom app) db)
+    (app/mount! app Root "app" {:hydrate? true :initialize-state? false})))
 ```
 
-One approach for getting SSR on node.js with the data loaded from the network is to create a fulcro headless client and use the built-in helper `fulcro.server-render/defer-until-network-idle` (available as of fulcro 2.6.10) for deferring the server request until fulcro has finished loading all network data.
-
-```
-(ns app.server
-  (:require
-   [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-   [com.fulcrologic.fulcro.data-fetch :as df]
-   [fulcro.client :as fc]
-   [fulcro.client.network :as fcn]
-   [fulcro.server-render :refer [defer-until-network-idle]]
-   ["react-dom/server" :as rdom :refer (render)]
-   ["xmlhttprequest" :as npm-xmlhttprequest]))
-
-(defn ssr-enpdpoint [req resp]
-  (let [client-did-mount (fn [{:keys [reconciler]}]
-                           (df/load reconciler ...))
-        fulcro-client    (fc/make-fulcro-client
-                          {:client-did-mount client-did-mount
-                           :networking {:remote (fcn/fulcro-http-remote {:url "http://localhost:3000/api"}})})
-        mounted-app      (fc/mount fulcro-client root/Root nil) ; nil as the last argument creates a headless client
-        reconciler       (:reconciler mounted-app)]
-    (defer-until-network-idle
-     reconciler
-     (fn []
-       (let [app-state      (-> reconciler deref)
-             app-state-tree (comp/db->tree (comp/get-query root/Root app-state) app-state app-state)]
-         (.send resp (get-html (rdom/renderToString (ui-root app-state-tree)) app-state)))))))
-
-```
-
-A minimal example app with fulcro & nodejs server side rendering can be found at https://github.com/claudiu-apetrei/fulcro-nodejs-ssr-example
+You can keep your original `start` code for cases where you want to start the app without SSR (e.g. development?).
 
 = Client Networking with Fulcro HTTP Remote [[Networking]]
 
@@ -9480,10 +9383,7 @@ https://wilkerlucio.github.io/pathom/DevelopersGuide.html[Pathom] parser library
 
 === File Uploads [[FileUpload]]
 
-TODO:
-This section needs to be rewritten, and should include a basic full example.
-
-File uploads can be accomplies by augmenting the middleware of an http-remote on the client side, and managing the
+File uploads can be accomplished by augmenting the middleware of an http-remote on the client side, and managing the
 file upload server-side middleware.  A fulcro 2 example should be pretty close, though the response/progress is
 a bit easier with version 3's network stack.  See https://github.com/awkay/file-upload-demo[this Fulcro 2 Example] for
 a start.
