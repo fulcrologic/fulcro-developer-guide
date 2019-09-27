@@ -4899,6 +4899,10 @@ Here are the client-side and server-side implementations of the same mutation th
 
 Other mutation return values are covered in Mutation Return Values.
 
+WARNING: When you pass tempids as a parameter to a mutation, that value will be captured and not rewritten. Thus
+your `ok-action` and `result-action` `env` will contain a `:tempid->realid` map that can be used to translate those
+values.
+
 ==== Avoiding Tempids
 
 It is also possible to avoid tempids altogether.
