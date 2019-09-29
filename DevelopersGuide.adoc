@@ -3332,7 +3332,7 @@ JS does not have a built in notion of lazy sequences.
 Clojurescript does.
 This can create subtle bugs when evaluating the children of a component. `com.fulcrologic.fulcro.components/force-children` helps us in this regard by taking a seq and returning a vector.
 
-The `react-iterop` namespace includes a pre-written function for generating factories that can accept CLJS maps and children, and properly takes the normal corrective actions:
+The `react-interop` namespace includes a pre-written function for generating factories that can accept CLJS maps and children, and properly takes the normal corrective actions:
 
 ```
 (ns app
