@@ -859,7 +859,8 @@ IMPORTANT: If you're writing your UI in CLJC files then you need to make sure yo
 
 ```
 (ns app.client
-  (:require #?(:clj [com.fulcrologic.fulcro.dom-server :as dom] :cljs [fulcro.client.dom :as dom]))
+  (:require #?(:clj [com.fulcrologic.fulcro.dom-server :as dom] 
+               :cljs [com.fulcrologic.fulcro.dom :as dom]))
 
 ... the actual code is the same as before
 ```
