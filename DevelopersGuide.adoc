@@ -10770,7 +10770,7 @@ If you're using shadow-cljs the web interface has a tool that will tell you exac
 from. Go to the web interface, and click on the menu item `Builds -> name-of-your-build` (not the checkbox). This will
 take you to a detail screen for that build.  Scroll down to the bottom and find this control:
 
-image::assets/img/dom-leaks.png[]
+image::dom-leaks.png[]
 
 External js libraries are the typical source of problems, and they are "shimmed" by shadow-cljs. Thus their names
 look like `shadow.js.shim.module$name-of-npm-library`.   Choose the problem-library from that dropdown (typing `s` to jump
@@ -10849,7 +10849,7 @@ the browser or native API depending on which initialization gets called.
 -----
 
 Create Each Platform's Implementation::
-
++
 [source]
 -----
 (ns app.auth-browser
@@ -10876,7 +10876,7 @@ Create Each Platform's Implementation::
                   (-save-session-key! [_ k] (set-item! "session-key" k))
                   (-get-session-key [_] (get-item "session-key")))))
 -----
-
++
 [source]
 -----
 (ns app.auth-native
@@ -10894,7 +10894,7 @@ Create Each Platform's Implementation::
 -----
 
 Require the correct target in the entry point of your target::
-
++
 [source]
 -----
 (ns app.browser.main
@@ -10902,7 +10902,7 @@ Require the correct target in the entry point of your target::
     app.targets.browser))
 ...
 -----
-
++
 [source]
 -----
 (ns app.native.main
@@ -10912,7 +10912,7 @@ Require the correct target in the entry point of your target::
 -----
 
 Use the generalized API throughout the rest of your code::
-
++
 [source]
 -----
 (ns any-old-ns
@@ -10923,8 +10923,27 @@ Use the generalized API throughout the rest of your code::
 
 (auth/save-session-key! "abc123")
 -----
++
+which will resolve the current runtime implementation, and then call the correct method on the underlying protocol.
 
-which will resolve the current runtime implementation that implements the underlying protocol.
+Your final source tree will end up with three files for each API that has target-specific needs:
+
+```
+api.cljs         - The protocol, the runtime passthrough delegation functions, and any platform-independent functions you care to include.
+api-browser.cljs - An init function to reify the browser implementation, and browser-specific requires.
+api-native.cljs  - The native version of the same.
+```
+
+and then three runtime target files:
+
+```
+runtime.cljs   - An atom to hold the implementation(s), keyed by protocol namespace (e.g. ::auth/impl).
+native.cljs    - A namespace that requires all of the `*-native` namespaces, and calls `init` on each.
+broser.cljs    - A namespace that requires all of the `*-browser` namespaces, and calls `init` on each.
+```
+
+and finally your two top-level entry points, each of which will require the correct runtime (native or browser) to
+include it in the build.
 
 ++++
 <style>
