@@ -10734,348 +10734,197 @@ include::src/book/book/demos/paginating_large_lists_from_server.cljs[]
 ----
 ====
 
-== UI Query Security
+= React Native
 
-If you examine any UI query it will have a tree form.
-That is the nature of EQL. It is also the nature of UI's.
-For any such query, you can imagine it as a graph walk:
+Fulcro works quite well with React Native, and is a great way to build mobile apps. At the present time we
+recommend using Expo, and there is a small starter library you should add that will help you get an app up and running.
 
-Take this query:
+image:https://img.shields.io/clojars/v/com.fulcrologic/fulcro-native.svg[link=https://clojars.org/com.fulcrologic/fulcro-native]
 
-```
-[:a {:join1 [:b {:join2 [:c :d]}]}]
-```
+See the https://github.com/fulcrologic/fulcro-native[README] for current details on that library's support.
 
-If you think about how this looks in the server: each join walks from one table (or entity) to another through some kind of (forward or reverse) reference.
+In general, there are just a few steps to getting a React Native app going in Fulcro:
 
-----
-   QUERY PART                            IMPLIED DATABASE graph
-[:a {:join1                           { :a 6 :join1 [:tableX id1] }
-                                                      \
-                                                       \
-                                                        \
-        [:b {:join2                       :tableX { id1 { :id id1 :join2 [:tableY id2]
-                                                                            /
-                                                                           /
-                                                                         /
-              [:c :d]}]}]                :tableY { id2 { :id id2 :c 4 :d 5 }}
-----
+* Make sure your `package.json` has the correct extra dependencies
+* Modify the rendering (pluggable) of Fulcro to initialized React Native
+* Wrap the UI components of native so they work with Fulcro
 
-One idea that works pretty well for us is based on this realization:
-There is a starting point of this walk (e.g. I want to load a person), and the top-level detail *must* be specified (or implied at least) by the incoming query (load person 5, load all persons in my account, etc.).
+A small functioning template for a native app can be found at
+https://github.com/fulcrologic/fulcro-native-template
 
-A tradition logic check always needs to be run on this object to see if it is OK for the user to *start* reading the database there.
+== Sharing Source
 
-The problem that remains is that there is a graph query that could conceivably walk to things in the database that should not be readable.
-So, to ensure security we need to verify that the user:
+You will often have projects that have a server, web interface, and one or more mobile app(s). One of the great things
+about using Clojure(script) is that all of this source can be leveraged across all of these platforms. One of the main
+limitations is that the mobile platform does not have a DOM, and require chains can easily "leak" DOM-related components
+into your mobile app, leading to compile or runtime failures.
 
-. is allowed to read the specific *data* at the node of the graph (e.g. :a, :c, and :d)
-. is allowed to *walk* across a given *reference* at that node of the graph.
+There are two development-time tasks that typically evolve as a result of this complication:
 
-However, since both of those cases are essentially the same in practice (can the user read the given property), one possible algorithm simplifies to:
+* Figuring out where you the extra dependency leaked into your source code from.
+* Refactor code to eliminate the accidental inclusions.
 
-* Create a whitelist of keywords that are allowed to be read by the query in question.
-This can be a one-time declarative configuration, or something dynamic based on user rights.
-* Verify the user is allowed to read the "top" object.
-If not, disallow the query.
-* Recursively gather up all keywords from the query as a set
-* Find the set difference of the whitelist and the query keywords.
-* If the difference is not empty, refuse to run the query
+=== Finding Accidental Inclusions
 
-=== The Server Hooks
+If you're using shadow-cljs the web interface has a tool that will tell you exactly where a particluar artifact came
+from. Go to the web interface, and click on the menu item `Builds -> name-of-your-build` (not the checkbox). This will
+take you to a detail screen for that build.  Scroll down to the bottom and find this control:
 
-This is one of the few examples that would add extra code to the server itself (we're still simulating it for this book).
-This example's auth mechanisms would be set up as components and a parser injection there.
-The relevant code is:
+image::assets/img/dom-leaks.png[]
 
-```
-(defrecord Authentication [handler]
-  c/Lifecycle
-  (start [this]
-    (log/info "Hooking into pre-processing to add user info")
-    (let [old-pre-hook (h/get-pre-hook handler)
-          new-hook     (fn [ring-handler] (fn [req] ((old-pre-hook ring-handler) (assoc req :user {:username "Tony"}))))]
-      (h/set-pre-hook! handler new-hook))
-    this)
-  (stop [this] this))
+External js libraries are the typical source of problems, and they are "shimmed" by shadow-cljs. Thus their names
+look like `shadow.js.shim.module$name-of-npm-library`.   Choose the problem-library from that dropdown (typing `s` to jump
+to that section of the list will speed things along) and it will show you the require chain that led to the
+undesirable inclusion.
 
-(defn make-authentication []
-  (c/using (map->Authentication {}) [:handler]))
+=== Working Around Inclusions
+
+When working with a project that has both web and native UIs you will often have logic code that has the same abstract
+*meaning*, but whose implementation really does need access to a web or native API.
+One approach is to simply have some global that knows which runtime is being used. This is fine if there are no
+requires involved, but there is no runtime "require" in the js environment, so it won't work if you're trying
+to do alternate requires for the two platforms.
+
+One solution is to use protocols to front your desired logic, and them implement those protocols in alternate namespaces.
+The the primary trick is getting the correct implementation to be used for a given platform. Here is a pattern you
+can follow to achieve this:
+
+Create a Runtime Environment Variable::
++
+[source]
+-----
+(ns app.targets.runtime)
+
+(defonce runtime (atom {}))
+-----
+
+Create a namespace for each target type:: These serve as a "collection point" for the various APIs you decide
+need target-specific runtimes. These requires will fillow the platform-specific chains. You call each target's `init`
+to install the platform-specific runtime (an implementation of the protocol).
++
+[source]
+-----
+(ns app.targets.browser
+  (:require
+     [api.auth-browser :as auth]
+     [api.routing-browser :as routing]))
+
+(auth/init)
+(routing/init)
+-----
++
+[source]
+-----
+(ns app.targets.native
+  (:require
+     [api.auth-native :as auth]
+     [api.routing-native :as routing]))
+
+(auth/init)
+(routing/init)
+-----
+
+Create a Generic Abstraction for the API:: The trick here is that you define functions that will use the global
+runtime to look up an API-specific runtime instance that implements the protocol. This instance will either be
+the browser or native API depending on which initialization gets called.
++
+[source]
+-----
+(ns app.auth
+  (:require [app.targets.runtime :refer [runtime]]))
 
 (defprotocol Auth
-  (can-access-entity? [this user key entityid] "Check if the given user is allowed to access the entity designated by the given key and entity id")
-  (authorized-query? [this user top-key query] "Check if the given user is allowed to access all of the data in the query that starts at the given join key"))
+  (-save-session-key! [_ k] "target independent interface. Use save-session-key! instead.")
+  (-get-session-key [_] "target independent interface. Use get-session-key instead."))
 
-(defrecord Authorizer []
-  c/Lifecycle
-  (start [this] this)
-  (stop [this] this)
-  Auth
-  (can-access-entity? [this user key entityid] (authorized-root-entity? user key entityid))
-  (authorized-query? [this user top-key query] (is-authorized-query? query top-key)))
+(defn save-session-key!
+  "Sets a current session key in locally-accessible storage"
+  [k]
+  (some-> @runtime (::impl) (-set-session-key! k)))
 
-(defn make-authorizer [] (map->Authorizer {}))
+(defn get-session-key
+  "Returns the session key from locally-accessible storage"
+  []
+  (some-> @runtime (::impl) (-session-key-local-storage)))
+-----
 
-(defn make-system []
-  (core/make-fulcro-server
-    :config-path "config/demos.edn"
-    :parser (comp/parser {:read logging-query :mutate logging-mutate})
-    :parser-injections #{:authentication}
-    :components {
-                 ; Server security demo: This puts itself into the Ring pipeline to add user info to the request
-                 :auth-hook      (server-security/make-authentication)
-                 ; This is here as a component so it can be injected into the parser env for processing security
-                 :authentication (server-security/make-authorizer)}))
-```
+Create Each Platform's Implementation::
 
-This logic is basically hacked in to the live example to give you an idea of how it looks.
-
-.[[QuerySecurity]]<<QuerySecurity,Query Security>>
-====
-++++
-<button class="inspector" onClick="book.main.focus('server-query-security')">Focus Inspector</button>
-<div class="short narrow example" id="server-query-security"></div>
-<br/>
-++++
-
-[source,clojure,role="source"]
-----
-include::src/book/book/demos/server_query_security.cljs[]
-----
-====
-
-== Fulcro with SQL
-
-The Fulcro SQL library is capable of running many Fulcro graph queries directly against an SQL database.
-It also comes with testing utilities and a component for setting up connection pooling (via http://brettwooldridge.github.io/HikariCP[HikariCP]) and migrations (via https://flywaydb.org/[Flyway]).
-
-Since our demos run in the browser only for this document, we cannot show you a live demo, but here are some basics to whet your appetite.
-
-Assume you have a PostgreSQL database.
-We could create a project with migrations in `src/main/config/migrations/V1__account_schema.sql`.
-See Flyway documentation for naming conventions.
-For our example here, let's say our initial schema is:
-
-```
-CREATE TABLE settings (
-  id                 SERIAL PRIMARY KEY,
-  auto_open          BOOLEAN NOT NULL DEFAULT FALSE,
-  keyboard_shortcuts BOOLEAN NOT NULL DEFAULT TRUE
-);
-
-CREATE TABLE account (
-  id             SERIAL PRIMARY KEY,
-  name           TEXT,
-  last_edited_by INTEGER,
-  settings_id    INTEGER REFERENCES settings (id),
-  created_on     TIMESTAMP NOT NULL DEFAULT now()
-);
-
-CREATE TABLE member (
-  id         SERIAL PRIMARY KEY,
-  name       TEXT,
-  account_id INTEGER NOT NULL REFERENCES account (id)
-);
-ALTER TABLE account
-  ADD CONSTRAINT account_last_edit_by_fkey FOREIGN KEY (last_edited_by) REFERENCES member (id);
-
--- Some seed data for the demo
-INSERT INTO settings (id, auto_open, keyboard_shortcuts) VALUES (1, true, false);
-INSERT INTO settings (id, auto_open, keyboard_shortcuts) VALUES (2, false, false);
-INSERT INTO account (id, name, settings_id) values (1, 'Sally', 1);
-INSERT INTO account (id, name, settings_id) values (2, 'Bob', 2);
-INSERT INTO member (id, name, account_id) values (1, 'Billy', 1);
-INSERT INTO member (id, name, account_id) values (2, 'Tom', 1);
-INSERT INTO member (id, name, account_id) values (3, 'Tori', 1);
-INSERT INTO member (id, name, account_id) values (4, 'Cory', 2);
-INSERT INTO member (id, name, account_id) values (5, 'Kady', 2);
-```
-
-The connection pooling needs to be configured as well, and Fulcro SQL allows this to also be on the classpath.
-Assume we have `src/main/config/accountpool.props` with (see HikariCP documentation):
-
-```
-dataSourceClassName=org.postgresql.ds.PGSimpleDataSource
-dataSource.user=test
-dataSource.password=
-dataSource.databaseName=accounts
-dataSource.portNumber=5432
-dataSource.serverName=localhost
-```
-
-Then with some simple UI components like
-
-```
-(defsc Settings [this {:keys [db/id settings/auto-open? settings/keyboard-shortcuts?]}]
-  {:query [:db/id :settings/auto-open? :settings/keyboard-shortcuts?]
-  ...
-
-(defsc Member [this {:keys [db/id member/name]}]
-  {:query [:db/id :member/name]
-  ...
-
-(defsc Account [this {:keys [db/id account/name account/members account/settings]}]
-  {:query [:db/id :account/name {:account/members (comp/get-query Member)} {:account/settings (comp/get-query Settings)}]
-```
-
-we might want to issue a load like this:
-
-```
-(df/load app :graph-demo/accounts Account {:target [:accounts]})
-```
-
-In this example, we've been careful to align the UI with the schema of the database.
-All Fulcro SQL needs is a bit of configuration to tell it how to map the UI graph to the schema:
-
-```
-(def schema
- {:fulcro-sql.core/graph->sql {:settings/auto-open?          :settings/auto_open
-                               :settings/keyboard-shortcuts? :settings/keyboard_shortcuts}
-  :fulcro-sql.core/joins      {:account/members  (sql/to-many [:account/id :member/account_id])
-                               :account/settings (sql/to-one [:account/settings_id :settings/id])
-                               :member/account   (sql/to-one [:member/account_id :account/id])}
-  :fulcro-sql.core/pks        {}})
-```
-
-The relations (defined with `to-one` and `to-many`) assume you've chosen keyword namespaces that match your table names, and keyword names that match column names (e.g. keyword `:account/id` -> SQL `ACCOUNT.ID`).
-The joins are then simply defined in the direction desired (you can see `:account/members` and `:member/account`
-trafersing the same SQL "edge").
-If that isn't try, then you can remap them in the `graph->sql` section.
-
-The database configuration (in our config EDN file) is:
-
-```
-{:port   8081
- :sqldbm {:accounts {:hikaricp-config "config/accountpool.props"
-                     :auto-migrate?   true
-                     :create-drop?    true
-                     :migrations      ["classpath:config/migrations"]}}}
-```
-
-and we inject the Fulcro SQL component into our parsing environment via:
-
-```
-(core/make-fulcro-server
-  ...
-  :parser-injections #{:sqldb}
-  :components {:sqldb (component/using (sql/build-db-manager {}) [:config])})
-```
-
-The server code to handle the query is then quite small:
-
-```
-(server/defquery-root :graph-demo/accounts
- (value [{:keys [sqldb query]} params] ; get the injected database manager
-   (let [db              (sql/get-dbspec sqldb :accounts) ; get the database from the db manager
-         ; Find the IDs of the account(s) of interest (all accounts)
-         all-account-ids (jdbc/query db ["select id from account"] {:row-fn :id :result-set-fn set})]
-     (if (seq all-account-ids)
-       (sql/run-query db schema :account/id query all-account-ids) ; run the graph query
-       []))))
-```
-
-The complete source for this demo is:
-
-[source,clojure]
-----
-(ns book.demos.server-SQL-graph-queries
+[source]
+-----
+(ns app.auth-browser
   (:require
-    #?@(:clj [[fulcro-sql.core :as sql]
-              [clojure.java.jdbc :as jdbc]
-              [taoensso.timbre :as timbre]])
-              [com.stuartsierra.component :as component]
-              [com.fulcrologic.fulcro.dom :as dom]
-              [fulcro.easy_server :refer [make-fulcro-server]]
-              [fulcro.server :as server :refer [defquery-root server-read server-mutate]]
-              [com.fulcrologic.fulcro.data-fetch :as df]
-              [fulcro.logging :as log]
-              [fulcro.client :as fc]
-              [fulcro.ui.bootstrap3 :as b]
-              [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
+    [app.auth :as auth]
+    [com.fulcrologic.fulcro.algorithms.transit :as fcutil]))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; SERVER:
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#?(:clj
-   (def schema
-     {:fulcro-sql.core/graph->sql {:settings/auto-open?          :settings/auto_open
-                                   :settings/keyboard-shortcuts? :settings/keyboard_shortcuts}
-      :fulcro-sql.core/joins      {:account/members  (sql/to-many [:account/id :member/account_id])
-                                   :account/settings (sql/to-one [:account/settings_id :settings/id])
-                                   :member/account   (sql/to-one [:member/account_id :account/id])}
-      :fulcro-sql.core/pks        {}}))
+(defn set-item!
+  "Set `key' in browser's localStorage to `val`."
+  [key val]
+  (.setItem (.-localStorage js/window) (str key) (fcutil/transit-clj->str val)))
 
-; This is the only thing we wrote for the server...just return some value so we can
-; see it really talked to the server for this query.
-#?(:clj
-   (server/defquery-root :graph-demo/accounts
-     (value [{:keys [sqldb query]} params]
-       (let [db              (sql/get-dbspec sqldb :accounts)
-             all-account-ids (jdbc/query db ["select id from account"] {:row-fn :id :result-set-fn set})]
-         (timbre/info all-account-ids)
-         (if (seq all-account-ids)
-           (sql/run-query db schema :account/id query all-account-ids)
-           [])))))
+(defn get-item
+  "Returns value of `key' from browser's localStorage."
+  [key]
+  (if-let [result (.getItem (.-localStorage js/window) (str key))]
+    (fcutil/transit-str->clj result)))
 
-(defn make-system []
-  (let [include-postgres? (boolean (System/getProperty "postgres"))]
-    (make-fulcro-server
-      :config-path "config/demos.edn"
-      :parser-injections (cond-> #{:authorization}
-                           include-postgres? (conj :sqldb))
-      :components {:sqldb (component/using
-                            (sql/build-db-manager {})
-                            [:config])})))
+(defn init
+  "Installs the browser-specific implementations of auth functions"
+  []
+  (swap! runtime assoc
+    ::auth/impl (reify auth/Auth
+                  (-save-session-key! [_ k] (set-item! "session-key" k))
+                  (-get-session-key [_] (get-item "session-key")))))
+-----
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; CLIENT:
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+[source]
+-----
+(ns app.auth-native
+  (:require
+    ["some-native-store" :as store]
+    [com.fulcrologic.fulcro.algorithms.transit :as fcutil]))
 
-(defsc Settings [this {:keys [db/id settings/auto-open? settings/keyboard-shortcuts?]}]
-  {:query [:db/id :settings/auto-open? :settings/keyboard-shortcuts?]
-   :ident [:settings/id :db/id]}
-  (dom/ul
-    (dom/li (str "Auto open? " auto-open?))
-    (dom/li (str "Enable Keyboard Shortcuts? " keyboard-shortcuts?))))
+(defn init
+  "Installs the browser-specific implementations of auth functions"
+  []
+  (swap! runtime assoc
+    ::auth/impl (reify auth/Auth
+                  (-save-session-key! [_ k] (native-save! "session-key" k))
+                  (-get-session-key [_] (native-get "session-key")))))
+-----
 
-(def ui-settings (comp/factory Settings {:keyfn :db/id}))
+Require the correct target in the entry point of your target::
 
-(defsc Member [this {:keys [db/id member/name]}]
-  {:query [:db/id :member/name]
-   :ident [:member/id :db/id]}
-  (dom/div
-    "Member: " name))
+[source]
+-----
+(ns app.browser.main
+  (:require
+    app.targets.browser))
+...
+-----
 
-(def ui-member (comp/factory Member {:keyfn :db/id}))
+[source]
+-----
+(ns app.native.main
+  (:require
+    app.targets.native))
+...
+-----
 
-(defsc Account [this {:keys [db/id account/name account/members account/settings]}]
-  {:query [:db/id :account/name {:account/members (comp/get-query Member)} {:account/settings (comp/get-query Settings)}]
-   :ident [:account/id :db/id]}
-  (dom/div
-    (dom/h3 (str "Account for " name))
-    (dom/ul
-      (when (seq settings)
-        (dom/li
-          (dom/h3 "Settings")
-          (ui-settings settings)))
-      (dom/li
-        (dom/h3 "Members in the account")
-        (map ui-member members)))))
+Use the generalized API throughout the rest of your code::
 
-(def ui-account (comp/factory Account {:keyfn :db/id}))
+[source]
+-----
+(ns any-old-ns
+  (:require
+    [app.auth :as auth]))
 
-(defsc Root [this {:keys [ui/react-key accounts]}]
-  {:query [:ui/react-key {:accounts (comp/get-query Account)}]}
-  (dom/div {:key react-key}
-    (dom/h3 "Accounts with settings and users")
-    (map ui-account accounts)))
+...
 
+(auth/save-session-key! "abc123")
+-----
 
-#?(:cljs (defonce app (atom (fc/make-fulcro-client
-                              {:client-did-mount
-                               (fn [app]
-                                 (df/load app :graph-demo/accounts Account {:target [:accounts]}))})))) `#?(:cljs (swap! app fc/mount Root "app"))
-----
+which will resolve the current runtime implementation that implements the underlying protocol.
 
 ++++
 <style>
