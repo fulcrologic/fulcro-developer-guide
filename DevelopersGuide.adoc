@@ -7014,7 +7014,7 @@ It turns out that Fulcro's approach to UI is quite easily amenable to state mach
 - The application database is normalized:
 It is very easy to describe where particular bits of data are in a non-ambiguous manner.
 - The UI refresh is *based on* the normalized data model, and not the UI structure.
-Triggering refreshes requires only that you know what data your changing.
+Triggering refreshes requires only that you know what data you're changing.
 
 Thus, it turns out to be quite easy to build a state machine system for Fulcro with the following properties:
 
@@ -7498,7 +7498,7 @@ That is to say that if state machine A triggers an event on B and D, and B trigg
 
 === Leveraging State Machine Local Storage
 
-There are many times that you will want to send in "configuration" information to a state machine that should be remembered ov the lifetime of that machine.
+There are many times that you will want to send in "configuration" information to a state machine that should be remembered for the lifetime of that machine.
 For example if you have code that triggers events in other state machines you might want to pass the ID of the other state machine as a parameter when you start the new one:
 
 ```
