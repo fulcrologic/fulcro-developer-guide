@@ -7713,7 +7713,7 @@ Most of the novelty about routes can now be encoded into normal components with 
 (ns app
   (:require
     ...
-    [fulcro.incubator.dynamic-routing :as dr :refer [defrouter]]))
+    [com.fulcrologic.fulcro.routing.dynamic-router :as dr :refer [defrouter]]))
 
 (defsc X [this props]
  {...
@@ -7962,7 +7962,7 @@ The ID of the active state machine will be the keyword name of the router:
   {:router-target ...
    :componentDidUpdate (fn [this pprops pstate]
       (let [current-state (uism/current-state this :MyRouter)
-            route-props (:fulcro.incubator.dynamic-routing/current-route pprops)]
+            route-props (:com.fulcrologic.fulcro.routing.dynamic-routing/current-route pprops)]
          ...))
    ...
 ```
@@ -8334,7 +8334,7 @@ That single URI *as a concept* is a single route to a screen, but the mutation y
 
 == Routing Tree Support
 
-NOTE: Fulcro Incubator's Dynamic Routers automatically compose and understand paths, so there is no need to declare a routing tree with them.
+NOTE: Fulcro's Dynamic Routers automatically compose and understand paths, so there is no need to declare a routing tree with them.
 You might want to try those as an alternative.
 
 Fulcro includes some routing tree primitives to do the mapping from single conceptual "routes" like `/settings/colors`
