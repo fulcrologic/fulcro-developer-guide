@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: October 13, 2019
+:revdate: November 7, 2019
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -5278,6 +5278,134 @@ For example, if you are using the `api-middleware/wrap-api` and Ring Session mid
    (server/augment-response user (fn [resp] (update resp :session merge {:uid real-uid}))))
 ```
 
+=== Binary Return Values
+
+Fulcro 3.0.8 and above has extended support for returning binary values from full-stack mutations. Prior versions
+left this as an exercise to the reader, but it became evident that the existing support was easy enough
+to extend. As such, the built-in HTTP remote has
+been extended to allow you to indicate that you expect the server to return a non-EDN value, and that you'd like to
+receive it in some alternate format.  This is particularly useful if you have a mutation that does something like
+generateration of a PDF, where you want to be able to use that result immediately in the client code in your
+mutation's `result-action`.
+
+==== Client Side Setup
+
+Requirements:
+
+* You must use the `com.fulcrologic.fulcro.networking.http-remote`
+* You are responsible for making your server respond to a mutation in a way that will make it through the middleware
+as a non-EDN response.
+* Your mutation must indicate that the server's return value is expected to be a different type.
+* You must define a `result-action` handler in the mutation to directly deal with the result.
+
+==== The Client-side Mutation
+
+The mutation needs to define a result action and modify the remote return type, like this:
+
+[source]
+-----
+(ns app.model
+  (:require
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.networking.file-url :as file-url]))
+
+(defmutation generate-pdf [params]
+  (result-action [{:keys [state result]}]
+     ;; body will be a js ArrayBuffer. file-url ns has helpers to convert to data url
+     (swap! state assoc-in [:component :id :fileUrl]
+       (file-url/raw-response->file-url result "application/pdf")))
+  (remote [env]
+    (m/with-response-type env :array-buffer)))
+-----
+
+The `file-url` namespace includes a few utilities for creating a data URL out of such a network result, triggering
+a browser save, etc. Please see the documutation in that ns for more details.
+
+==== Progress
+
+You can easily leverage the data load markers in your mutations to have the same story as load markers with these
+kinds of mutation (really, you can do it for any of them):
+
+[source]
+-----
+(defmutation generate-pdf [params]
+  (action [{:keys [app]}]
+    (df/set-load-marker! app ::pdf :loading))
+  (result-action [{:keys [app state result]}]
+     (df/remove-load-marker! app ::pdf)
+     ...)
+  (remote [env]
+    (m/with-response-type env :array-buffer)))
+-----
+
+This will work identically to using the `:marker` option in `df/load!`. You can all use the <<ProgressUpdates, progress update>> support
+if you expect the response to be rather large.
+
+=== Returning Binary Values from Server Mutations
+
+The normal Fulcro middleware on the server will simply try to transit encode your response. You must insert additional
+middleware to circumvent this above (before) processing reaches this step.  Here is an example of how you might
+do that:
+
+First, invent a mutation return value that is easy to detect in the middleware:
+
+[source]
+-----
+;; SERVER side
+(defmutation print [params]
+  (action [env]
+    (let [f (File. ...)]
+      {:file/mime-type "application/pdf"
+       :file/name      "report.pdf"
+       :file/source    f})))
+-----
+
+The idea is that a map with a `:file/source` key indicates that the mutation is trying to return a disk file to the client.
+
+Then code up something in the middleware like this:
+
+[source]
+-----
+(defn file-response? [{:keys [body]}]
+  (when (map? body)
+    (let [values    (vals body)
+          has-file? (some :file/source values)
+          multiple? (> (count values) 1)]
+      (when (and has-file? multiple?)
+        (throw (ex-info "A resolver is trying to respond with a file, but there were multiple elements in the request!" {:response body})))
+      has-file?)))
+
+(defn wrap-file-response
+  "Middleware that converts responses that indicate the response is a file. "
+  {:arglists '([handler] [handler options])}
+  [handler]
+  (fn [request]
+    (let [response (handler request)]
+      (if (file-response? response)
+        (let [{:file/keys [source mime-type name]} (some-> response :body vals first)]
+          (if source
+            (-> (resp/response source)
+              (cond->
+                mime-type (resp/header "Content-Type" mime-type))
+              (resp/header "Content-Disposition" (str "attachment; filename=\"" (or name "file") "\""))
+              (resp/header "Last-Modified" (ring.util.time/format-date (dt/now))))
+            {:status 404}))
+        response))))
+-----
+
+and then place this new middleware between your API handler and the transit stuff:
+
+[source]
+-----
+(def middleware
+    (-> not-found-handler
+      (wrap-api "/api")
+      (wrap-file-response)
+      (server/wrap-transit-params {:opts {:handlers (:read transit-handlers)}})
+      (server/wrap-transit-response {:opts {:handlers (:write transit-handlers)}})
+      ...))
+-----
+
 == Additional Mutation Topics
 
 === Ownership and Mutations
@@ -6889,18 +7017,20 @@ The `:result` reported to your `remote-error?` and post-processing will *not* in
 
 Therefore the default remote error definition *will* consider aborts to be an error (since it does not have a status code of 200).
 
-== Progress Updates
+== Progress Updates [[ProgressUpdates]]
 
-Obtaining progress updates on mutations are requested the same way as abort IDs: through AST manipulation on the mutation:
+NOTE: This functionality needs more testing, and the documentation may be slightly inaccurate.
+
+Obtaining progress updates on mutations requires making a `progress-action` section of the mutation:
 
 ```
 (defmutation some-mutation [params]
-  (remote [{:keys [ast]}]
-     (m/with-progressive-updates ast `(progress-mutation {:x 1}))))
+  (progress-action [env] ...)
+  (remote [{:keys [ast]}] true))
 ```
 
-Progress updates are sent to the given mutation (which will always receive the parameters you specified).
-The parameters will be augmented with information about the current progress:
+Progress updates are sent to the given mutation (which will also always receive the parameters you specified).
+The result in the `env` will be augmented with information about the current progress:
 
 * `:progress-phase` - will be one of :sending, :receiving, :complete, or :failed.
 * `:progress-event` - the raw XhrIO event (which has loading progress data)
@@ -6909,7 +7039,7 @@ The parameters will be augmented with information about the current progress:
 Body is NOT processed through the middleware, and could be partial.
 * `:status-code` - The HTTP status code if receiving.
 
-The `fulcro.client.network/progress%` function can be used to convert this into a number between 0 and 100.
+The `com.fulcrologic.fulcro.networking.http-remote/progress%` function can be used to convert this into a number between 0 and 100.
 
 Progress updates are currently supported on mutations.
 Support for progress directly on loads is possible, but not yet implemented.
@@ -6918,16 +7048,14 @@ to return a value from a mutation:
 
 ```
 (defmutation some-mutation [params]
-  (remote [{:keys [ast state]}]
-    (-> ast
-      (m/with-progressive-updates `(progress {}))
-      (m/returning state Thing))))
+  (remote [env]
+    (-> env
+      (m/returning Thing))))
 ```
 
 where `Thing` is some component that defines the query for the data being returned from the mutation.
 
-In general progress updates are only really useful for larger requests, such as file uploads.
-Triggering downloads to the user's machine should probably be done using tricks that force the item into the normal browser download mechanisms (external to Fulcro).
+In general progress updates are only really useful for larger requests, such as file transfers.
 
 File uploads also require that you augment the new client network middleware, since there is no reliable way to encode an image of arbitrary size into a transaction.
 
