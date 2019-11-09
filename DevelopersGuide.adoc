@@ -71,7 +71,7 @@ This is a stand-alone developer's guide for version 3 of Fulcro.
 It is intended to be be used by beginners and experienced developers and covers most of the library in detail.
 Fulcro has a pretty extensive set of resources on the web tailored to fit your learning style.
 
-There is this book, the https://cljdoc.org/d/com.fulcrologic/fulcro/3.0.0-beta-13/doc/readme[docstrings/clojure docs], and even a series of https://www.youtube.com/playlist?list=PLVi9lDx-4C_T7jkihlQflyqGqU4xVtsfi[YouTube videos],
+There is this book, the https://cljdoc.org/d/com.fulcrologic/fulcro/3.0.10/doc/readme[docstrings/clojure docs], and even a series of https://www.youtube.com/playlist?list=PLVi9lDx-4C_T7jkihlQflyqGqU4xVtsfi[YouTube videos],
 
 A lot of time and energy went into creating these libraries and materials and providing them free of charge.
 If you find them useful please consider
@@ -654,7 +654,7 @@ Create a `deps.edn` file with this content:
 ```
 {:paths   ["src/main" "resources"]
  :deps    {org.clojure/clojure    {:mvn/version "1.10.1"}
-           com.fulcrologic/fulcro {:mvn/version "3.0.0-alpha-18"}}
+           com.fulcrologic/fulcro {:mvn/version "3.0.10"}}
 
  :aliases {:dev {:extra-paths ["src/dev"]
                  :extra-deps  {org.clojure/clojurescript   {:mvn/version "1.10.520"}
@@ -1881,7 +1881,7 @@ Open your `deps.edn` file and add dependencies so it looks like this:
 ```
 {:paths   ["src/main" "resources"]
  :deps    {org.clojure/clojure    {:mvn/version "1.10.1"}
-           com.fulcrologic/fulcro {:mvn/version "3.0.0-alpha-18"}
+           com.fulcrologic/fulcro {:mvn/version "3.0.10"}
            com.wsscode/pathom     {:mvn/version "2.2.15"}
            ring/ring-core         {:mvn/version "1.6.3"}
            com.taoensso/timbre    {:mvn/version "4.10.0"}
@@ -1945,7 +1945,7 @@ First, code reloading tools in `deps.edn`:
 ```
 {:paths   ["src/main" "resources"]
  :deps    {org.clojure/clojure    {:mvn/version "1.10.1"}
-           com.fulcrologic/fulcro {:mvn/version "3.0.0-alpha-18"}
+           com.fulcrologic/fulcro {:mvn/version "3.0.10"}
            com.wsscode/pathom     {:mvn/version "2.2.15"}
            ring/ring-core         {:mvn/version "1.6.3"}
            com.taoensso/timbre    {:mvn/version "4.10.0"}
