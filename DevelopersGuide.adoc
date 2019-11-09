@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: November 7, 2019
+:revdate: November 8, 2019
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -5406,6 +5406,148 @@ and then place this new middleware between your API handler and the transit stuf
       ...))
 -----
 
+== File Uploads (version 3.0.9+) [[FileUpload]]
+
+File uploads can, of course, be accomplished by simply submitting a POST to some server URI that you designate to
+handle such uploads; however, file uploads are usually related to some other server-side operation that needs to
+integrate that information into a database.  Thus, it is desirable to be able to submit file uploads with mutations
+such that the files appear as parameters to the mutations, without having to resort to base64 encoding and all of the
+possible nightmares that can entail.
+
+Fulcro's `com.fulcrologic.fulcro.networking.file-upload` namespace includes client and server middleware that can
+be used with the HTTP remote to add support for seamlessly associating file uploads with mutation parameters so
+that the file upload processing can happen in the _context_ of mutations.
+
+It uses multipart MIME encoding in an HTTP POST, and uses low-level Javascript FormData. This means
+that large file uploads are only constrained by your network stack settings on the server (e.g. POST limits).
+
+Features:
+
+* Each client mutation call can attach any number of binary objects (`js/File`, `js/ArrayBuffer`, or `js/Blob`).
+* Any number of mutations in a single transaction can attach objects.
+* The transaction, if sent to the same remote, will be combined such that all uploads and mutation calls are
+encoded in a single HTTP POST.
+* The server side will receive the uploads in their parameters.
+
+=== The Client
+
+Setting up the client requires that you add additional middleware to an http remote. For example:
+
+[source]
+-----
+(ns app.application
+  (:require
+    [com.fulcrologic.fulcro.networking.http-remote :as net]
+    [com.fulcrologic.fulcro.networking.file-upload :as file-upload]
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.components :as comp]))
+
+(def request-middleware
+  (->
+    (net/wrap-fulcro-request)
+    (file-upload/wrap-file-upload)))
+
+(defonce SPA (app/fulcro-app
+               {:remotes {:remote (net/fulcro-http-remote
+                                    {:url                "/api"
+                                     :request-middleware request-middleware})}}))
+-----
+
+This middleware watches for special mutation parameters that indicate file upload. You use helper
+function from the `fule-upload` namespace to create such mutations.
+
+You can upload raw binary simply by using `js/ArrayBuffer` or `js/Blob`; however, most people will just want to submit
+from a normal form input for files. Here is an example of how to do that:
+
+[source]
+-----
+;; An input to submit a tx which includes file uploads. `params` is just the normal mutation parameters.
+(dom/input {:type     "file"
+            :accept   "image/jpeg,image/png"
+            ;; Set `:multiple true` if you want to upload more than one at a time
+            :onChange (fn [evt]
+                        (let [files (file-upload/evt->uploads evt)]
+                          (comp/transact! this [(settings/save-settings (file-upload/attach-uploads params files))])))})
+-----
+
+You can, of course, give such a transaction an abort ID, since your user may want to cancel an accidental
+upload. See <<Abort, aborting a network request>>.
+
+=== The Server
+
+The server setup is similar: Add some middleware. The server must include Ring's `multipart-params` middleware so
+that the server can decode the multipart file submission. The middleware stack for the server will look something
+like this:
+
+[source]
+-----
+(ns app.server-components.middleware
+  (:require
+    [com.fulcrologic.fulcro.networking.file-upload :as file-upload]
+    [com.fulcrologic.fulcro.server.api-middleware :refer [handle-api-request
+                                                          wrap-transit-params
+                                                          wrap-transit-response]]
+    ...))
+
+(def ^:private not-found-handler
+  (fn [req]
+    {:status  404
+     :headers {"Content-Type" "text/plain"}
+     :body    "NOPE"}))
+
+(defn wrap-api [handler uri]
+  (fn [request]
+    (if (= uri (:uri request))
+      (handle-api-request
+        (:transit-params request)
+        (fn [tx] (parser {:ring/request request} tx)))
+      (handler request))))
+
+(def middleware
+    (-> not-found-handler
+      (wrap-api "/api")
+      (file-upload/wrap-mutation-file-uploads {})
+      wrap-transit-params
+      wrap-transit-response
+      (wrap-multipart-params)
+      ...)))
+-----
+
+Notice that the file upload middleware is earlier in the execution chain than the API handler, but after the
+multipart decoding.
+
+If you've set up everything correctly, then your mutations should automatically receive files as a namespaced
+parameter in the server mutation:
+
+[source]
+-----
+(ns app.model.settings
+  (:require
+    [com.wsscode.pathom.connect :as pc :refer [defresolver defmutation]]
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.networking.file-upload :as file-upload]))
+
+(defmutation save-settings [env {:account/keys      [real-name]
+                                 ::file-upload/keys [files]}]
+  {}
+  (log/info "Saving settings")
+  (log/info "New name:" real-name)
+  (log/info "New avatar:" (first files)))
+-----
+
+Notice that the `::file-upload/files` key is plural, and will always be a sequence. This is to support multiple uploads
+attached to a single mutation.  If you only expect one file, then you can simply use `first` on it.
+
+Each file in the sequence will be exactly what the multipart params middleware decodes. For example:
+
+[source]
+-----
+{:filename "me.jpg", :content-type "image/jpeg", :tempfile #object[java.io.File], :size 13210}
+-----
+
+NOTE: Both the client and server file-upload middleware allow you to give transit options so that your mutation
+parameters can be properly encoded/decoded if you normally extend the types allowed over transit.
+
 == Additional Mutation Topics
 
 === Ownership and Mutations
@@ -6969,14 +7111,14 @@ include::src/book/book/demos/server_error_handling.cljs[]
 ----
 ====
 
-== Aborting a Request
+== Aborting a Request [[Abort]]
 
 Requests that are heavy on the server or require significant data transfer often need to be cancelled.
 User experience, especially in mobile environments, can be heavily impacted if their navigation is blocked with no way back.
 Futhermore, there is no real reason for you to pay for the bandwidth to send or receive something that the user is no longer interested in.
-//TASK
 
 The built-in HTTP remote support aborts.
+
 If you use a custom or alternate remote implementation then that may affect the availability of both abort and progress reports.
 See <<CustomRemote, the documentation>> and source of your remote for more information.
 
@@ -7019,8 +7161,6 @@ Therefore the default remote error definition *will* consider aborts to be an er
 
 == Progress Updates [[ProgressUpdates]]
 
-NOTE: This functionality needs more testing, and the documentation may be slightly inaccurate.
-
 Obtaining progress updates on mutations requires making a `progress-action` section of the mutation:
 
 ```
@@ -7030,16 +7170,27 @@ Obtaining progress updates on mutations requires making a `progress-action` sect
 ```
 
 Progress updates are sent to the given mutation (which will also always receive the parameters you specified).
-The result in the `env` will be augmented with information about the current progress:
+The result in the `env` will include a map at the `:progress` key that includes the current `:raw-progress`, along
+with some additional useful stats.
 
-* `:progress-phase` - will be one of :sending, :receiving, :complete, or :failed.
-* `:progress-event` - the raw XhrIO event (which has loading progress data)
-* `:transaction` - The transaction that is running
-* `:body` - The current low-level body.
-Body is NOT processed through the middleware, and could be partial.
-* `:status-code` - The HTTP status code if receiving.
+The `com.fulcrologic.fulcro.networking/http-remote` ns includes three helpers for use in mutations:
 
-The `com.fulcrologic.fulcro.networking.http-remote/progress%` function can be used to convert this into a number between 0 and 100.
+* `(overall-progress env)` - Returns a number between 0 and 100 indicating the overall network progress.
+* `(receive-progress env)` - Returns a number between 0 and 100 indicating the receive network progress.
+* `(send-progress env)` - Returns a number between 0 and 100 indicating the send network progress.
+
+So, you might write a mutation that transfers a large amount of data like so:
+
+[source]
+-----
+(defmutation large-mutation [_]
+  (progress-action [{:keys [state] :as env}]
+    (swap! state assoc-in [:component/id :thing :ui/progress] (http-remote/overall-progress env)))
+  (remote [_] true))
+-----
+
+Then the component with ident `[:component/id :thing]` will be able to show progress based on the `:ui/progress`
+attribute.
 
 Progress updates are currently supported on mutations.
 Support for progress directly on loads is possible, but not yet implemented.
@@ -9516,13 +9667,6 @@ If you deviate from the standard format then those functions will not work witho
 Fulcro's pluggable remotes make it relatively easy to plug in alternate communication methods.
 You can interface with things like REST or GraphQL servers with relative ease, especially if you use the
 https://wilkerlucio.github.io/pathom/DevelopersGuide.html[Pathom] parser library.
-
-=== File Uploads [[FileUpload]]
-
-File uploads can be accomplished by augmenting the middleware of an http-remote on the client side, and managing the
-file upload server-side middleware.  A fulcro 2 example should be pretty close, though the response/progress is
-a bit easier with version 3's network stack.  See https://github.com/awkay/file-upload-demo[this Fulcro 2 Example] for
-a start.
 
 ==== A REST Example
 
