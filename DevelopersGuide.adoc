@@ -5364,7 +5364,7 @@ and then place this new middleware between your API handler and the transit stuf
       ...))
 -----
 
-== File Uploads (version 3.0.9+) [[FileUpload]]
+== File Uploads (version 3.0.10+) [[FileUpload]]
 
 File uploads can, of course, be accomplished by simply submitting a POST to some server URI that you designate to
 handle such uploads; however, file uploads are usually related to some other server-side operation that needs to
