@@ -71,7 +71,7 @@ This is a stand-alone developer's guide for version 3 of Fulcro.
 It is intended to be be used by beginners and experienced developers and covers most of the library in detail.
 Fulcro has a pretty extensive set of resources on the web tailored to fit your learning style.
 
-There is this book, the https://cljdoc.org/d/com.fulcrologic/fulcro/3.0.10/doc/readme[docstrings/clojure docs], and even a series of https://www.youtube.com/playlist?list=PLVi9lDx-4C_T7jkihlQflyqGqU4xVtsfi[YouTube videos],
+There is this book, the https://cljdoc.org/d/com.fulcrologic/fulcro/3.0.0/doc/readme[docstrings/clojure docs], and even a series of https://www.youtube.com/playlist?list=PLVi9lDx-4C_T7jkihlQflyqGqU4xVtsfi[YouTube videos],
 
 A lot of time and energy went into creating these libraries and materials and providing them free of charge.
 If you find them useful please consider
@@ -460,48 +460,6 @@ Mutations are allowed to submit new transactions themselves, so sections like `o
 
 Mutations, as in GraphQL, can return graph results.
 Fulcro, of course, can auto-merge those into the client database.
-
-=== UI Refresh
-
-Fulcro manages UI updates by targeting refreshes according to what actually changes (the rendering optimizations are even pluggable in Fulcro 3), and it turns out the the normalized database makes this all very fast to calculate.
-
-Here's a quick overview of how (one method) of these optimizations work:
-
-* Each component has a `shouldComponentUpdate` that checks to see if the props have actually changed.
-If a component is asked to "double render" or render without changed props, then it will short-circuit (e.g. it is a PureComponent).
-Checking this fact in CLJS is *very very* fast, since we use immutable data structures where reference comparisons are enough to ensure two things are identical.
-* Fulcro keeps indexes of *mounted* components by their *idents*.
-Thus, at any given time it knows exactly which on-screen components "represent" something like `[:person/id 1]`.
-It keeps these up to date via hooks on React's lifecycle.
-* At certain points in processing (e.g. after any optimistic action in a mutation or the arrival of a network result) a refresh is scheduled via `js/requestAnimationFrame`.
-* AFTER every render, Fulcro records a snapshot of what the state database looked like.
-This is cheap because of immutable data and structural sharing (e.g. ns time-scale...copy a single 64-bit reference).
-* The ident-optimized render does the following:
-* It reads all of the "mounted component" idents from its internal indexes.
-This is the list of "data that matters" to things on the screen.
-* If finds the "component to refresh" by checking to see if the table entries at these idents are *identical* (reference compare) to the last rendered version.
-It can then translate a "change table entry" into a set of components using the indexes.
-Typically only 1-2 components will be found.
-This stage typically takes under a millisecond.
-* For all components that need a refresh:
-It runs those component's queries to get new props and "tunnels" those new props to the components (via a hidden property in component-local state (e.g. React `setState`)).
-
-So, a form with 50 fields on-screen will do roughly 50 64-bit compares (to find stale data), run 1-2 queries against the state database targeted at the affected components, and call React `setState` a couple of times.
-
-The alternate renderer (keyframe) just does a root refresh every time and relies on `shouldComponentUpdate`.
-It is actually quite fast as well, since the query engine in Fulcro is pretty highly tuned to be fast, and CLJS implementations of `shouldComponentUpdate` are equally impressive.
-
-Fulcro 2 and earlier leveraged "follow-on reads".
-A concept invented by Om Next where you named the data that changed during a mutation (e.g. :person/name).
-It would then leverage indexes to find which components queried that property, then look up which on-screen elements had that component type.
-It's still a potential "alternate" optimization strategy, but it suffered from a few problems:
-
-1. It was a manual process, so it was easy to forget to "tell it" what changed.
-2. It was harder to understand (fully automatic is hard to beat), especially to new users.
-
-All of the required indexes still exist, so it would not be hard to "replicate" this style of refresh optimization.
-Another possible future expansion would be to re-purpose "follow-on reads" as "refresh only this" (tell the underlying scanner not to scan anything else).
-This could be useful when doing rapid UI interactions where you want to eliminate as much processing as possible in-between frames.
 
 == Additional Items of Interest
 
@@ -10452,6 +10410,80 @@ provide the `shouldComponentUpdate` optimization for the props you pass them.
 The DOM generators in Fulcro allow you to elide the props if you don't have any, but doing so means the macro cannot do
 certain compile-time optimizations. `(dom/div {} (dom/div {} ...))`
 is about 3x faster at runtime than `(dom/div (dom/div ...))`.
+
+=== Pluggable Rendering Optimization [[RenderingOptimizations]]
+
+Different applications will have differing needs. Fulcro 3 makes it possible to plug in different
+optimization strategies so that you can tune the global rendering optimization to your needs.
+
+There are 3 pre-defined plugins, and you can write your own:
+
+Keyframe-render:: Defined in `com.fulcrologic.fulcro.rendering.keyframe-render/render!`. Relies completely
+on `:shouldComponentUpdate` and always renders from root. Simplest to use, because you are guaranteed
+correctness without hassle; however, may be slow in some circumstances (complex UIs).
+
+Ident-optimized Render:: Defined in `com.fulcrologic.fulcro.rendering.ident-optimized-render/render!`.
+Uses on-screen components to figure out what to diff in state (compares db from prior render) and targets
+refreshes to just those components. Does not understand dependent data (i.e. you render a calculated
+fact derived from ui data, like a count of items). Slightly more complex to use, but works much faster
+than keyframe when only one thing typically changes on the screen at a time.
+
+Keyframe-render2:: (Available in 3.0.12 and above). Defined in `com.fulcrologic.fulcro.rendering.keyframe-render2/render!`. Just like
+keyframe render, but allows a `:only-refresh [..list of idents...]` parameter on `transact!` that tells
+the system to ONLY update the given components. This can give you component-local state performance, but
+requires you to tell it when such a targeted update is allowed (so there is no calculation overhead). This
+is a great renderer for optimizing when inputs are too slow, since you know exactly the ident of the thing you are
+changing, and otherwise keeps the application as simple as possible.
+
+==== Ident-optimized render
+
+The ident-optimized render is the most complex of the options, and is the default. It is described below mainly
+to inform you of the kind of things an optimized renderer can do, in case you want to roll your own. The description
+includes the optimizations that are always done by the `defsc` component.
+
+* Each component has a `shouldComponentUpdate` that checks to see if the props have actually changed.
+If a component is asked to "double render" or render without changed props, then it will short-circuit (e.g. it is a PureComponent).
+Checking this fact in CLJS is *very very* fast, since we use immutable data structures where reference comparisons are enough to ensure two things are identical.
+* Fulcro keeps indexes of *mounted* components by their *idents* (and can also look them up by query keywords).
+Thus, at any given time it knows exactly which on-screen components "represent" something like `[:person/id 1]` or
+query for attributes like `:person/name`. It keeps these up to date via hooks on React's lifecycle.
+* At certain points in processing (e.g. after any optimistic action in a mutation or the arrival of a network result) a
+refresh is scheduled.
+* AFTER every render, it records a snapshot of what the state database looked like.
+This is cheap because of immutable data and structural sharing (e.g. ns time-scale...copy a single 64-bit reference).
+* The ident-optimized render does the following:
+** It reads all of the "mounted component" idents from its internal indexes.
+This is the list of "data that matters" to things on the screen. This usually be significantly smaller than what is
+actually *in* the database.
+** If finds the "component to refresh" by checking to see if the table entries at these idents are *identical*
+(reference compare) to the last rendered version. It can then translate a "change table entry" into a set of components
+using the indexes. Typically only 1-2 components will be found. This stage typically takes under a millisecond.
+** For all components that need a refresh:
+*** It runs those component's queries to get new props and "tunnels" those new props to the components
+(via a hidden property in component-local state (e.g. React `setState`)).
+
+So, a form with 50 fields on-screen will do roughly 50 64-bit compares (to find stale data), run 1-2 queries against
+the state database targeted at the affected components, and call React `setState` a couple of times (which has
+the exact speed of component-local state, since that's what it's leveraging).
+
+In some applications the number of components to refresh might be more than 2 or 3. In those cases it turns out that
+the overhead of 4+ calls to React's `setState` can start to add up to more than a root render. In those cases we
+recommend that you try the `keyframe-render2`, where you can isolate rendering to a single component or the entire
+root.
+
+=== Historical Note on Older Approaches
+
+Fulcro 2 and earlier leveraged "follow-on reads".
+This was a concept invented by Om Next where you named the data that changed during a mutation (e.g. :person/name).
+It would then leverage indexes to find which components queried that property, then looked up which on-screen elements had that component type.
+It's still a potential "alternate" optimization strategy, but it suffered from a few problems:
+
+1. It was a manual process, so it was easy to forget to "tell it" what changed.
+2. It was harder to understand (fully automatic is hard to beat), especially to new users.
+
+All of the required indexes still exist, so it would not be hard to "replicate" this style of refresh optimization.
+Another possible future expansion would be to re-purpose "follow-on reads" as "refresh only this" (tell the underlying scanner not to scan anything else).
+This could be useful when doing rapid UI interactions where you want to eliminate as much processing as possible in-between frames.
 
 = Testing
 
