@@ -3976,7 +3976,7 @@ Recursion is *always* expressed on a join, and it *always* means that the recurs
 There are two notations for this: `...` and a number.
 The former means "recurse until there are no more links (circular detection is included to prevent infinite loops)", and the other is the recursion limit:
 
-NOTE: At the time of this writing you must use the lamba mode of `defsc` for queries that include recursion.
+NOTE: At the time of this writing you must use the lambda mode of `defsc` for queries that include recursion.
 
 The following demo (with source) demonstrates the core basics of recursion:
 
