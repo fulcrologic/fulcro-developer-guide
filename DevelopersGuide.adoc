@@ -9626,7 +9626,7 @@ Fulcro's pluggable remotes make it relatively easy to plug in alternate communic
 You can interface with things like REST or GraphQL servers with relative ease, especially if you use the
 https://wilkerlucio.github.io/pathom/DevelopersGuide.html[Pathom] parser library.
 
-==== A REST Example
+=== A REST Example
 
 TODO: This is an unported Fulcro 2 example. The pathom network support for fulcro is for version 2 at the moment, so
 this example would require a bit more work.
