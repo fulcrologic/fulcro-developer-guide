@@ -817,7 +817,7 @@ IMPORTANT: If you're writing your UI in CLJC files then you need to make sure yo
 
 ```
 (ns app.client
-  (:require #?(:clj [com.fulcrologic.fulcro.dom-server :as dom] 
+  (:require #?(:clj [com.fulcrologic.fulcro.dom-server :as dom]
                :cljs [com.fulcrologic.fulcro.dom :as dom]))
 
 ... the actual code is the same as before
@@ -9364,7 +9364,7 @@ It will render exactly what the state says the application is in!
       user       (get-current-user (:session req))
       user-ident (comp/get-ident my-app/User user)]
    (-> base-state
-     (todo-check-item-impl 3 true) ; some combo of mutation impls
+     (todo-check-item-impl* 3 true) ; some combo of mutation impls
      (assoc :current-user user-ident) ; put normalized user into root
      (assoc-in user-ident user)))
 ```
@@ -9402,7 +9402,7 @@ We now combine what we learned about generating the application's rendering with
         root-factory         (factory root-component-class)
         app-html             (binding [comp/*app* app] (dom/render-to-str (root-factory props)))
         initial-state-script (ssr/initial-state->script-tag normalized-db)]
-    (str "<!DOCTYPE) html>\n"
+    (str "<!DOCTYPE html>\n"
       "<html lang='en'>\n"
       "<head>\n"
       "<meta charset='UTF-8'>\n"
@@ -9414,7 +9414,6 @@ We now combine what we learned about generating the application's rendering with
       "<div id='app'>"
       app-html
       "</div>\n"
-      "<script src='js/app.js' type='text/javascript'></script>\n"
       "<script src='js/app.js' type='text/javascript'>app.client.start_from_ssr();</script>\n"
       "</body>\n"
       "</html>\n")))
