@@ -12,7 +12,7 @@
 :sectanchors:
 :leveloffset: 1
 :sectnums:
-:imagesdir: assets/img
+:imagesdir: /assets/img
 :scriptsdir: js
 :imagesoutdir: docs/assets/img
 :favicon: assets/favicon.ico
