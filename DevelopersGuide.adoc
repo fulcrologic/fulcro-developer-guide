@@ -1,13 +1,13 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: November 8, 2019
+:revdate: December 12, 2019
 :lang: en
 :encoding: UTF-8
 :doctype: book
 :source-highlighter: coderay
 :source-language: clojure
 :toc: left
-:toclevels: 2
+:toclevels: 3
 :sectlinks:
 :sectanchors:
 :leveloffset: 1
