@@ -3057,7 +3057,7 @@ See React documentation for more details.
 
 At first this seems a little mind-bending, because you are in fact nesting components in the UI, but the query nesting need only mimic the *stateful* portion of the UI tree.
 This means there is ample opportunity to use React children in a way that looks incorrect from what you've learned so far.
-On deeper inspection it turns out it is alignment with the rules, but it takes a minute on first exposure.
+On deeper inspection it turns out it is in alignment with the rules, but it takes a minute on first exposure.
 
 Take a collapse component:
 It needs state of its own in order to know when it is collapsed, and we'd like that to be part of the application database.
