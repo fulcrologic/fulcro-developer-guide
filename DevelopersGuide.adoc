@@ -2920,6 +2920,7 @@ NOTE: The ident of `this` is always included in the refresh list for you; theref
 ==== General Guidelines for Derived Values
 
 You should consider computing a derived value when:
+
 * The known data from the props already gives you sufficient information to calculate the value.
 * The computation is relatively light.
 
