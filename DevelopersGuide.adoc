@@ -6328,23 +6328,23 @@ include::src/book/book/server/morphing_example.cljs[]
 
 == Pre-Merge [[PreMerge]]
 
-Pre merge offers hook to manipulate data entering your Fulcro app at component level.
+Pre-merge offers a hook to manipulate data entering your Fulcro app at the component level.
 
-During the lifetime of a Fulcro application data will enter the system:
+During the lifetime of a Fulcro application, data will enter the system:
 
 1. During app initialization
 2. When loaded from a remote
 3. By being added via mutations
 
 In the first case the data comes from the component initial state or user-provided initial state.
-Such pre-supplied data usually includes both domain and ui-centric data.
+Such pre-supplied data usually includes both domain and UI-centric data.
 
-In the second case the data comes from a remote and contains *only* domain data, however, the UI might still need to do some type of initialization to add ui-centric props for this in the local database.
+In the second case the data comes from a remote and contains *only* domain data; however, the UI might still need to do some type of initialization to add UI-centric props for this in the local database.
 
 Post-mutations are a little limiting in this case because they are not component-centric: they are not co-located with the components, and may have to deal with an entire sub-tree all at once.
-Pre hooks decomposes this logic to the component level making things a bit simpler in many cases.
+Pre-hooks decompose this logic to the component level making things a bit simpler in many cases.
 
-To illustrate these issues we are going to write a small app that has some countdown buttons, the idea is that each counter will go down each time it is clicked until it reaches zero.
+To illustrate these issues we are going to write a small app that has some countdown buttons. The idea is that each counter will go down each time it is clicked until it reaches zero.
 The important detail will be how we can handle the initial counter value.
 
 [source,clojure]
