@@ -3058,7 +3058,7 @@ See React documentation for more details.
 
 At first this seems a little mind-bending, because you are in fact nesting components in the UI, but the query nesting need only mimic the *stateful* portion of the UI tree.
 This means there is ample opportunity to use React children in a way that looks incorrect from what you've learned so far.
-On deeper inspection it turns out it is alignment with the rules, but it takes a minute on first exposure.
+On deeper inspection it turns out it is in alignment with the rules, but it takes a minute on first exposure.
 
 Take a collapse component:
 It needs state of its own in order to know when it is collapsed, and we'd like that to be part of the application database.
@@ -5071,7 +5071,7 @@ Thus, mutations joins essentially normalize things into a specific table in your
 
 === Mutation Joins: Simpler Notation [[ASTMutationJoins]]
 
-Writing `transact!` using manual mutation joins in the UI is a quite visually noisy.
+Writing `transact!` using manual mutation joins in the UI is quite visually noisy.
 It turns out there is a better way.
 If you remember: the remote section of client mutations can modify the remote EQL. Fulcro comes with helper functions that can rewrite the AST of the mutation to modify the parameters or convert it to a mutation join!
 This can simplify how the mutations look in the UI.
@@ -6329,23 +6329,23 @@ include::src/book/book/server/morphing_example.cljs[]
 
 == Pre-Merge [[PreMerge]]
 
-Pre merge offers hook to manipulate data entering your Fulcro app at component level.
+Pre-merge offers a hook to manipulate data entering your Fulcro app at the component level.
 
-During the lifetime of a Fulcro application data will enter the system:
+During the lifetime of a Fulcro application, data will enter the system:
 
 1. During app initialization
 2. When loaded from a remote
 3. By being added via mutations
 
 In the first case the data comes from the component initial state or user-provided initial state.
-Such pre-supplied data usually includes both domain and ui-centric data.
+Such pre-supplied data usually includes both domain and UI-centric data.
 
-In the second case the data comes from a remote and contains *only* domain data, however, the UI might still need to do some type of initialization to add ui-centric props for this in the local database.
+In the second case the data comes from a remote and contains *only* domain data; however, the UI might still need to do some type of initialization to add UI-centric props for this in the local database.
 
 Post-mutations are a little limiting in this case because they are not component-centric: they are not co-located with the components, and may have to deal with an entire sub-tree all at once.
-Pre hooks decomposes this logic to the component level making things a bit simpler in many cases.
+Pre-hooks decompose this logic to the component level making things a bit simpler in many cases.
 
-To illustrate these issues we are going to write a small app that has some countdown buttons, the idea is that each counter will go down each time it is clicked until it reaches zero.
+To illustrate these issues we are going to write a small app that has some countdown buttons. The idea is that each counter will go down each time it is clicked until it reaches zero.
 The important detail will be how we can handle the initial counter value.
 
 [source,clojure]
