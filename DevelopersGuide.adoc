@@ -6590,11 +6590,11 @@ Another interesting property about pre-merge is that it also runs during normali
 ----
 (defsc Root [this _]
   {:initial-state (fn [_] {::all-counters
-                           [{::counter-id    (comp/tempid)
+                           [{::counter-id    (tempid/tempid)
                              ::counter-label "X"}
-                            {::counter-id    (comp/tempid)
+                            {::counter-id    (tempid/tempid)
                              ::counter-label "Y"}
-                            {::counter-id      (comp/tempid)
+                            {::counter-id      (tempid/tempid)
                              ::counter-label   "Z"
                              ::counter-initial 9}]})
    :query         [{::all-counters (comp/get-query Countdown)}]}
@@ -6636,18 +6636,18 @@ And add some UI to trigger this mutation:
 ----
 (defsc Root [this {::keys [all-counters]}]
   {:initial-state (fn [_] {::all-counters
-                           [{::counter-id    (comp/tempid)
+                           [{::counter-id    (tempid/tempid)
                              ::counter-label "X"}
-                            {::counter-id    (comp/tempid)
+                            {::counter-id    (tempid/tempid)
                              ::counter-label "Y"}
-                            {::counter-id      (comp/tempid)
+                            {::counter-id      (tempid/tempid)
                              ::counter-label   "Z"
                              ::counter-initial 9}]})
    :query         [{::all-counters (comp/get-query Countdown)}
                    :ui/new-countdown-label]}
   (dom/div
     (dom/h3 "Counters")
-    (dom/button {:onClick #(comp/transact! this [`(create-countdown ~{::counter-id    (comp/tempid)
+    (dom/button {:onClick #(comp/transact! this [`(create-countdown ~{::counter-id    (tempid/tempid)
                                                                       ::counter-label "New"})])}
       "Add counter")
     (dom/div {:style {:display "flex" :alignItems "center" :justifyContent "space-between"}}
@@ -8913,9 +8913,9 @@ The tree for that data might look like this:
 
 ```
 (def person-tree
-  { :db/id (comp/tempid)
+  { :db/id (tempid/tempid)
     :person/name "Joe"
-    :person/phone-numbers [{:db/id (comp/tempid) :phone/number "555-1212"}]})
+    :person/phone-numbers [{:db/id (tempid/tempid) :phone/number "555-1212"}]})
 ```
 
 with components like:
