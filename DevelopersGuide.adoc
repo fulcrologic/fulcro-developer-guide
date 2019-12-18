@@ -7024,10 +7024,13 @@ Fulcro's HTTP remote encodes result as:
 
 ```
 {:body raw-result
- :transaction outgoing-tx
+ :original-transaction outgoing-tx
  :status-code n
  ...}
 ```
+
+NOTE: Fulcro 3.1.x renamed the `:transaction` to `:original-transaction` on the raw response from the http-remote layer,
+but you still overwrite the transaction by adding `:transaction` to the response in custom response middlware.
 
 This result is determined by the remote implementation and client network middleware can certainly expand/modify this as needed.
 
@@ -9510,7 +9513,7 @@ If you specify response middleware you will want to compose that middleware in o
 Raw responses from the remote will include:
 
 * `:body` - The data that will be given back to Fulcro as the response from the server
-* `:transaction` - The transaction that body is a response to.
+* `:original-transaction` - The original transaction that was sent from tx layer that the body is a response to.
 If you modify this for queries you can manipulate the final merge.
 * `:status-code` - The HTTP status code
 * `:status-text` - The HTTP status text
@@ -9519,8 +9522,14 @@ Typically one of `:network-error`, `:http-error`, `:timeout`, etc.
 * `:error-text` - A string describing the error
 * `:outgoing-request` - The request that this is a response to.
 
-The final response body and transaction combo will be given to Fulcro for merge.
-If you modify the transaction be sure to use a query from components so that normalization is done properly.
+Your middleware can add a `:transaction` key and modify the `:body` key, which will then be used
+at the merge layer. Note that this can confuse things like normalization and mark-and-sweep merge, so it should generally
+be used with quite a bit of caution.
+If you add a :transaction key be sure to use a query from components so that normalization is done properly.
+
+NOTE: Fulcro versions prior to 3.1 used the `:transaction` key for the raw middlware input as well as output. This
+caused issues with other internals since it was difficult to tell when you'd overridden it. If you have custom
+middleware that needs to look at the original transaction you will need to port that to use the new key.
 
 IMPORTANT: Response middleware is allowed to rewrite an errant response to an OK one (by clearing the error fields and setting :status-code to 200).
 This would allow you, for example, to merge specific errors into state as you see fit instead of relying on Fulcro's built-in error handling model.
@@ -9608,11 +9617,11 @@ You could define a "remote" that talks to browser local storage.
 There are really no limitations beside the fact that you must call `result-handler` once and only once.
 
 What you pass to the result handler is *also* up to you.
-If you send a "normal" Fulcro result it will have the basic form of:
+If you send a "normal" Fulcro result it should have the basic form of:
 
 ```
 {:body some-edn
- :transaction original-tx-or-query
+ :original-transaction original-tx-or-query
  :status-code n}
 ```
 
