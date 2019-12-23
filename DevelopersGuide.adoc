@@ -151,7 +151,7 @@ The core ideas are as follows:
 
 * Graphs and Graph Queries are a great way to generalize data models.
 * UI trees are directed graphs that can easily be "fed" from graph queries.
-* User-driven operations are modeled at transactions whose values are simply data (that look like calls).
+* User-driven operations are modeled as transactions whose values are simply data (that look like calls).
 * Arbitrary graphs of data from the server need to be normalized (as in database normalization):
 ** UI trees often repeat parts of the graph.
 ** *Local Manipulation* of data obtained from a graph needs to be de-duped.
