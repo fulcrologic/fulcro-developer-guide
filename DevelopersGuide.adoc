@@ -3603,6 +3603,8 @@ Rendering the data is going to have the same concern so the arity of the relatio
 Joins should always use `get-query` to get the next component in the graph.
 This annotates (with metadata) the sub-query so that normalization can work correctly.
 
+NOTE: Auto normalization for a to-many will only occur if it is given a vector. Lists and seqs will not be normalized. 
+
 == Unions [[Unions]]
 
 Unions represent a map of queries, only one of which applies at a given graph edge.
