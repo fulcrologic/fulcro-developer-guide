@@ -7440,22 +7440,22 @@ There are two options for transitioning to another state from within a state:
          {:event/some-event
            {::uism/handler
              (fn [env]
-               ,,, ; do some thing
                (uism/activate env :state/some-other-state)}}}
-      :state/some-other-state {,,,}}
+      :state/some-other-state {...}}
 
 ```
 
 === Option 2 -- Use the `::uism/target-state` keyword shortcut
 
-When you have an event that only changes to another state, the `::uism/target-state` key is simpler
+When you have an event that only changes to another state, the `::uism/target-state` key is simpler.  Note that `uism/activate`
+will take precedence if it is called within a handler on this event.
 
 ```
   ::uism/states
     {:state/some-state
       {::uism/events
         {:event/some-event {::uism/target-state :state/some-other-state}}}
-     :state/some-other-state {,,,}}
+     :state/some-other-state {...}}
 ```
 
 == Writing Handlers and Data Manipulation
