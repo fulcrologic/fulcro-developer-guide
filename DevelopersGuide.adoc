@@ -10318,51 +10318,6 @@ The critical pieces are marked:
 Fulcro and React behave in a very performant manner for most data-driven applications.
 There are ways, however, in which you can negatively affect performance.
 
-IMPORTANT: If you are using Guardrails, then many function calls in Fulcro will incur a spec check overhead that
-can *severly* impact performance. Additionally Fulcro Inspect instrumentation in development mode will add quite
-a bit of overhead to transaction processing.  Measurements should always be done with Guardrails disabled, and preferably against
-a release build where Inspect instrumentation is completely stripped.
-
-== React Rendering Times
-
-If you are struggling with the time it takes to render a frame you might consider the following approach:
-
-. Read the IMPORTANT note above about turning off Guardrails and using a release build when measuring.
-. <<RenderingOptimizations, Set the renderer>> to `keyframe-render2`.
-. Set `:shouldComponentUpdate` in your top-most components to `(fn [_ _ _] true)`.  This seems counter-intuitive, but
-the keyframe render is going to try to render your root on data changes, and the chances your props changed in *some* way
-are very high.  The default `shouldComponentUpdate` in Fulcro components compares old and new props, which is a rather expensive
-operation the closer you are to the root (props have more in them). If the path you're struggling with on performance has
-parents that don't (themselves) render much on the way to your problem child then circumventing this check can be a big win.
-. In the operations that "feel slow" add an `:only-refresh` parameter to the optional parameter map of `transact!`.  This
-option is honored by the keyframe-render2 renderer, and will only bother to update components related to the data listed.
-
-For example:
-
-```
-(defsc SomeForm [this props]
-  {:ident (fn [this props] [:component/id :form])
-   :query [:some/prop]}
-  (dom/input {:onChange (fn [evt] (comp/transact! this [(save ...)] {:only-refresh [[:component/id :form]]}))}))
-```
-
-will queue up a refresh of components that have the ident `[:component/id :form]`.
-
-or
-
-```
-(defsc SomeForm [this props]
-  {:ident (fn [this props] [:component/id :form])
-   :query [:some/prop]}
-  (dom/input {:onChange (fn [evt] (comp/transact! this [(save ...)] {:only-refresh [:some/prop]}))}))
-```
-
-will queue up refresh of components that query for `:some/prop`.
-
-In other case no data diff calculations occur, and the renderer will skip rendering from root and will instead
-directly refresh just the components requested.  This allows you fine-grained control refresh and can easily achieve
-the performance leves of component-local state while still using the central database!
-
 == Development Compile Times
 
 One of the most annoying performance problems when building your application is slow compile times.
@@ -10471,6 +10426,11 @@ overhead itself.
 
 == Poor React Performance
 
+IMPORTANT: If you are using Guardrails, then many function calls in Fulcro will incur a spec check overhead that
+can *severly* impact performance. Additionally Fulcro Inspect instrumentation in development mode will add quite
+a bit of overhead to transaction processing.  Measurements should always be done with Guardrails disabled, and preferably against
+a release build where Inspect instrumentation is completely stripped.
+
 In general Fulcro should be able to handle a pretty high frame-rate.
 In fact, the design is meant to provide 60FPS rendering in general-purpose use.
 Remember, however, that there are a number of stages in rendering, and each of them has an overhead.
@@ -10522,11 +10482,55 @@ requires you to tell it when such a targeted update is allowed (so there is no c
 is a great renderer for optimizing when inputs are too slow, since you know exactly the ident of the thing you are
 changing, and otherwise keeps the application as simple as possible.
 
+==== Using Keyframe Render 2
+
+As of 3.1 we highly recommend using keyframe render 2 in most applications. By default it prevents confusion around
+dependent data rendering, and can also be made about as fast as component-local state for targeted optimization.
+
+In general you should set up your application as follows when using keyframe render 2:
+
+. Read the IMPORTANT note above about turning off Guardrails and using a release build when measuring.
+. <<RenderingOptimizations, Set the renderer>> to `keyframe-render2`.
+. Set `:shouldComponentUpdate` in your top-most components to `(fn [_ _ _] true)`.  This seems counter-intuitive, but
+the keyframe render is going to try to render your root on most data changes, and the chances your props changed in *some* way
+at the top-most layers of your component tree are very high.  The default `shouldComponentUpdate` in Fulcro components
+compares old and new props, which is a rather expensive operation the closer you are to the root (props have more in them).
+If the path you're struggling with on performance has
+parents that don't (themselves) render much on the way to your problem child then circumventing this check can be a big win.
+. In the operations that "feel slow" add an `:only-refresh` parameter to the optional parameter map of `transact!`.  This
+option is implemented in the `keyframe-render2` renderer, and will do targeted updates of components related to the data listed.
+
+For example:
+
+```
+(defsc SomeForm [this props]
+  {:ident (fn [this props] [:component/id :form])
+   :query [:some/prop]}
+  (dom/input {:onChange (fn [evt] (comp/transact! this [(save ...)] {:only-refresh [[:component/id :form]]}))}))
+```
+
+will queue up a refresh of components that have the ident `[:component/id :form]`.
+
+or
+
+```
+(defsc SomeForm [this props]
+  {:ident (fn [this props] [:component/id :form])
+   :query [:some/prop]}
+  (dom/input {:onChange (fn [evt] (comp/transact! this [(save ...)] {:only-refresh [:some/prop]}))}))
+```
+
+will queue up refresh of components that query for `:some/prop`.
+
+In either case *no data diff calculations* occur, and the renderer will *skip rendering from root* and will instead
+directly refresh just the components requested.  This allows you fine-grained control refresh and can easily achieve
+the performance leves of component-local state while still using the central database!
+
 ==== Ident-optimized render
 
-NOTE: We now recommend using keyframe-render2 for new applications, but it is not the default to prevent legacy application
-regressions. That renderer is much easier to se, and can be easily hand-optimized to be as fast as
-component-local state in most situaltions.
+NOTE: This is the default renderer, but we now recommend using keyframe-render2 for most applications. This is
+still the default to prevent legacy application regressions, but keyframe render 2 is much easier to use,
+and can be easily hand-optimized to be as fast as component-local state in most situaltions.
 
 The ident-optimized render is the most complex of the options, and is the default. It is described below mainly
 to inform you of the kind of things an optimized renderer can do, in case you want to roll your own. The description
