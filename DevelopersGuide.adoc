@@ -8124,7 +8124,7 @@ split on `/` of the URL: ["user" "1"]`); however, seeing this in some arbitrary 
 can be quite painful for the person editing the code even a few minutes after writing it.  When you're reading this
 line of code the only question you'll typically have is "OK, which ones of those are route targets, and where are they?".
 
-But remember: our targets have their route segments declared as data, so it is trivial to transform this so something
+But remember: our targets have their route segments declared as data, so it is trivial to transform this to something
 that is a lot easier to manage. Assume you had the following classes in various files:
 
 [source, clojure]
@@ -8159,10 +8159,10 @@ that is a lot easier to manage. Assume you had the following classes in various 
 (defrouter SettingPanesRouter [this props] {:router-targets     [UserPane]})
 -----
 
-Of course now it is much more clear where a route like `["root" "settings" "user" "1"]` is trying to take you,
-but the reader of that path in some arbitrary file has no idea.
+A route like `["root" "settings" "user" "1"]` can be manually traced when you can see all of the code,
+but even then it is quite inconvenient.
 
-To make this better use the `dr/path-to` function, which looks like this instead:
+To make this better use the `dr/path-to` function, which lets you express it like this instead:
 
 [source, clojure]
 -----
