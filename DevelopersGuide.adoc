@@ -8179,6 +8179,16 @@ route targets followed by a *single* map that names all of the parameters to be 
 Now when someone reads the route they can see (and IDE jump to) exactly the components that represent the elements of
 the UI route.
 
+Of course you can also use relative paths which help decouple subsections of your application for easier refactoring
+later:
+
+[source, clojure]
+-----
+(dr/change-route-relative this SettingPanesRouter (dr/path-to UserPane "1"))
+-----
+
+Now when you move the settings under a different part of the top-level app this link won't break.
+
 == Aborting a Route Change
 
 The `:will-leave` is called when a target is going to leave the screen, and may return false.
