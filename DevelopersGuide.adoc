@@ -620,7 +620,7 @@ Create a `deps.edn` file with this content:
                                binaryage/devtools          {:mvn/version "0.9.10"}}}}}
 ```
 
-=== https://shadow-cljs.github.io/docs/UsersGuide.html[Shadow-cljs] Compiler Configuration
+=== https://shadow-cljs.github.io/docs/UsersGuide.html[Shadow-cljs] Build Tool Configuration
 
 And a `shadow-cljs.edn` file that looks like this:
 
@@ -721,15 +721,20 @@ You have a complete Fulcro application!
 
 === Build It!
 
-You can start the compiler server with:
+You can start shadow-cljs' server mode with:
 
 [source,bash]
 ----
 $ npx shadow-cljs server
 ----
 
-and navigate to the URL it prints out for the compiler server (usually http://localhost:9630).
+*and then navigate to the URL it prints out* for the server UI (usually http://localhost:9630).
 You can then use the "Builds" menu to turn on/off different client builds and see the progress live as it happens!
+
+WARNING: Pay attention to that last sentence. The *server* mode of `shadow-cljs` does NOT start any particular
+build. It starts a Web UI that can be used to *control* the builds. There is also a `watch` mode, but this mode
+is not as flexible in real circumstances, and I highly recommend you use server mode instead.  See the User's Guide
+of Shadow-cljs for more information.
 
 It also has hot-code (and CSS) reload built in, so there is no need for any additional tools!
 
