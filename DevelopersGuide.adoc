@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: December 12, 2019
+:revdate: January 15, 2020
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -8034,7 +8034,8 @@ In the latter case you must be sure that the ident returned from `will-enter` po
 == Initial Route
 
 The dynamic routing relies on a call to `change-route` in order to start the routing system.
-Therefore you MUST make a call to `change-route` on start in order for the dynamic routers to work; however, there is also the concern of what gets rendered on the "first frame" of application mount.
+Therefore you MUST make a call to `change-route` on start in order for the dynamic routers to work; however, there is
+also the concern of what gets rendered on the "first frame" of application mount.
 
 Your top-most router will be in an "uninitialized" state on initial load.
 You can use the body of that router to render the "first frame" of your mounted app:
@@ -8103,9 +8104,80 @@ If you use your root component it will be the absolute path, and using some othe
 Just like `change-route`, but can take a relative `new-route` and apply it starting and the given `relative-class-or-instance`.
 Thus, some module of a program can route in a relative manner which will further decouple the components, making it easier to use a module in a development card or refactor it to a different location in the app without breaking local concerns.
 
+`(path-to components-and-args)`::
+Returns a route path vector (e.g. `["user" 1]`), but derives it from the UI target classes.  This function is about making your code for routing IDE-navigable. See below.
+
 NOTE: This library will not have any code that connects HTML5 routing events to UI routing.
 That is a relatively simple exercise and there are plenty of libraries that can help with the task.
 The logic of transforming a URI to the correct vector and calling a function is trivial, and the concern of aliasing and legacy path transforms is something you will likely want to put in the middle of that.
+
+=== IDE-Navigable Routing [[CodeNavigableRoutes]]
+
+Routes are expressed as strings in the URL (e.g. `/user/1`) and as vectors of strings to the dynamic router (e.g. a
+split on `/` of the URL: ["user" "1"]`); however, seeing this in some arbitrary location in your code:
+
+[source, clojure]
+-----
+(change-route this ["root" "settings" "user" "1"])
+-----
+
+can be quite painful for the person editing the code even a few minutes after writing it.  When you're reading this
+line of code the only question you'll typically have is "OK, which ones of those are route targets, and where are they?".
+
+But remember: our targets have their route segments declared as data, so it is trivial to transform this so something
+that is a lot easier to manage. Assume you had the following classes in various files:
+
+[source, clojure]
+-----
+(ns com.example.root)
+
+(defsc MyIndex [_ _]
+  {:route-segment ["root"]}
+  ;; composes in settings router
+  ...)
+
+(defrouter RootRouter [this props] {:router-targets     [MyIndex]})
+
+...
+
+(ns com.example.settings)
+
+(defsc Settings [_ _]
+  {:route-segment ["settings"]}
+  ; composes in SettingPanesRouter
+  ...)
+
+(defrouter SettingsRouter [this props] {:router-targets     [Settings]})
+
+...
+
+(ns com.example.settings-pane)
+
+(defsc UserPane [_ _]
+  {:route-segment ["user" :user-id]} ...)
+
+(defrouter SettingPanesRouter [this props] {:router-targets     [UserPane]})
+-----
+
+Of course now it is much more clear where a route like `["root" "settings" "user" "1"]` is trying to take you,
+but the reader of that path in some arbitrary file has no idea.
+
+To make this better use the `dr/path-to` function, which looks like this instead:
+
+[source, clojure]
+-----
+(dr/change-route this (dr/path-to MyIndex Settings UserPane {:user-id "1"}))
+
+;; or just
+
+(dr/change-route this (dr/path-to MyIndex Settings UserPane "1"))
+-----
+
+The arguments to `path-to` can be an interleaved sequence of route targets with their parameters, or a sequence of
+route targets followed by a *single* map that names all of the parameters to be filled out.
+
+Now when someone reads the route they can see (and IDE jump to) exactly the components that represent the elements of
+the UI route.
 
 == Aborting a Route Change
 
