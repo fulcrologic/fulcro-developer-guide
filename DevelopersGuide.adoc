@@ -725,7 +725,7 @@ You can start the compiler server with:
 
 [source,bash]
 ----
-$ npx shadow-cljs server
+$ npx shadow-cljs watch main
 ----
 
 and navigate to the URL it prints out for the compiler server (usually http://localhost:9630).
@@ -735,7 +735,7 @@ It also has hot-code (and CSS) reload built in, so there is no need for any addi
 
 We configured the `shadow-cljs` server to also start a development mode HTTP server to serve our HTML file and javascript.
 So, if you didn't make any typos then your new app should display "TODO" at
-http://localhost:8000.
+http://localhost:8000 once `npx shadow-cljs watch main` has reached `[:main] Build completed.` after about 1 minute.
 
 === Using the REPL
 
