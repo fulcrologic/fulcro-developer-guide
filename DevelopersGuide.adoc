@@ -1708,7 +1708,7 @@ Our mutation can now become:
   [{list-id   :list/id
     person-id :person/id}]
   (action [{:keys [state]}]
-    (swap! state merge/remove-ident* [:person/id person-id] [:list/id list-id :list/people])))
+    (swap! state merge/remove-ident* [:person/id person-id] [list-id :list/people])))
 ```
 
 Mutation "helpers" in fulcro are functions that work against a plain map (normalized app database) so that they can be used easily in `swap!`.
