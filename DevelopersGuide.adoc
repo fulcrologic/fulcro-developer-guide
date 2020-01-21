@@ -4302,7 +4302,7 @@ Some useful functions to know about:
 - `merge/merge-component!` and `merge/merge-component` - merge new instances of a (possibly recursive) entity into the normalized database.
 - `merge/merge!` and `merge/merge*` - merge root-level out-of-band data into your application.
 - `fnorm/tree->db` - General utility for normalizing data via a query and chunk of data.
-- `merge/integrate-ident*` - A utility for adding an ident into existing to-one and to-many relations in your database.
+- `targeting/integrate-ident*` - A utility for adding an ident into existing to-one and to-many relations in your database.
 Can be used within mutations.
 
 NOTE: The general merge operations all support the option `:remove-missing?`.
@@ -5637,7 +5637,7 @@ Fulcro adopts the general notation of suffixing functions with `*` when they ope
 These functions are referred to as "mutation helpers" because they can easily be used with `swap!` against the mutation atom:
 
 ```
-(swap! state merge/integrate-ident* ...)
+(swap! state targeting/integrate-ident* ...)
 ```
 
 and composed together as well:
@@ -5656,7 +5656,7 @@ and composed together as well:
         (fn [s]
           (-> s
             (create-person* id name)
-            (merge/integrate-ident* [:person/id id] :append [:list/id :friends :list/people])))))))
+            (targeting/integrate-ident* [:person/id id] :append [:list/id :friends :list/people])))))))
 ```
 
 and your mutations become a thing of beauty!
@@ -5748,7 +5748,7 @@ Remember that these utility functions exist as part of the toolbox.
 ===  Using `integrate-ident`
 
 When in a mutation you very often need to place an ident in various spots in your graph database.
-The helper function `merge/integrate-ident*` can by used from within mutations to help you do this.
+The helper function `targeting/integrate-ident*` can by used from within mutations to help you do this.
 It accepts any number of named parameters that specify operations to do with a given ident:
 
 ```
@@ -5832,7 +5832,8 @@ Think of this case as:
 I have some data for a given component (which MUST have an ident).
 I want to merge into that component's entry in a table, but I want to make sure the recursive tree of data also gets normalized properly.
 
-`merge-component!` also integrates the functionality of `integrate-ident*` to pepper the ident of the merged entity throughout your app database, and can often serve as a total one-stop shop for merging data that is coming from some external source.
+`merge-component!` also integrates the functionality of `targeting/integrate-ident*` to pepper the ident of the merged entity
+throughout your app database, and can often serve as a total one-stop shop for merging data that is coming from some external source.
 
 This first argument can be an application or reconciler.
 
@@ -10209,6 +10210,11 @@ The code (called at application startup via `:client-did-mount`) to set up the p
 ...
 (make-fulcro-client Root {:client-did-mount application-loaded!})
 ```
+
+WARNING: `:client-did-mount` in Fulcro isn't the safest primitive, since it has to work with Native and Web. There
+are some calls that require the React system to have fully-initialized before the system is truly stable. If you
+need the system to be fully started before running code you may want to consider an alternative, such as
+`:componentDidMount` of your real root component.
 
 === The Demo
 
