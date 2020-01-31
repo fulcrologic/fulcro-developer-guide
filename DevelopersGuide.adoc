@@ -7997,11 +7997,15 @@ Most of the novelty about routes can now be encoded into normal components with 
 
 (defsc X [this props]
  {...
-  :route-segment   ["path"] ; the portions of the path that this component represents. typically just one, or one with params
+  ;; the portions of the path that this component represents. typically just one, or one with params
+  :route-segment   ["path"] 
+
   ;; optional: defaults the the component's ident (singletons only)
   :will-enter      (fn [app route-params] ...defer or immediate...)
+
   ;; optional, defaults to nothing
   :route-cancelled (fn [route-params] ...called if deferred route to here is cancelled before it completes...)
+
   ;; optional, defaults to true
   :will-leave      (fn [this props] ...return true or false to accept being removed from screen...)]}
  (dom/div ...))
