@@ -129,7 +129,7 @@ This book adopts the following general set of requires and aliases:
             [com.fulcrologic.fulcro.algorithms.form-state :as fs]
             [com.fulcrologic.fulcro.networking.http-remote :refer [fulcro-http-remote]]
             [com.fulcrologic.fulcro.ui-state-machines :as uism]
-            [com.fulcrologic.fulcro.routing.dynamic-router :as dr]
+            [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
             [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]
             [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]))
 ----
@@ -7993,7 +7993,7 @@ Most of the novelty about routes can now be encoded into normal components with 
 (ns app
   (:require
     ...
-    [com.fulcrologic.fulcro.routing.dynamic-router :as dr :refer [defrouter]]))
+    [com.fulcrologic.fulcro.routing.dynamic-routing :as dr :refer [defrouter]]))
 
 (defsc X [this props]
  {...
