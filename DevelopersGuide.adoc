@@ -8051,7 +8051,7 @@ Your top-most router will be in an "uninitialized" state on initial load.
 You can use the body of that router to render the "first frame" of your mounted app:
 
 ```
-(defrouter RootRouter2 [this props]
+(defrouter RootRouter2 [this {:keys [current-state] :as props}]
   {:router-targets     [Settings User]}
   (case current-state
     :pending (dom/div "Loading...")
