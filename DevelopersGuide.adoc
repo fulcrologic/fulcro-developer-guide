@@ -5982,11 +5982,11 @@ Run the query
 == The Data Fetch API: `load!` [[DataFetch]]
 
 Let's say we want to load all of our friends from the server.
-A query has to be rooted somewhere, so we've invented a root-level keyword, `:all-people` that can query the database for every entity that has a `:person/id`.
+A query has to be rooted somewhere, so we've invented a root-level keyword, `:all-friends` that can query the database for every entity that has a `:person/id`.
 In Fulcro component queries that would look like this:
 
 ```
-[{:all-people (comp/get-query Person)}]
+[{:all-friends (comp/get-query Person)}]
 ```
 
 What we'd like to see then from the server is a return value with the shape of the query:
@@ -7998,7 +7998,7 @@ Most of the novelty about routes can now be encoded into normal components with 
 (defsc X [this props]
  {...
   ;; the portions of the path that this component represents. typically just one, or one with params
-  :route-segment   ["path"] 
+  :route-segment   ["path"]
 
   ;; optional: defaults the the component's ident (singletons only)
   :will-enter      (fn [app route-params] ...defer or immediate...)
