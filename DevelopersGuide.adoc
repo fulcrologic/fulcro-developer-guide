@@ -6685,12 +6685,11 @@ In some cases, even a specific entity asks for more than you'd like to load.
 A good example of this is a component that allows comments.
 Perhaps you'd like the initial load of the component to not include the comments at all, then later load the comments when the user, for example, opens (or scrolls to) that part of the UI.
 
-Fulcro makes this quite easy.
-There are three basic steps:
+Fulcro makes this quite easy. There are three basic steps:
 
 . Put the full query on the UI
 . When you use that UI query with load, prune out the parts you don't want.
-. Later, ask for the part you *do* want.
+. Later, ask for the part you *do* want (see <<LoadFieldWarning, warning>> about using this with `load-field!`).
 
 Step 2 sounds like it will be hard, but it isn't:
 
@@ -6753,6 +6752,11 @@ This kind of query can be handled automatically by Pathom as long as there is a 
 
 ;; and so on
 ```
+
+[[LoadFieldWarning]]
+WARNING: If you are using pre-merge then you will need to fetch the ID as part of the load or `current-normalized` will
+be nil in your pre-merge handler. As of 3.1.10 Fulcro's `load-field!` supports a vector of fields so that you can
+load more than one field: `(df/load-field! this [:thing/id :thing/field] ...)`.
 
 ==== Load Focus
 
