@@ -8425,7 +8425,7 @@ This gives you very powerful features, including many useful ones that GraphQL d
 
 = Dynamic Queries [[DynamicQueries]]
 
-Fulcro supports dynamic queries: the ability the change the query of a component at runtime.
+Fulcro supports dynamic queries: the ability to change the query of a component at runtime.
 This feature is fully serializable (works with the support viewer and other time-travel features), and is necessary for code splitting since the parent component won't be able to compose in the child's query until it is loaded.
 
 == Query IDs
