@@ -3136,6 +3136,33 @@ You have two easy options to make them behave correctly:
 Use component-local state with them, or similarly wrap them using Fulcro's pre-built wrapper code.
 There is a function in the `dom` namespace called `wrap-form-element` that can be used to create a factory for input-like controls that misbehave.
 
+=== StringBufferedInput
+
+Often you want to use non-string data types for attributes in your client database, but HTML inputs only deal in
+strings. The `com.fulcrologic.fulcro.dom.inputs` namespace includes a helper function that can return a new
+generated input type that can auto-transform between the low-level input and your data model. The namespace
+also includes a few pre-written examples.  See the docstrings for more details, but here's an input type
+that allows the user to input only symbol characters and makes sure the result is a keyword in the client db:
+
+[source]
+-----
+(defn symbol-chars
+  "Returns `s` with all non-digits stripped."
+  [s]
+  (str/replace s #"[\s\t:]" ""))
+
+(def ui-keyword-input
+  "A keyword input. Used just like a DOM input, but requires you supply nil or a keyword for `:value`, and
+   will send a keyword to `onChange` and `onBlur`. Any other attributes in props are passed directly to the
+   underlying `dom/input`."
+  (comp/factory (StringBufferedInput ::KeywordInput {:model->string #(str (some-> % name))
+                                                     :string-filter symbol-chars
+                                                     :string->model #(when (seq %)
+                                                                       (some-> % keyword))})))
+-----
+
+Basically you just need to supply an optional filter, and two conversion functions.
+
 == Using `defsc` for Rendering Optimization [[defscForOptimization]]
 
 Normally you'll define components that have both a query and ident; however, it is perfectly legal to define components that are completely controlled by their parent and have no identity of their own.
@@ -3468,6 +3495,65 @@ The
 This opens up all sorts of possibilities for extensions.
 The form-state library, component-local CSS, and new dynamic router use this fact and add their own keys that only they use and know about.
 You can too.
+
+== Using Fulcro Component Classes in Vanilla JS (Detached Subtrees)
+
+Fulcro components are normally joined by query and state into a UI tree.  This has a number of advantages that
+are used throughout the system.  For example the dynamic routers use the query to automatically create the
+virtual "routing tree", form state uses the same mechanism to deal with nested forms automatically.  The query and
+state reification is quite a powerful tool and should not be abandoned lightly; however, there are some vanilla React
+libraries that require you pass them a component class.  Those libraries often make their own factories, modify props, and
+generally do not work well with Fulcro's UI composition. They assume that you're using the React norm of co-locating
+your data and I/O logic with specific sub-trees of your application.  Obviously the two are at odds.
+
+If you decide that it is worth giving up things like composition of the dynamic routing system across these boundaries,
+then you can change the renderer in Fulcro to one that supports multiple Fulcro roots. This allows a *single* Fulcro
+application to continue to control the data needs of the components while not requiring that they be composed
+together in the graph.
+
+Fulcro 3.1.13+ includes such a renderer, which includes generation functions for making floating root factories
+for use with in Fulcro itself, as well as a function to create a vanilla React class.
+
+The basic idea is that you set an alternate renderer on your app, and then add register/deregister hooks on your
+"floating" root(s). Then you can use either `floating-root-factory` or `floating-root-react-class` to generate
+the artifact you need to use elsewhere in your application.
+
+[source]
+-----
+(ns example
+   (:require
+     com.fulcrologic.fulcro.rendering.multiple-roots-renderer))
+
+;; Typically in a ns all by itself, for easy reference anywhere.
+(defonce app (app/fulcro-app {:optimized-render! mroot/render!}))
+
+(defsc OtherChild ...)
+
+;; The floating root itself. Must register/deregister.
+(defsc AltRoot [this {:keys [alt-child]}]
+  ;; query is from ROOT of the db, just like normal root.
+  {:query                 [{:alt-child (comp/get-query OtherChild)}]
+   :componentDidMount     (fn [this] (mroot/register-root! this {:app app}))
+   :componentWillUnmount  (fn [this] (mroot/deregister-root! this {:app app}))
+   :initial-state         {:alt-child [{:id 1 :n 22}
+                                       {:id 2 :n 44}]}}
+  (dom/div
+    (mapv ui-other-child alt-child)))
+
+;; For use in the body of normal defsc components.
+(def ui-alt-root (mroot/floating-root-factory AltRoot))
+
+;; For use as plain React class
+(def PlainAltRoot (mroot/floating-root-react-class AltRoot app))
+-----
+
+You can use the factory in normal Fulcro apps like normal, but you don't compose the class/state into the query
+of the parent, nor do you pass it props.  The floating class can simply be passed to any library that expects a
+normal React class.
+
+WARNING: Remember that things like the dynamic router, which leverage the query composition for introspection, will
+not be able to "see" across this boundary.  You'd have to use `change-route-relative` against some class in the
+subroot in order for it to function properly.
 
 == React Higher-Order Components
 
