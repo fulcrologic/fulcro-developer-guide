@@ -8155,6 +8155,28 @@ The function
 `dr/ssr-initial-state` (written, but untested) can be used to help you construct the proper state for a given path (which must be used for the server-side render, and also as the initial state for the client).
 Technically, this means that the function can also be used to generate initial state for the client on the front-end as well.
 
+== Controlling the Route Rendering
+
+As of Fulcro 3.1.16 you can optionally take complete control of the rendering of the router itself. Simply add the
+`:always-render-body?` option, and then use the information from the router props to render what you want:
+
+[source]
+-----
+(defrouter TopRouter [this {:keys [current-state route-factory route-props]}]
+  {:router-targets [signon/Login signon/PasswordReset RootScreen]
+   :always-render-body? true}
+  (div :.container
+    ;; Show an overlay loader on the current route when we're routing
+    (when (not= :routed current-state)
+      (div :.ui.active.inverted.dimmer
+        (div :.ui.text.loader
+          "Loading")))
+    (when route-factory
+      (route-factory (comp/computed route-props (comp/get-computed this))))))
+-----
+
+of course you could augment the computed props to the target route, etc.
+
 == Route Segments and Changing Routes
 
 UI Composition determines the available routes, and each route target must declare what part of the current "route" they can consume.
