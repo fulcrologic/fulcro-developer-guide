@@ -5191,7 +5191,7 @@ However, using the helpers you can instead write it like this:
 ; in your mutation definition (client-side)
 (defmutation f [params]
   (action [env] ...)
-  (remote [{:keys [ast state]}] (returning env Item))
+  (remote [{:keys [ast state] :as env}] (returning env Item))
 ```
 
 This makes the mutation join an artifact of the *network interaction*, and less for you to manually code (and read) in the UI.
