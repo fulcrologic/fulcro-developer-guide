@@ -8388,7 +8388,21 @@ This will be the concrete path segment that was requested (e.g. `["user" "1"]` a
 - `:route-props` - The props for the current (old, non-pending) route (if there was a route on-screen).
 - `:route-factory` - The function to call to render the current (old, non-pending) route (if there was a route on-screen).
 
-The route factory/props are useful if you want to continue to render the "current" page even though a timeout has occurred, but perhaps you want to pass some computed data to indicate progress (e.g. `(route-factory (prim/computed route-props {:waiting true}))`).
+The route factory/props are useful if you want to continue to render the "current" page even though a timeout has occurred,
+but perhaps you want to pass some computed data to indicate progress (e.g. `(route-factory (prim/computed route-props {:waiting true}))`).
+You could also just augment the current view like so:
+
+[source]
+-----
+(defrouter MainRouter [this {:keys [route-factory route-props] :as props}]
+  {:router-targets [LandingPage ItemForm InvoiceForm AccountList AccountForm]}
+  ;; Show a loader on slow route change (assuming Semantic UI CSS)
+  (dom/div
+    (dom/div :.ui.active.loader)
+    (when route-factory
+      (route-factory route-props))))
+-----
+
 Of course, you can instead `route-immediate`, skip timeouts altogether, and do normal load markers on the target screen.
 The former method is useful on a deferred route that simply has nothing to render until the data is present.
 Regular named load markers are also a good way of giving user feedback.
