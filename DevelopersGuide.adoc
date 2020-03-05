@@ -3315,11 +3315,13 @@ the `:use-hooks? true` component option:
 [source]
 -----
 (defsc HookThing [this props]
-  {:query ... ; normal Fulcro component options
-   :ident ...
+  {:query [:thing/id] ; normal Fulcro component options
+   :ident :thing/id
    :use-hooks? true ; generate a hooks-compatible function instead of a React class.
    ...}
   (dom/div ...)) ; as before
+
+(def ui-hook-thing (comp/factory HookThing {:keyfn :thing/id}))
 -----
 
 Hooks-based components:
@@ -3327,6 +3329,9 @@ Hooks-based components:
 * Currently ONLY support the `this` and `props` arguments.
 * Ignore any attempts at requesting React class methods (e.g. shouldComponentUpdate, componentDidMount, etc.)
 * Have wrappers for `useState` and `useEffect` as `comp/use-state` and `comp/use-effect`.
+
+NOTE: You still use factories with hooks components, but `computed-factory` won't work right now. If you need computed
+(for the time being), use `(get-computed this)` instead of the 3rd `defsc` argument. This will be fixed in a future release.
 
 == Using Javascript React Components
 
