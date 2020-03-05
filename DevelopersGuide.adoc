@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: February 18, 2020
+:revdate: March 5, 2020
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -3305,6 +3305,28 @@ include::src/book/book/ui/hover_example.cljs[]
 The component receives mouse move events to show a hover box.
 In this case we really don't care to take the overhead to track the cursor position in real app state, so we leverage component local state instead.
 Clicking to save the box position and resizing the container are real transactions, and will actually cause a refresh from application state to update the rendering.
+
+== React Hooks Support
+
+React hooks are supported in Fulcro 3.1.17 and above. At the time of this writing hooks support is not heavily used
+and may still have bugs. The `defsc` macro will generate a plain function that supports hook usage if you include
+the `:use-hooks? true` component option:
+
+[source]
+-----
+(defsc HookThing [this props]
+  {:query ... ; normal Fulcro component options
+   :ident ...
+   :use-hooks? true ; generate a hooks-compatible function instead of a React class.
+   ...}
+  (dom/div ...)) ; as before
+-----
+
+Hooks-based components:
+
+* Currently ONLY support the `this` and `props` arguments.
+* Ignore any attempts at requesting React class methods (e.g. shouldComponentUpdate, componentDidMount, etc.)
+* Have wrappers for `useState` and `useEffect` as `comp/use-state` and `comp/use-effect`.
 
 == Using Javascript React Components
 
