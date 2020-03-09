@@ -11283,13 +11283,17 @@ We then generate a component to represent a page of them.
 This allows us to associate the items on a page with a particular component, which makes tracking the page number and items on that page much simpler:
 
 ```
-(defsc ListPage [this {:keys [page/number page/items]}]
+(defsc ListPage [this {:keys [page/number page/items] :as props}]
   {:initial-state {:page/number 1 :page/items []}
-   :query         [:page/number {:page/items (comp/get-query ListItem)}]
+   :query         [:page/number {:page/items (comp/get-query ListItem)}
+                   [df/marker-table :page]]
    :ident         [:page/by-number :page/number]}
-  (dom/div
-    (dom/p "Page number " number)
-    (df/lazily-loaded #(dom/ul (mapv ui-list-item %)) items)))
+  (let [status (get props [df/marker-table :page])]
+    (dom/div
+      (dom/p "Page number " number)
+      (if (df/loading? status)
+        (dom/div "Loading...")
+        (dom/ul (mapv ui-list-item items))))))
 ```
 
 Next we build a component named `LargeList` to control which page we're on.
