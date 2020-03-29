@@ -8016,6 +8016,9 @@ You can also pass specific event data when you trigger events, so you can trigge
 
 The dynamic router in Fulcro 3 uses dynamic queries to change the route, and was designed with the following requirements in mind:
 
+NOTE: Fulcro 3.1.23 and above added `change-route!` and `change-route-relative!` as new names for the old `change-route`
+and `change-route-relative`. The old names still exist but are deprecated.
+
 Composition:: Routers should compose in a flexible manner that includes the easy ability to refactor the application and restructure.
 
 There should be a way to complete network operations *before* moving to a given route::  This should be a chain of operations that is derived from the target routers themselves (or their children?).
@@ -8141,7 +8144,9 @@ A notification that this route target should be shown.
 Can return a value indicating a desire to do so immediately, or that it would like a delay (for some I/O).
 This method is called *before* the component is on-screen, so it cannot receive a react component instance.
 It is passed the app and router parameters which can be used to do things like issues loads and run mutations.
-Defaults to `(route-immediate (get-ident class {}))`
+Defaults to `(route-immediate (get-ident class {}))` The `params` passed to the function will include the declared
+params in the route, along with any extra items in the timeouts-and-params option of `change-route` and
+`change-route-relative` (extra parameter support requires v3.1.23+).
 
 `:route-cancelled`::
 A notification that this route target was in a deferred state but the user made some other routing decision during that delay.
