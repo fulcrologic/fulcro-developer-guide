@@ -8135,21 +8135,35 @@ This is purely static data.
 The current composition of routing targets in the UI determines the overall "absolute" path of a route.
 Each `router` in the UI should be thought of as a stand-in for a "/" in an HTML5 URI path.
 MUST contain only strings and keywords.
+
 `:will-enter`::
 A notification that this route target should be shown.
 Can return a value indicating a desire to do so immediately, or that it would like a delay (for some I/O).
 This method is called *before* the component is on-screen, so it cannot receive a react component instance.
 It is passed the app and router parameters which can be used to do things like issues loads and run mutations.
 Defaults to `(route-immediate (get-ident class {}))`
+
 `:route-cancelled`::
 A notification that this route target was in a deferred state but the user made some other routing decision during that delay.
 This can be used to cancel heavy I/O operations for this target.
 Defaults to no-op.
+
 `:will-leave`::
 A method that can prevent a route change that causes this component to leave the screen.
 This is called on the instance, so `this` and `props` are available.
 A request to change routes will signal this method from deepest child towards the parent, and will stop if any returns false.
-Optional.
+Optional. WARNING: As of v3.1.23 this function's return value is *deprecated*. `:allow-route-change?` should be used
+for that functionality. When using this new technique `will-leave` is a *promise*, not a *request*. If you don't have
+`allow-route-change?` then the return value of this function is still used, but a deprecation warning is issued in the console.
+
+`:allow-route-change?`:: v3.1.23+. A `(fn [this] boolean?)` that must not side effect. Takes over HALF of the responsibility of
+`:will-leave` and should be side-effect free. When using this `:will-leave` should be considered a promise (not a request).
+
+`:route-denied`:: v3.1.23+. Can be placed on route targets. Will be called when that target's `allow-route-change?` has
+returned `false`, and dynamic routing was trying to route. This allows the separation of concerns: the ability for *any*
+code to *ask* if route changes are allowed, and the ability for routing to tell a *particular target* that it was
+responsible for a failure.  This `(fn [this router relative-path])` *can* side-effect to issue UI messages, and can
+also do things like use `js/confirm` to override its decision using `dr/retry-route!`.
 
 WARNING: `will-enter` SHOULD NOT side-effect (order of operations could cause strange behavior), but must instead do any I/O in the lambda passed to `route-deferred`.
 It must also trigger the `dr/target-ready` mutation to indicate that the route is ready.
@@ -8260,6 +8274,31 @@ Returns a route path vector (e.g. `["user" 1]`), but derives it from the UI targ
 NOTE: This library will not have any code that connects HTML5 routing events to UI routing.
 That is a relatively simple exercise and there are plenty of libraries that can help with the task.
 The logic of transforming a URI to the correct vector and calling a function is trivial, and the concern of aliasing and legacy path transforms is something you will likely want to put in the middle of that.
+
+=== Targets Denying Routes v3.1.23+
+
+In versions prior to 3.1.23 the return value of `:will-leave` was used to allow an on-screen target to indicate it
+did not want to be removed from the screen. This allowed applications to prevent routing that would cause the user
+to lose unsaved changes.
+
+Unfortunately, the mixture of "notifying a target it will leave" and "asking a target if it is OK to leave" led
+to complexity, and in Fulcro 3.1.23 the behavior of `:will-leave` was updated. For backwards
+compatibility it still works as it did for legacy code, but as soon as you add `:allow-route-change?` its return value
+is no longer used.
+
+The new behavior is as follows:
+
+1. If a target has `:allow-route-change?`, then it can be used to obtain a purely an advisory value. The new function `dr/can-change-route?`
+will use that to provide your code with an answer that can be used anywhere in your logic to check if routing
+is going to be denied. This is really useful when integrating with HTML5 routing.
+2. When a request to change routes is sent to the dynamic routing, it will find the first target that says "no" to this
+question (using `will-leave` as a backup to `allow-route-change?`). It will then check to see if *that* target has
+a `:route-denied` function. If so, it will call that to inform the target that it was the reason that a request to
+ change routes was denied. `:route-denied` *is* allowed to side-effect.
+
+The helper function `retry-route!` can be using in (and *only* in) `route-denied` to indicate that the target changed
+its mind, and wants to allow the route after all. It will receive `this`, the relative router used in the request,
+and the desired path.
 
 === IDE-Navigable Routing [[CodeNavigableRoutes]]
 
