@@ -9063,17 +9063,16 @@ It may also do things like trigger background loads that will fufill the graph's
 
 ```
 (defmutation ensure-report-loaded [{:keys [report-id]}]
-  (action [{:keys [state] :as env}]
+  (action [{:keys [app state] :as env}]
     (let [when-loaded (get-in @state [:reports/id report-id :load-time-ms] 0)
           is-missing? (= 0 when-loaded)
           now-ms (.getTime (js/Date.))
           age-ms (- now-ms when-loaded)
           should-be-loaded? (or (too-old? age-ms) is-missing?)]
       ; if missing, put placeholder
-      ; if too old, add remote load to Fulcro queue (see data-fetch for remote-load and load-action)
+      ; if too old, trigger load
       (when is-missing? (swap! state add-report-placeholder report-id))
-      (when should-be-loaded? (df/load-action env [:reports/id report-id] StatusReport)))})
-  (remote [env] (df/load-action env)))
+      (when should-be-loaded? (df/load! app [:reports/id report-id] StatusReport)))}))
 ```
 
 Additional mutations might do things like garbage collect old data that is not in the view.
@@ -11277,17 +11276,15 @@ That mutation looks like this:
 (defn missing-tab? [state tab] (empty? (-> @state :settings :tab :settings)))
 
 (m/defmutation lazy-load-tab [{:keys [tab]}]
-  (action [{:keys [state] :as env}]
+  (action [{:keys [app state] :as env}]
     (when (missing-tab? state tab)
-      (df/load-action state :all-settings SomeSetting
+      (df/load! app :all-settings SomeSetting
         {:target  [:settings :tab :settings]
-         :refresh [:settings]})))
-  (remote [{:keys [state] :as env}]
-    (when (missing-tab? state tab) (df/remote-load env))))
+         :refresh [:settings]}))))
 ```
 
 Fairly standard fare at this point:
-Look at the database to see if it has what you want, and if not trigger a load with `df/load-action` (on the action side) and `df/remote-load` on the remote.
+Look at the database to see if it has what you want, and if not trigger a load.
 
 .[[LoadingInResponseToUIRouting]]<<LoadingInResponseToUIRouting,Loading In Response To UI Routing>>
 ====
@@ -11376,15 +11373,12 @@ The mutation itself looks like this:
 ```
 (m/defmutation goto-page [{:keys [page-number]}]
   (action [{:keys [state] :as env}]
-    (load-if-missing env page-number)
+    (load-if-missing! env page-number)
     (swap! state (fn [s]
                    (-> s
                      (init-page page-number)
                      (set-current-page page-number)
-                     (gc-distant-pages page-number)))))
-  (remote [{:keys [state] :as env}]
-    (when (not (page-exists? @state page-number))
-      (df/remote-load env)))) ; trigger load queue processing
+                     (gc-distant-pages page-number))))))
 ```
 
 Let's break this down.
@@ -11398,12 +11392,12 @@ The `load-if-missing` function is composed of the following bits:
   (let [page-items (get-in state-map [:page/by-number page-number :page/items])]
     (boolean (seq page-items))))
 
-(defn load-if-missing [{:keys [reconciler state] :as env} page-number]
+(defn load-if-missing! [{:keys [app state] :as env} page-number]
   (when-not (page-exists? @state page-number)
     (let [start (inc (* 10 (dec page-number)))
           end   (+ start 9)]
-      (df/load reconciler :paginate/items ListItem {:params {:start start :end end}
-                                                    :target [:page/by-number page-number :page/items]}))))
+      (df/load! app :paginate/items ListItem {:params {:start start :end end}
+                                              :target [:page/by-number page-number :page/items]}))))
 ```
 
 and you can see that it just detects if the page is missing its items.
