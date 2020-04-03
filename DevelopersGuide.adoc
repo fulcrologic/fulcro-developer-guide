@@ -3090,12 +3090,19 @@ The actual DOM elements of those children are immaterial, and can be assembled b
 == Controlled Inputs
 
 Form inputs in React can take two possible approaches: controlled and uncontrolled.
-The browser normally maintains the value state of inputs for you as mutable data; however, this breaks our overall model of pure rendering!
-The advantage is UI interaction speed:
-If your UI gets rather large, it is possible that UI updates on keystrokes in form inputs may be too slow.
+
+The browser maintains the value state of inputs for you as mutable data; however, this breaks our overall model of pure rendering!
+If your UI gets rather large, it is possible that UI updates on keystrokes in form inputs may be too slow (this is largely
+not a problem in <<Inputs32, 3.2 and above>>).
+
+NOTE: Technically the low-level browser maintains input state and changes it due to locale, input devices, etc. If you
+set it the value via js while the user is typing then ugly things happen...so controlled inputs
+are actually an illusion in React.
+
+
 This is the same sort of trade-off that we talked about when covering component local state for rendering speed with more graphical components.
 Fulcro is designed to be fast enough that then your application should be fast enough to do database updates on every keystroke, and you can keep all input changes in your client database.
-See the <<Performance,optimization guidelines>> if you have problems.
+See the <<Performance,optimization guidelines>> if you have problems, and ideally just use <<Inputs32,Fulcro 3.2 or above>>.
 
 In general it is recommended that you use controlled inputs and retain the benefits of pure rendering: no embedded state, your UI exactly represents your data representation, concrete devcards support for UI prototyping, and full support viewer support.
 
@@ -3118,9 +3125,10 @@ In order to prevent this warning you should make sure that `:checked` is always 
 The
 `select` input can be given an "extra" option that stands for "not selected yet" so that you can start its value at something valid.
 
-NOTE: Most HTML inputs deal in strings (even date and numeric controls).
+NOTE: HTML inputs deal in strings (even date and numeric controls).
 Be careful when using the value from change events in your database, because you may change your data to a string by mistake.
 A nice way to handle this is to wrap inputs with your own components that do data transforms in-between `:value` and `:onChange`.
+See <<StringBufferedInput>>
 
 See https://facebook.github.io/react/docs/forms.html[React Forms] for more details.
 
@@ -3129,12 +3137,55 @@ See https://facebook.github.io/react/docs/forms.html[React Forms] for more detai
 React is actually designed for you to do controlled components via component-local state, and in reality it
 https://stackoverflow.com/questions/28922275/in-reactjs-why-does-setstate-behave-differently-when-called-synchronously/28922465#28922465[doesn't
 deal well] with a behind-the-scenes persistence mechanism tracking the state.
-Fulcro actually has a wrapper around inputs to deal with these complications for you.
+Fulcro actually has a wrapper around inputs to deal with these complications for you. Other libraries do as well. They
+are ugly bits of code that do all sorts of magic to work around the problem.
 
 If you use any kind of library that provides input-like controls you may experience similar kinds of issues.
-You have two easy options to make them behave correctly:
-Use component-local state with them, or similarly wrap them using Fulcro's pre-built wrapper code.
+You have three options to make them behave correctly. The ideal one is to use use Fulcro 3.2 or better. The other
+older options are to use component-local state with them, or similarly wrap them using Fulcro's pre-built wrapper code.
 There is a function in the `dom` namespace called `wrap-form-element` that can be used to create a factory for input-like controls that misbehave.
+
+If you're interested in the complete gory details, check out https://github.com/fulcrologic/fulcro/blob/develop/src/main/com/fulcrologic/fulcro/dom/DOMInputs.adoc[a more complete write-up] that
+describes this historical problem and how it is solved in Fulcro 3.2 and above.
+
+=== Fulcro 3.2 Inputs [[Inputs32]]
+
+Fulcro 3.2 released a dramatic improvement to the controlled input equation. It turns out that Fulcro had a mechanism
+for quite some time that can be used to solve the asynchronous problem with inputs much more cleanly that wrapping them
+with crazy ugly code and caching values.  Technically, the feature is known internally as "tunneled props", but the simple explanation is
+just this: Fulcro knows how to send new props to a stateful component (that has a query and ident) by using `js/setState`
+on the component.
+
+So the solution in Fulcro is quite simple: do the transaction's optimistic updates synchronously and immediately tunnel
+the props back to the component through React's `setState`.
+
+Now, we'd prefer not to break out of Fulcro's abstractions,
+so this is done via a new option that can be passed to `transact!` and an option: `:synchronously? true`. As a convenience
+there is a simple wrapper called `transact!!` that sets the option for you.
+
+So, the current best practice is for your controlled input usage to look like this:
+
+```
+(defmutation set-thing-label [...])
+
+...
+
+(defsc Thing [this {:thing/keys [label]}]
+  {:query [:thing/id :thing/label]
+   :ident :thing/id}
+  ...
+  (dom/input {:onChange #(transact!! this [(set-thing-label {:value (.. % -target -value)})])]))
+```
+
+Violla! You're now doing forms the React way while still *looking like* you're doing them the Fulcro way!
+
+This special `transact!!` will work just as well with imported (vanilla js) React input components. The mutation helpers in the mutations
+namespace (`toggle!`, `set-string!`, `set-integer!`, and `set-value!`) use `transact!!`, so they will all function
+properly.
+
+You can technically improve the performance of this (very slightly) by telling Fulcro that you no longer want the
+`dom/input` to be a wrapped input by setting a compiler option, but beginners should not bother with this.
+
 
 === StringBufferedInput
 
