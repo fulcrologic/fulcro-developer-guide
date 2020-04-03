@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: March 5, 2020
+:revdate: April 2, 2020
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -3358,6 +3358,9 @@ In this case we really don't care to take the overhead to track the cursor posit
 Clicking to save the box position and resizing the container are real transactions, and will actually cause a refresh from application state to update the rendering.
 
 == React Hooks Support
+
+React introduced a new, more functional, API for creating UI components as simple functions known as
+https://reactjs.org/docs/hooks-intro.html[hooks] in verion 16.8.
 
 React hooks are supported in Fulcro 3.1.17 and above. At the time of this writing hooks support is not heavily used
 and may still have bugs. The `defsc` macro will generate a plain function that supports hook usage if you include
