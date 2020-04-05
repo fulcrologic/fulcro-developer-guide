@@ -738,6 +738,8 @@ of Shadow-cljs for more information.
 
 It also has hot-code (and CSS) reload built in, so there is no need for any additional tools!
 
+Build your app now by selecting "main" under the "Builds" menu and clicking "start watch".
+
 We configured the `shadow-cljs` server to also start a development mode HTTP server to serve our HTML file and javascript.
 So, if you didn't make any typos then your new app should display "TODO" at
 http://localhost:8000.
