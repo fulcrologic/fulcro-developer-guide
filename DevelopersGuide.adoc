@@ -744,7 +744,7 @@ http://localhost:8000.
 
 === Using the REPL
 
-Shadow-cljs creates an network REPL for your clojurescript program.
+Shadow-cljs creates a network REPL for your clojurescript program.
 You can actually use a limited REPL via the shadow-cljs control web page (the one at port 9630).
 If you look at the command-line startup output you'll also see it report a port number on which you can connect a more advanced REPL (you can nail that port to a constant using the setting `:nrepl    {:port 9000}` at the top-level of `shadow-cljs.edn`).
 
@@ -2268,7 +2268,7 @@ There are a number of ways to "add edges" to the UI data graph when loading.
 The most common is to use the `:target` option of `load!`.
 This option indicates that the incoming data should be "joined" into the graph as a given edge (the default is to link it to the root node).
 
-So, you could add an arbitrary person the the friends list like this:
+So, you could add an arbitrary person to the friends list like this:
 
 ```
 (df/load! this [:person/id 3] Person {:target (targeting/append-to [:list/id :friends :list/people])})
@@ -2307,7 +2307,7 @@ Modify the `resolvers.clj` to be this:
     [com.wsscode.pathom.connect :as pc]))
 
 (def people-table
-  ;; changed to an atom so we can update thes "databases"
+  ;; changed to an atom so we can update these "databases"
   (atom
     {1 {:person/id 1 :person/name "Sally" :person/age 32}
      2 {:person/id 2 :person/name "Joe" :person/age 22}
@@ -2627,7 +2627,7 @@ The template form is strongly recommended for most cases, because without it man
 In template mode, the following sanity checks are enabled:
 
 * The props destructuring can only include things that are in the query.
-* The ident's id propery is checked to make sure it is in the query (if ident is in template mode)
+* The ident's id property is checked to make sure it is in the query (if ident is in template mode)
 * The initial app state can only contains things that are also queried for (if it is in template mode as well)
 
 ==== Lambda Query
@@ -3360,7 +3360,7 @@ Clicking to save the box position and resizing the container are real transactio
 == React Hooks Support
 
 React introduced a new, more functional, API for creating UI components as simple functions known as
-https://reactjs.org/docs/hooks-intro.html[hooks] in verion 16.8.
+https://reactjs.org/docs/hooks-intro.html[hooks] in version 16.8.
 
 React hooks are supported in Fulcro 3.1.17 and above. At the time of this writing hooks support is not heavily used
 and may still have bugs. The `defsc` macro will generate a plain function that supports hook usage if you include
@@ -3543,7 +3543,7 @@ The props middleware lets you manipulate the raw props that flow through your co
 
 This is an advanced functionality, since misuse could cause your application to fail to work properly at all.
 
-The primary use for this middleware is to allow libraries to extend the "extra" props argument that `defsc` suppports.
+The primary use for this middleware is to allow libraries to extend the "extra" props argument that `defsc` supports.
 
 The `defsc` macro actually supports up to four arguments: `this`, `props` , `computed`, and
 `extra`.
@@ -5797,7 +5797,7 @@ To maximize code reuse, local reasoning, and general readability it pays to thin
 
 1. A mutation is a function that changes the state of the application: `state -> state'`
 2. Within a mutation, you are essentially doing operations to a graph, which means you have operations that work on some node in the graph: `node -> node'`.
-These operations may modifiy a scalar or an edge to another node.
+These operations may modify a scalar or an edge to another node.
 
 ==== Mutation "Helpers"
 
@@ -5981,7 +5981,7 @@ The arguments are similar to `tree->db`:
 (merge/merge! (:reconciler @app) ROOT-data ROOT-query)
 ```
 
-The same things apply as `tree->db` (idents especially), however, the result of the transform will make it's way into the app state (which is owned by the reconciler).
+The same things apply as `tree->db` (idents especially), however, the result of the transform will make its way into the app state (which is owned by the reconciler).
 
 *IMPORTANT*:
 The biggest challenge with using this function is that it requires the data and query to be structured from the ROOT of the database!
@@ -7233,7 +7233,7 @@ Loads may also choose to specify a lambda
 === Server Error Demo
 
 We recommend using Pathom for the server, and one of the recommended plugins for Pathom will convert exceptions into data errors on the response.
-This allows pathom to give partial responses where it can partially fufill a request for data.
+This allows pathom to give partial responses where it can partially fulfil a request for data.
 
 Fulcro does not default to considering these particular kinds of errors as "hard errors", and leaves them up to your interpretation; however, it is simply enough to redefine what Fulcro things of as hard errors by setting the `:remote-error?` option on your application.
 
@@ -8175,7 +8175,7 @@ Most of the novelty about routes can now be encoded into normal components with 
   ;; the portions of the path that this component represents. typically just one, or one with params
   :route-segment   ["path"]
 
-  ;; optional: defaults the the component's ident (singletons only)
+  ;; optional: defaults to the component's ident (singletons only)
   :will-enter      (fn [app route-params] ...defer or immediate...)
 
   ;; optional, defaults to nothing
@@ -10108,7 +10108,7 @@ Here are the minimum measures (also note that I am not a security expert, and yo
 You should do your homework.):
 
 . Use HTTPS for all authenticated access.
-Most people put something like nginx in front of thier webapp for this.
+Most people put something like nginx in front of their webapp for this.
 . Use secure cookies for authenticated sessions, to ensure you don't accidentally send an authenticated session cookie over a non-secure connection.
 ** If you're using `wrap-session` and assign a cookie to your user on pre-login HTTP access and then "upgrade" it on login you are opening your users to man-in-the-middle attacks.
 . Add middleware that checks for unexpected cross-origin requests.
@@ -11535,7 +11535,7 @@ requires involved, but there is no runtime "require" in the js environment, so i
 to do alternate requires for the two platforms.
 
 One solution is to use protocols to front your desired logic, and them implement those protocols in alternate namespaces.
-The the primary trick is getting the correct implementation to be used for a given platform. Here is a pattern you
+The primary trick is getting the correct implementation to be used for a given platform. Here is a pattern you
 can follow to achieve this:
 
 Create a Runtime Environment Variable::
@@ -11548,7 +11548,7 @@ Create a Runtime Environment Variable::
 -----
 
 Create a namespace for each target type:: These serve as a "collection point" for the various APIs you decide
-need target-specific runtimes. These requires will fillow the platform-specific chains. You call each target's `init`
+need target-specific runtimes. These requires will follow the platform-specific chains. You call each target's `init`
 to install the platform-specific runtime (an implementation of the protocol).
 +
 [source]
