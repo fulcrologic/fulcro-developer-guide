@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: April 2, 2020
+:revdate: April 14, 2020
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -131,7 +131,8 @@ This book adopts the following general set of requires and aliases:
             [com.fulcrologic.fulcro.ui-state-machines :as uism]
             [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
             [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]
-            [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]))
+            [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+            [edn-query-language.core :as eql]))
 ----
 
 others will be identified as they are used.
@@ -4250,7 +4251,7 @@ include::src/book/book/queries/recursive_demo_bullets.cljs[]
 
 You can convert any expression of EQL into an AST (abstract syntax tree) and vice versa.
 This lends itself to doing complex parsing of the query (typically on the server).
-The functions of interest are `com.fulcrologic.fulcro.components/query->ast` and `ast->query`.
+The functions of interest are `eql/query->ast` and `eql/ast->query`.
 
 There are many uses for this.
 One such use might be to convert the graph expression into another form.
@@ -4274,7 +4275,7 @@ This has the effect of changing what will be sent to the server:
 
 (defmutation do-thing [params]
   (action [env] ...)
-  (remote [{:keys [ast]}] (comp/query->ast `[(do-other-thing)])) ; completely change what gets sent to `remote`
+  (remote [{:keys [ast]}] (eql/query->ast `[(do-other-thing)])) ; completely change what gets sent to `remote`
 
 (defmutation do-thing [params]
   (action [env] ...)
