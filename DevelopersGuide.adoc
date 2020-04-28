@@ -616,12 +616,14 @@ Create a `deps.edn` file with this content:
            com.fulcrologic/fulcro {:mvn/version "3.0.10"}}
 
  :aliases {:dev {:extra-paths ["src/dev"]
-                 :extra-deps  {org.clojure/clojurescript   {:mvn/version "1.10.520"}
+                 :extra-deps  {org.clojure/clojurescript   {:mvn/version "1.10.742"}
                                thheller/shadow-cljs        {:mvn/version "2.8.40"}
                                binaryage/devtools          {:mvn/version "0.9.10"}}}}}
 ```
 
 === https://shadow-cljs.github.io/docs/UsersGuide.html[Shadow-cljs] Build Tool Configuration
+
+IMPORTANT: Make sure you are referencing the latest version of ClojureScript that shadow-cljs supports. A verison mismatch may result in a syntax error when running the shadow-cljs server command further down the guide.
 
 And a `shadow-cljs.edn` file that looks like this:
 
