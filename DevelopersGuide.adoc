@@ -606,6 +606,10 @@ $ npm init
 $ npm install shadow-cljs react react-dom --save
 ----
 
+WARNING: Note the verion of shadow-cljs that gets installed. It is possible that it differs from what is shown in the next section. 
+Make sure *both versions match*, and that you are using the latest version of Clojurescript. Using an older version of Clojuresript 
+and a brand-new version of shadow-cljs can lead to confusing build errors.
+
 === Clojure Dependencies
 
 Create a `deps.edn` file with this content:
