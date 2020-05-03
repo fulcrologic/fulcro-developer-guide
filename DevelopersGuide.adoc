@@ -606,8 +606,8 @@ $ npm init
 $ npm install shadow-cljs react react-dom --save
 ----
 
-WARNING: Note the verion of shadow-cljs that gets installed. It is possible that it differs from what is shown in the next section. 
-Make sure *both versions match*, and that you are using the latest version of Clojurescript. Using an older version of Clojuresript 
+WARNING: Note the verion of shadow-cljs that gets installed. It is possible that it differs from what is shown in the next section.
+Make sure *both versions match*, and that you are using the latest version of Clojurescript. Using an older version of Clojuresript
 and a brand-new version of shadow-cljs can lead to confusing build errors.
 
 === Clojure Dependencies
@@ -5780,7 +5780,7 @@ This makes it possible to track component classes in app state (since the name i
 (defmutation f [params]
   (action [{:keys [state]}]
     (let [todo-list-class (comp/registry-key->class :com.company.app/TodoList)]
-      (swap! comp/merge-component todo-list-class {:list/id ...}))))
+      (swap! merge/merge-component todo-list-class {:list/id ...}))))
 ```
 
 === IDE Integration
@@ -6034,7 +6034,7 @@ We'll want to:
 (defn add-counter
   "Merge the given counter data into app state and append it to our list of counters"
   [app counter]
-  (comp/merge-component! app Counter counter
+  (merge/merge-component! app Counter counter
     :append [:panels/by-kw :counter :counters]))
 
 ...
@@ -6803,13 +6803,13 @@ include::src/book/book/demos/pre_merge/countdown_initial_state.cljs[]
 
 === Pre-merge via Mutations
 
-We've already talked about ways to integrate new data using things like `comp/merge-component`, and since pre-merge takes effect there as well we can rely on it in mutations:
+We've already talked about ways to integrate new data using things like `merge/merge-component`, and since pre-merge takes effect there as well we can rely on it in mutations:
 
 [source,clojure]
 ----
 (m/defmutation create-countdown [countdown]
   (action [{:keys [state ref]}]
-    (swap! state comp/merge-component Countdown countdown :append [::all-counters])
+    (swap! state merge/merge-component Countdown countdown :append [::all-counters])
     (swap! state update-in ref assoc :ui/new-countdown-label "")))
 ----
 
@@ -9324,7 +9324,7 @@ with components like:
 Normally you might throw this into your application state with something like:
 
 ```
-(comp/merge-component! reconciler PersonForm person-tree)
+(merge/merge-component! reconciler PersonForm person-tree)
 ```
 
 which will insert and normalize the person and phone number.
@@ -9333,7 +9333,7 @@ If you also are supporting form interactions then you can augment the form with 
 
 ```
 (def person-tree-with-form-support (fs/add-form-config PersonForm person-tree))
-(comp/merge-component! reconciler PersonForm person-tree-with-form-support)
+(merge/merge-component! reconciler PersonForm person-tree-with-form-support)
 ```
 
 IMPORTANT: `add-form-config` will look at all of the form (and subforms reachable from that form), but it will only add config to the ones that are missing it.
