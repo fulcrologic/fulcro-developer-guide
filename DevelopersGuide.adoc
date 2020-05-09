@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: April 14, 2020
+:revdate: May 9, 2020
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -3193,6 +3193,14 @@ properly.
 You can technically improve the performance of this (very slightly) by telling Fulcro that you no longer want the
 `dom/input` to be a wrapped input by setting a compiler option, but beginners should not bother with this.
 
+The `mutations` namespace now also includes `set-string!!`, `set-integer!!`, etc. These are identical to their
+single `!` counterparts, except they use synchronous `transact!!`.
+
+One final note: Synchronous transactions will *not* cause a full UI refresh. It will only target refreses to the
+component passed as an argument (which *must* have an ident). This ensure speedy performance, but if the parent
+component uses the props of children to derive values (e.g. the number of items checked), then the parent will
+not refresh. The most general way to solve that is to schedule your own UI refresh via `app/schedule-render!`
+at a point that makes sense in your application (e.g. perhaps on field blur).
 
 === StringBufferedInput
 
