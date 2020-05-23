@@ -1,8 +1,12 @@
-# gem install asciidoctor asciidoctor-diagram
-# gem install coderay
+# gem install asciidoctor asciidoctor-diagram coderay
 docs/DevelopersGuide.html: DevelopersGuide.adoc
 	asciidoctor -o docs/DevelopersGuide.html -b html5 -r asciidoctor-diagram DevelopersGuide.adoc
 
+# Requires asciidoctor-pdf, see readme
+docs/DevelopersGuide.pdf: DevelopersGuide.adoc
+	asciidoctor-pdf -o docs/DevelopersGuide.pdf -b pdf -r asciidoctor-diagram DevelopersGuide.adoc
+
+pdf: docs/DevelopersGuide.pdf
 book: docs/DevelopersGuide.html
 
 build-report:
