@@ -3,3 +3,20 @@
 This is the source for the Developer's Guide of Fulcro version 3.
 
 The source for v2 of the book is in the root of the Fulcro repository, at any 2.x tag.
+
+
+== Generating a pdf
+
+```bash
+make pdf
+```
+
+=== Prerequisites
+
+asciidoctor-pdf is a ruby gem. It is recommended to manage userspace gems using
+rvm.
+
+
+Please see the asciidoctor guide for more information
+
+https://asciidoctor.org/docs/install-asciidoctor-macos/#rvm-procedure-recommended
