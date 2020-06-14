@@ -187,7 +187,7 @@ Mutations are the "commands" that are queued (like events in a reducer system), 
 graph data support, auto-normalization of central database, and a centralized transaction processing system.
 +
 Fulcro 3's <<UI State Machines>> are usable in exactly the same way as reducer/event systems, but have some distinct differences (dare I say improvements?):
-They support an actor model where instances of UI components are assigned at runtime to play "roles" in the logical flow; they are true state machines (not just switch/case statements); they use of Fulcro's database auto-normalization, graph query abilities, and abstract mutation system; and their current "state" is stored and normalized into the same central application database where Fulcro's Chrome extension makes them easy to debug.
+They support an actor model where instances of UI components are assigned at runtime to play "roles" in the logical flow; they are true state machines (not just switch/case statements); they make use of Fulcro's database auto-normalization, graph query abilities, and abstract mutation system; and their current "state" is stored and normalized into the same central application database where Fulcro's Chrome extension makes them easy to debug.
 
 Can I Subscribe to XYZ?::
 Subscriptions are not a central concern of Fulcro itself, but Fulcro's architecture mixed with the websocket remote make building something that has a "Meteor JS" experience pretty easy to do.
