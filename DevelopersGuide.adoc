@@ -4156,9 +4156,9 @@ Say we wanted all components to be able to see `:pi` (a constant) and `:current-
 We could declare this as follows:
 
 ```
-(fc/make-fulcro-client
-  {:reconciler-options {:shared {:pi 3.14} ; never changes
-                        :shared-fn #(select-keys % :current-user)}}) ; updates on root render
+(app/fulcro-app
+  {:shared {:pi 3.14} ; never changes
+   :shared-fn #(select-keys % :current-user)}) ; updates on root render
 ```
 
 Now *any* component can access these as follows:
