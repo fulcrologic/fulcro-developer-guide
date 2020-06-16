@@ -129,6 +129,7 @@ This book adopts the following general set of requires and aliases:
             [com.fulcrologic.fulcro.algorithms.form-state :as fs]
             [com.fulcrologic.fulcro.networking.http-remote :refer [fulcro-http-remote]]
             [com.fulcrologic.fulcro.ui-state-machines :as uism]
+            [com.fulcrologic.fulcro.react.hooks :as hooks]
             [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]
             [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]
             [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
@@ -3413,7 +3414,7 @@ Hooks-based components:
 
 * Currently ONLY support the `this` and `props` arguments.
 * Ignore any attempts at requesting React class methods (e.g. shouldComponentUpdate, componentDidMount, etc.)
-* Have wrappers for `useState` and `useEffect` as `comp/use-state` and `comp/use-effect`.
+* Have wrappers for `useState` and `useEffect` as `hooks/use-state` and `hooks/use-effect`.
 
 NOTE: You still use factories with hooks components, and `computed-factory` should work; however,
 (for the time being) use `(get-computed this)` instead of the 3rd `defsc` argument to get computed props
