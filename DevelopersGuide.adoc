@@ -8173,11 +8173,11 @@ The router is not programmed with any foreknowledge of the routing novelty of a 
 ```
 (defrouter RootRouter [this props]
   {:router-targets [Settings User]})
-(def ui-root-router (prim/factory RootRouter))
+(def ui-root-router (comp/factory RootRouter))
 
 (defrouter SettingsRouter [this props]
   {:router-targets [Pane1 Pane2]})
-(def ui-settings-router (prim/factory SettingsRouter))
+(def ui-settings-router (comp/factory SettingsRouter))
 ```
 
 The parameter list (this and props) are used with deferred routing, explained below.
@@ -8287,6 +8287,23 @@ If you are doing SSR, then you will need to simulate calling `change-route` ther
 The function
 `dr/ssr-initial-state` (written, but untested) can be used to help you construct the proper state for a given path (which must be used for the server-side render, and also as the initial state for the client).
 Technically, this means that the function can also be used to generate initial state for the client on the front-end as well.
+
+== Initial State
+
+It is essential for correct rendering that the router's (initial) state is composed in its parent's (initial) state.
+
+If the parent's data is loaded dynamically, you must make sure to include the router in it manually. Typically with `:pre-merge`, like here:
+
+[source]
+-----
+(defsc Settings [this {:settings/keys [panes-router]}]
+  {:query         [{:settings/panes-router (comp/get-query SettingPanesRouter)} ...]
+   :initial-state (:settings/panes-router {}) ;; include in init. state
+   :pre-merge (fn [{:keys [data-tree]}]
+                (merge (comp/get-initial-state Settings) ;; include in dynamically-loaded state
+                       data-tree)) ...}
+    (ui-settings-panes-router panes-router))
+-----
 
 == Controlling the Route Rendering
 
@@ -8569,7 +8586,7 @@ This will be the concrete path segment that was requested (e.g. `["user" "1"]` a
 - `:route-factory` - The function to call to render the current (old, non-pending) route (if there was a route on-screen).
 
 The route factory/props are useful if you want to continue to render the "current" page even though a timeout has occurred,
-but perhaps you want to pass some computed data to indicate progress (e.g. `(route-factory (prim/computed route-props {:waiting true}))`).
+but perhaps you want to pass some computed data to indicate progress (e.g. `(route-factory (comp/computed route-props {:waiting true}))`).
 You could also just augment the current view like so:
 
 [source]
