@@ -8767,20 +8767,6 @@ include::src/book/book/queries/dynamic_queries.cljs[]
 ----
 ====
 
-.[[DynamicQueryParameters]]<<DynamicQueryParameters,Dynamic Query Parameters>>
-====
-++++
-<button class="inspector" onClick="book.main.focus('dynamic-query-parameters')">Focus Inspector</button>
-<div class="short narrow example" id="dynamic-query-parameters"></div>
-<br/>
-++++
-
-[source,clojure,role="source"]
-----
-include::src/book/book/queries/dynamic_query_parameters.cljs[]
-----
-====
-
 == Setting a Query
 
 The whole point of a dynamic query is being able to set the query to something new on a component.
