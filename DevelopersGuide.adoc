@@ -8298,7 +8298,7 @@ If the parent's data is loaded dynamically, you must make sure to include the ro
 -----
 (defsc Settings [this {:settings/keys [panes-router]}]
   {:query         [{:settings/panes-router (comp/get-query SettingPanesRouter)} ...]
-   :initial-state (:settings/panes-router {}) ;; include in init. state
+   :initial-state {:settings/panes-router {}} ;; include in init. state
    :pre-merge (fn [{:keys [data-tree]}]
                 (merge (comp/get-initial-state Settings) ;; include in dynamically-loaded state
                        data-tree)) ...}
