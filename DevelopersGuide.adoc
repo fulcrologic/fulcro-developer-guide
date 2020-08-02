@@ -7692,7 +7692,7 @@ Can accept multiple aliases (like `dissoc`).
 `(uism/update-aliased env alias f & args)`::
 Updates given aliases in Fulcro state with function f and given arguments. (like `update`).
 `(uism/integrate-ident env ident & named-parameter)`::
-Integrates idents (append or prepend) to aliases in Fulcro state that refer to a list of idents. (like `mutations/integrate-ident*`).
+Integrates idents (append or prepend) to aliases in Fulcro state that refer to a list of idents. (like `targeting/integrate-ident*`).
 `(uism/remove-ident env ident alias)`::
 Removes ident from aliases that refer to a list of idents, in Fulcro state. (like `fulcro.client.mutations/remove-ident*`).
 `(uism/alias-value env alias)`::
