@@ -11165,6 +11165,298 @@ This is documented in timbre, but easy to miss:
     (log/error ex ...))
 ```
 
+= Advanced Fulcro Internals
+
+Fulcro, as with any library, has quite a bit of internal implementation detail. It is difficult for the outside
+developer to know which of these details are "safe to touch". Fulcro 3 is intended to be easily moddable, and many
+of the internal data structures, algorithms, and configuration values are open to modification. Of course, it pays
+to understand what you're getting into when you attempt such a modification.
+
+== The Transaction Processing System
+
+Most things things that happen in a Fulcro app go through the transaction processing system.
+Even loads (e.g. `df/load!`) issue a special transaction that is only interested in the server's response. UISM adds
+functions in front of `transact!`, but they still go through there.
+
+It might help to further clarify that fulcro *does not watch the state atom* (Inspect does, but that's a tool,
+not the library itself). So, if you `swap!` against the state atom outside of a mutation, then you are doing
+an unsanctioned thing.
+
+*Rendering refresh* is a by-product of transaction steps. The default built-in tx processing schedules renders after
+optimistic updates from mutations, on the arrival/merge of network results, etc.
+
+The default algorithm is in `tx_processing.cljc`. You can replace this algorithm with an option on the application, but
+realize that the core algorithm provides the implementation for many features:
+
+* Pessimistic transactions
+* Ordered Network operations
+* Sending writes before reads
+* Parallel reads
+* Read/write combining
+* Splitting transactions across multiple remotes
+* Scheduling rendering
+* Running optimistic (action) code
+* Sending updates to Inspect (when enabled)
+
+As you can see, *much* of Fulcro's interesting behaviors are directly implemented here, so touching it can break a
+lot of stuff.
+
+If you want to change the transaction processing, you set the `:submit-transaction!` setting of your application
+and change it to submit the transaction to your own system. You can of course derive a new one from the existing
+source.
+
+The safest use of this option is as a wrapper that does some additional stuff you'd like to do on every transaction (or
+even morphs the submitted parameters), but then calls the existing logic.
+
+== Fulcro Application – What's in there?
+
+A Fulcro application is just a map. You can hold it in a `defonce`. Anything that needs to change within the app is
+represented as an atom.
+
+The application is an *open map*. You can put anything in the app *just about anywhere you want*, as long as your
+keys are namespaces to a domain you own to ensure nothing will collide. Certain data structures, such as network
+queues, are probably best left alone unless you really know what you're doing.
+
+Here is what the starting map looks like:
+
+-----
+(ns com.fulcrologic.fulcro.application
+  (:require
+    [com.fulcrologic.fulcro.algorithms.tx_processing :as txn])
+
+...
+
+   (let [tx! (or submit-transaction! txn/default-tx!)]
+     {::id           (tempid/uuid)
+      ::state-atom   (atom (or initial-db {}))
+      ::config       {:load-marker-default     load-marker-default
+                      :client-did-mount        (or client-did-mount (:started-callback options))
+                      :external-config         external-config
+                      :query-transform-default query-transform-default
+                      :load-mutation           load-mutation}
+      ::algorithms   {:com.fulcrologic.fulcro.algorithm/tx!                    tx!
+                      :com.fulcrologic.fulcro.algorithm/abort!                 (or abort-transaction! txn/abort!)
+                      :com.fulcrologic.fulcro.algorithm/optimized-render!      (or optimized-render! mrr/render!)
+                      :com.fulcrologic.fulcro.algorithm/initialize-state!      initialize-state!
+                      :com.fulcrologic.fulcro.algorithm/shared-fn              shared-fn
+                      :com.fulcrologic.fulcro.algorithm/render-root!           render-root!
+                      :com.fulcrologic.fulcro.algorithm/hydrate-root!          hydrate-root!
+                      :com.fulcrologic.fulcro.algorithm/unmount-root!          unmount-root!
+                      :com.fulcrologic.fulcro.algorithm/render!                render!
+                      :com.fulcrologic.fulcro.algorithm/remote-error?          (or remote-error? default-remote-error?)
+                      :com.fulcrologic.fulcro.algorithm/global-error-action    global-error-action
+                      :com.fulcrologic.fulcro.algorithm/merge*                 merge/merge*
+                      :com.fulcrologic.fulcro.algorithm/default-result-action! (or default-result-action! mut/default-result-action!)
+                      :com.fulcrologic.fulcro.algorithm/global-eql-transform   (or global-eql-transform default-global-eql-transform)
+                      :com.fulcrologic.fulcro.algorithm/index-root!            indexing/index-root!
+                      :com.fulcrologic.fulcro.algorithm/index-component!       indexing/index-component!
+                      :com.fulcrologic.fulcro.algorithm/drop-component!        indexing/drop-component!
+                      :com.fulcrologic.fulcro.algorithm/props-middleware       props-middleware
+                      :com.fulcrologic.fulcro.algorithm/render-middleware      render-middleware
+                      :com.fulcrologic.fulcro.algorithm/schedule-render!       schedule-render!}
+      ::runtime-atom (atom
+                       {::app-root                        nil
+                        ::mount-node                      nil
+                        ::root-class                      root-class
+                        ::root-factory                    nil
+                        ::basis-t                         1
+                        ::last-rendered-state             {}
+
+                        ::static-shared-props             shared
+                        ::shared-props                    {}
+
+                        ::remotes                         (or remotes
+                                                            {:remote {:transmit! (fn [{::txn/keys [result-handler]}]
+                                                                                   (log/fatal "Remote requested, but no remote defined.")
+                                                                                   (result-handler {:status-code 418 :body {}}))}})
+                        ::indexes                         {:ident->components {}}
+                        ::mutate                          mut/mutate
+                        ::render-listeners                (cond-> {}
+                                                            (= tx! txn/default-tx!) (assoc ::txn/after-render txn/application-rendered!))
+                        ::txn/activation-scheduled?       false
+                        ::txn/queue-processing-scheduled? false
+                        ::txn/sends-scheduled?            false
+                        ::txn/submission-queue            []
+                        ::txn/active-queue                []
+                        ::txn/send-queues                 {}})})))
+-----
+
+Many of the names are somewhat revealing, but we'll expand on them a bit below. We're assuming we're in the
+`com.fulcrologic.fulcro.application` namespace:
+
+`::state-atom`:: This is where your apps' Fulcro DB is store. You are allowed to directly view this atom, or even
+`swap!` or `reset!` it. Remember that Fulcro does *not* watch this atom for rendering. So do not expect refresh to
+recognize your changes.  You can, however, call `schedule-render!` to notify Fulcro that state has changed.
+
+`::runtime-atom`:: This is where Fulcro keeps track of things over time that are *not* your application's data. Things
+like network queues, remotes, shared props, what "relative time" it is (basis-t), etc. You are allows to read anything
+in here, and you are allowed to add your own keys for things you need to track. In fact *this is a sanctioned place*
+for you to track anything that has a time-based component to it that isn't app state.  RAD, for example, uses this
+to track the definitions for rendering plugins (which need to be refreshed on hot code reload).  Remember that
+you can easily get access to the application map via `(comp/any->app this)`, meaning that most runtime code has easy
+access to this atom without any namespace requires. This makes it very easy to access "global" configuration and
+runtime information in a non-global way.
+
+`::indexes`:: This is an index of UI classes and on-screen React instances. These indexes are created and managed as
+components are added to the system and mounted/unmounted. The `component` namespace includes functions for using these
+indexes, but they are simple data structures you are allowed to read directly. You should *not* modify the indexes unless
+you're working on Fulcro internals (e.g. changing how components work, adding React hooks support).
+
+`::config`:: This is a *static map* that cannot change over time (no atom) that can hold anything that you expect won't
+change for the lifetime of the app. THIS MAP IS CONSIDERED UNSTABLE, so if you read the values from it directly
+you will have to keep track of Fulcro's internal changes over time. It is possible that some or all of these values
+could move to the `runtime-atom`. You are allowed to put your own nsed keys in this map.
+
+== Algorithms
+
+The algorithms map in the application has two purposes:
+
+. To cope with the inevitable dependency that can happen when core systems like component and transaction processing
+need things from each other.
+. To allow users to override built-in algorithms.
+
+All of the items that are intended to be overridden are documented in the `fulcro-app` function's docstring
+and in this book.
+
+== Auditing Fulcro's Operation
+
+Fulcro 2 had a built-in history mechanism that was primarily intended for a Support Viewer feature, but it was only
+for the state database, and did not track/correlate full-stack operations. Due to time constraints on development this
+feature was not included by default in Fulcro 3; however, the new application layout is much more extensible and
+easy to hook into, so implementing your own level of history tracking is not a lot of effort.
+
+When adding any kind of auditing system to Fulcro you're going to be interested in the following things:
+
+Watching the state atom:: Optimistic actions have no middleware. So, your choices are to write your own macro
+for `defmutation` that wraps the real `defmutation` so you can instrument it, but that won't cover the cases where
+other code in your application modifies state. Tracking the state changes is best done with an atom `add-watch`.
+Wrapping transaction submission:: Set the `:submit-transaction!` option on your application so you can record when
+a load or mutation is actually submitted. Optimistic updates will follow very quickly thereafter. If you need
+absolute accuracy on which mutations does what, then the best option is to write a wrapper macro for `defmutation`
+that instruments the `action` section.
+Tracking mutation remote results:: Set the `:default-result-action!` option on your app to your own instrumented
+version of the one Fulcro defines.
+Tracking loads:: Set the `:load-mutation` option (to a fully-qualified *symbol*). The default can be found in `data_fetch.cljc`. Simply
+copy the code of that one (which is written as a multimethod) and instrument it as needed.
+
+An audit trail can then be a simple vector of nodes that is kept trimmed to some length, where each node indicates
+the type of thing that happened with a timestamp. Remember that at runtime the state atom is immutable data that has
+structural sharing, so saving a "copy" of it over time is not memory intensive.
+
+[source]
+-----
+[{:type :state-changed
+  :timestamp #inst "..."
+  :before { ... } ; ENTIRE app data value
+  :after  { ... }}
+ {:type :remote-finished
+  :remote :remote
+  :mutation '(com.boo.bah/foo {:x 1})
+  :result {'com.boo.bah/foo {:v 42}}}
+ ...]
+-----
+
+You can use transit (perhaps the `transit-clj->str` functions in Fulcro, which already know about tempids) to encode
+for network transmission as long as you're very careful not to put things in state (or mutation args) that cannot
+be encoded.
+
+Compression of this history *for transmission* could do all manner of things, including transforming all but the first
+state change of before/after pairs into diffs. A gzip step on a transit encoded string should also be able to remove
+quite a lot of redundancy.
+
+== Time Travel
+
+When your application is written so that your view is a `(f state-map)` then
+UI Time travel in Fulcro is trivial, assuming you follow some rules when writing the application and understand
+the limitations:
+
+. Everything you want to track *must* be in the Fulcro db. Component-local state is not tracked, and is lost on component
+unmount/mount.
+. If you serialize/deserialize the state map, then that process *must* preseve all data that you care about.
+. Full-stack operation is a distributed system. Time travel in such a setting implies server interaction, the ability to
+"undo" operations in a shared environemtn, etc. True time travel is a very hard problem. We are only speaking about
+time travel with respect to the UI views of optimistic state, not time travel in a real full-stack application sense.
+
+Time travel is therefore most useful for debugging and diagnosis of problems via an audit trail from a client.
+
+=== Implementing a Support Viewer
+
+A support viewer is mostly just an fully-functional Fulcro app that provides a UI to *control* a "dumbed down"
+version of your production app. One way to approach this is:
+
+* Create an HTML page that has two mount point divs. Use CSS to lay it out so support view can be in one of those divs
+covering one area, and the other will be your app.
+* Create a normal Fulcro app that is your support viewer. It will have access to loads from your support server that
+can list the "crash reports", can choose one, and can load it. The crash report will be the audit trail described
+in the last section.
+* You may need to have several versions of your production app available. Your audit logs should indicate what version
+of the app they were running against. Loading the right js for your production app is up to you. Do *not* use the normal
+start for this app.
+
+Each version of your app must have a way to access the Root of the UI. You *do not* want to run the application defined
+by that app. You only want the UI. Remember, you're just viewing an audit log, so all you want is rendering to function.
+If you do dynamic code loading in the normal app, your support app will probably need to be a monolithic build.
+
+The support viewer will allow you to select a "crash report" or other audit trail. It will load that data, and then
+create a new Fulcro app which:
+
+* Has *no* remotes.
+* Sets the submit-transaction and load mutation to no-ops (so that interactions with the view don't do anything).
+* Uses the correct `Root` as the app root
+* Mounts that root on the "app view" div in the HTML
+
+At this point the support viewer can display/control navigation through the audit.
+
+=== Forcing the render of a point in time.
+
+There are two ways to make a Fulcro application display a specific point in time:
+
+* You can reset the state atom and schedule a render.
+* You can generate the UI props tree from state + query and render that yourself.
+
+The former is trivial:
+
+[source]
+-----
+(defn reset-app-state!
+  "Time travel to the given app state. Can be called before mounting. Will refresh the UI to the new state if it was
+   already mounted. NOTE: Does nothing with respect to full-stack operations. Network operations will not be cancelled,
+   etc."
+  [app new-state]
+  (reset! (::app/state-atom app) new-state)
+  (app/schedule-render! app {:force-root? true}))
+-----
+
+The latter is also not difficult, and can even be done in a "live app" without hurting operation (i.e. the next
+Fulcro-initiated render will snap you back to the "present").  There are two tricky bits:
+
+. Dynamic queries are tracked *in state*. So, if you use them (or any feature of Fulcro that does) you must be
+careful to get the *current* query, which requires passing the state map to `get-query`.
+. If it is possible that the code has changed since the last render (i.e. you changed which version of the app you're working with or hot code reloaded),
+in which case you want `shouldComponentUpdate` to be ignored.
+
+Note that the following algorithm is almost *exactly* keyframe render's code, but uses a passed-in state for the render
+instead of the app's current state:
+
+[source]
+-----
+(defn show-state!
+  "Show an alternate state of the app's view *without* affecting the app's state or operation. Can be used to see
+   some past version of state you've recorded. Fulcro's next proper render will snap you back to the present.
+
+   You MUST have already mounted the application before this function will work."
+  [app state-map]
+  (binding [comp/*blindly-render* true]
+    (let [{:com.fulcrologic.fulcro.application/keys [runtime-atom]} app
+          {:com.fulcrologic.fulcro.application/keys [root-factory root-class mount-node]} @runtime-atom
+          r!               (or (ah/app-algorithm app :render-root!) js/ReactDOM.render)
+          query            (comp/get-query root-class state-map)
+          data-tree        (if query
+                             (fdn/db->tree query state-map state-map)
+                             state-map)]
+      (r! (root-factory data-tree) mount-node))))
+-----
+
 = Demos
 
 NOTE: This chapter has not been completely reviewed for Fulcro 3.
