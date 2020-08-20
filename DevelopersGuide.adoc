@@ -11210,14 +11210,14 @@ even morphs the submitted parameters), but then calls the existing logic.
 
 == Fulcro Application – What's in there?
 
-A Fulcro application is just a map. You can hold it in a `defonce`. Anything that needs to change within the app is
-represented as an atom.
+A Fulcro application is just a map. You can hold it as a value in a `defonce`. Anything that needs to change within the app is
+represented as an atom within that map.
 
 The application is an *open map*. You can put anything in the app *just about anywhere you want*, as long as your
-keys are namespaces to a domain you own to ensure nothing will collide. Certain data structures, such as network
+keys are namespaced to a domain you own to ensure nothing will collide. Certain data structures, such as network
 queues, are probably best left alone unless you really know what you're doing.
 
-Here is what the starting map looks like:
+Here is what the starting map looks like (from `application.cljc`):
 
 -----
 (ns com.fulcrologic.fulcro.application
@@ -11281,15 +11281,19 @@ Here is what the starting map looks like:
                         ::txn/send-queues                 {}})})))
 -----
 
-Many of the names are somewhat revealing, but we'll expand on them a bit below. We're assuming we're in the
-`com.fulcrologic.fulcro.application` namespace:
+Many of the names are somewhat revealing, but we'll expand on some important ones below. We're assuming we're in the
+`com.fulcrologic.fulcro.application` namespace when we use `::`:
 
 `::state-atom`:: This is where your apps' Fulcro DB is store. You are allowed to directly view this atom, or even
 `swap!` or `reset!` it. Remember that Fulcro does *not* watch this atom for rendering. So do not expect refresh to
-recognize your changes.  You can, however, call `schedule-render!` to notify Fulcro that state has changed.
+recognize your changes.  You can, however, call `schedule-render!` to notify Fulcro that state has changed. While you *can*
+read atom in your UI (i.e. `(app/current-state this)`) *do not expect* UI refreshes to understand that you did. Refresh
+is *strictly* based on props that pass to the component from its parent. Therefore, reading it in any UI code is almost
+certainly the sign of broken code. See <<Link Queries>>.
 
-`::runtime-atom`:: This is where Fulcro keeps track of things over time that are *not* your application's data. Things
-like network queues, remotes, shared props, what "relative time" it is (basis-t), etc. You are allows to read anything
+`::runtime-atom`:: This is where Fulcro keeps track of things over time that are *not* your application's data (and
+are never rendered). Things like network queues, remotes, shared props, what "relative time" it is (basis-t), etc.
+You are allows to read anything
 in here, and you are allowed to add your own keys for things you need to track. In fact *this is a sanctioned place*
 for you to track anything that has a time-based component to it that isn't app state.  RAD, for example, uses this
 to track the definitions for rendering plugins (which need to be refreshed on hot code reload).  Remember that
@@ -11306,6 +11310,12 @@ you're working on Fulcro internals (e.g. changing how components work, adding Re
 change for the lifetime of the app. THIS MAP IS CONSIDERED UNSTABLE, so if you read the values from it directly
 you will have to keep track of Fulcro's internal changes over time. It is possible that some or all of these values
 could move to the `runtime-atom`. You are allowed to put your own nsed keys in this map.
+
+`::basis-t`:: An integer indicating the current "render time". This time is added to props metadata during `db->tree`
+and is part of the props tunnelling algorithm that allows local refreshes of components without having to render from
+root. Targeted refresh sends new props to a component via `set-state!` at an internal, hidden key. Your render body
+is given the props that either came from the parent, or are in component-local state: whichever are *newer*. This value
+is increased every time the application renders.
 
 == Algorithms
 
