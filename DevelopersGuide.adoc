@@ -11397,7 +11397,7 @@ version of your production app. One way to approach this is:
 * Create an HTML page that has two mount point divs. Use CSS to lay it out so support view can be in one of those divs
 covering one area, and the other will be your app.
 * Create a normal Fulcro app that is your support viewer. It will have access to loads from your support server that
-can list the "crash reports", can choose one, and can load it. The crash report will be the audit trail described
+can list the "crash reports", can choose one, and can load it (as a NON-NORMALIZED OPAQUE VALUE). The crash report will be the audit trail described
 in the last section.
 * You may need to have several versions of your production app available. Your audit logs should indicate what version
 of the app they were running against. Loading the right js for your production app is up to you. Do *not* use the normal
