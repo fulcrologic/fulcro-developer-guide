@@ -5223,7 +5223,7 @@ The basic pattern is:
 We've talked a lot about the client-side perspective of mutations, what they send to the server, and where you can place code to process the response of a mutation; however, we have not yet completely addressed the actual interaction with the server.
 
 A server mutation is always allowed to return a value.
-Normally the only value that makes sense is temporary ID remappings:
+The only "pre-built" behavior that happens with a server's return values is temporary ID remappings:
 
 ```
 ; server-side
