@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: August 20, 2020
+:revdate: September 9, 2020
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -127,6 +127,7 @@ This book adopts the following general set of requires and aliases:
             [com.fulcrologic.fulcro.algorithms.react-interop :as interop]
             [com.fulcrologic.fulcro.algorithms.tempid :as tempid]
             [com.fulcrologic.fulcro.algorithms.form-state :as fs]
+            [com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing :as stx]
             [com.fulcrologic.fulcro.networking.http-remote :refer [fulcro-http-remote]]
             [com.fulcrologic.fulcro.ui-state-machines :as uism]
             [com.fulcrologic.fulcro.react.hooks :as hooks]
@@ -137,6 +138,29 @@ This book adopts the following general set of requires and aliases:
 ----
 
 others will be identified as they are used.
+
+== Best Practices
+
+Fulcro and our understanding of best practices with it have evolved over time. Unfortunately we don't have time to update
+this book every time a new insight or technique proves to be more useful that older ones. Everything in this book
+functions in the latest versions of Fulcro (to the best of our knowledge); however, this small section of the book
+is where we'll try to list notes about current evolutions of the library and which features might be best to focus on.
+
+As of September 2020 you should concentrate your efforts on understanding:
+
+* How Fulcro normalizes data. Pay particular attention to query, ident, and initial state. These are the core of
+Fulcro's operation.
+* The core internals of I/O operation are still mutations (which in turn are used to implement the internals of loads);
+however, application authors would do well to pay attention to UI State Machines, which are generally a better way
+to organize groups of operations around components in order to reason over them.
+* UI Routing takes on a different flavor in Fulcro, because both the UI and queries need to be managed.
+* You should consider Fulcro RAD early in your application development. The attribute-centric focus brings a lot of
+extensibility/flexibility to your application, and the overall design and internals might help you understand more advanced usage of
+Fulcro itself.
+* Keep your query light! You can do this by adopting either the legacy union router (fast, low-feature, bit harder to
+understand) or the dynamic router (preferred, composeable, more moving internal parts). When used
+at the top level of your app these will lead to better performance by making sure only the data needed for the active view
+is pulled from the database.
 
 = Fulcro From 10,000 Feet
 
@@ -7013,6 +7037,277 @@ The `load!` function includes a number of options for dealing with problems duri
 The docstring `load!`
 describes your options, and we leave that discussion to the <<UserExperience, chapter on overall error handling and user experience>>.
 
+= Client Networking with Fulcro HTTP Remote [[Networking]]
+
+Fulcro allows you to define any number of remote handlers for talking to any number of remote servers.
+If unspecified it defaults to using an HTTP remote named `:remote` that talks to your js origin server through HTTP POST at the `/api` URI, and uses JSON-encoded transit to communicate requests and interpret responses.
+
+You can create additional remotes of your own implementation or instances of Fulcro's built-in HTTP remote, which is written to be customizable.
+
+It has the following features:
+
+* It uses middleware for the request and response so you can customize the entire communication pipeline without having to deal with low-level networking.
+A remote can now manipulate everything from the request headers to the URL and even the raw data on the wire.
+* It supports Fulcro's `app/abort!`.
+* It reports progress, so the `progress-action` of your mutations can update the UI as the operation runs.
+
+== Creating a Remote
+
+A remote with these new features requires very little code:
+
+```
+(http-remote/fulcro-http-remote {:url "/api"})
+```
+
+You may include a `:url` parameter to specify what the server endpoint is (defaults to "/api"), and you may also provide middleware.
+
+== Request Middleware
+
+The request will, by default, be sent through pre-written middleware `fulcro.client.network/wrap-fulcro-request`.
+This middleware will convert the body to a json-encoded transit form and add content-type headers.
+If you specify request middleware you will want to compose that middleware in or normal API requests won't work.
+
+Additional middleware can do any number of things:
+
+* Re-route requests to an alternate URI
+* Change the content type and encode the body
+* Short-circuit the result of the middleware stack
+
+Middleware is just a function `(fn [handler] (fn [req] ...))`.
+The inner function can choose to modify the request and pass it through the remaining `handler`, or just return a request as the final thing to process.
+This is similar to Ring middleware on the server.
+
+Fulcro will supply the middleware with a request that contains:
+
+* `:body` - The EDN transaction to send (query or mutations).
+* `:headers` - An empty map.
+* `:url` - The default URL this remote talks to.
+* `:method` - The HTTP verb as a keyword.
+All Fulcro requests default to `:post`.
+
+Middleware should return a map with the same keys that is passed on to the next layer.
+It may add any keys it wishes.
+The final result of the middleware stack will be used as follows:
+
+* `:body` - The raw data that will be given to XhrIO send
+* `:headers` - A clj map from string to string.
+It will be converted to a jsobj and given as the headers to the request.
+* `:url` - The network target.
+Can be relative or a complete URL, assuming you have security set to allow you to talk to the given server.
+* `:method` - Converted to an upper-case HTTP verb as a string.
+
+== Client Response Middleware
+
+The response will, by default, be sent through the pre-written middleware function `http-remote/wrap-fulcro-response`
+which contains the logic to properly decode an API response (which is essentially just a transit decode).
+If you specify response middleware you will want to compose that middleware in or normal API responses won't work.
+
+Raw responses from the remote will include:
+
+* `:body` - The data that will be given back to Fulcro as the response from the server
+* `:original-transaction` - The original transaction that was sent from tx layer that the body is a response to.
+If you modify this for queries you can manipulate the final merge.
+* `:status-code` - The HTTP status code
+* `:status-text` - The HTTP status text
+* `:error` - An error code.
+Typically one of `:network-error`, `:http-error`, `:timeout`, etc.
+* `:error-text` - A string describing the error
+* `:outgoing-request` - The request that this is a response to.
+
+Your middleware can add a `:transaction` key and modify the `:body` key, which will then be used
+at the merge layer. Note that this can confuse things like normalization and mark-and-sweep merge, so it should generally
+be used with quite a bit of caution.
+If you add a :transaction key be sure to use a query from components so that normalization is done properly.
+
+NOTE: Fulcro versions prior to 3.1 used the `:transaction` key for the raw middlware input as well as output. This
+caused issues with other internals since it was difficult to tell when you'd overridden it. If you have custom
+middleware that needs to look at the original transaction you will need to port that to use the new key.
+
+IMPORTANT: Response middleware is allowed to rewrite an errant response to an OK one (by clearing the error fields and setting :status-code to 200).
+This would allow you, for example, to merge specific errors into state as you see fit instead of relying on Fulcro's built-in error handling model.
+
+=== Merging State
+
+TODO:
+REVIEW this section
+
+As mentioned above: the final response body and transaction combo will be given to Fulcro for merge.
+The basic pipeline is like this:
+
+* You run a transact that goes remote. E.g. `(transact! this '[(f {:x 1})])`. `transaction` is `[(f {:x 1})]`
+* The response is received from the server.
+This *can* be anything you want to return, but typically for mutations is just `:tempids`.
+For example `{'f {:tempids {1 2}}}`.
+This is the `body`.
+* Merge is a two-part affair:
+. Any mutation keys in the response are pulled off and run through migrate to get tempid migrations.
+. The remainder of the k/v pairs in the map are then run through normal merge (which requires a query, assumed to be in `transaction`).
+
+So, this gives you a *ton* of power in your response middleware to customize everything from error handling to doing
+post-operations on mutations.
+
+Let's say you want to write response middleware that does the following:
+If there is an error, skip Fulcro's error pipeline and instead put the information in `:my-error` key at root (which
+perhaps you have set up to pop a modal in your UI code).
+
+So, your desired merge transaction is `[:my-error]` (rewriting the transaction "as if" you had "asked" for the error),
+and the body is `{:my-error {...data for error...}}`! The entire middleware component is:
+
+```
+(defn wrap-errors [handler]
+  (fn [resp]
+    (let [{:keys [error status-code]} resp]
+      (handler
+        (if (not= 200 status-code) ; when there are errors, rewrite them "as-if" we had asked for it
+          (-> resp
+            (assoc :body {:my-error {:error error}} :transaction [:my-error] :status-code 200)
+            (dissoc :error))
+          resp)))))
+```
+
+installed with:
+
+```
+;; Resulting middleware (evaluates right to left because of nested composition)
+(def middleware (-> (net/wrap-fulcro-response) (wrap-errors)))
+
+...
+
+(def client (fc/make-fulcro-client {:networking {:remote (net/fulcro-http-remote {:url "/api" :response-middleware middleware})}})
+```
+
+== Writing Your Own Remote Implementation
+
+If you do not want to use the networking code provided in Fulcro then you may write your own.
+You could use the code in `http_remote.cljs` as a starting point.
+Here are the basics:
+
+. A remote is just a map.
+The map can contain anything you want, but *MUST* contain a `:transmit!` key whose value is a `(fn [send-node] )`.
+
+A `send-node` has the following spec:
+
+```
+(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/send-node
+  (s/keys
+    :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id
+          :com.fulcrologic.fulcro.algorithms.tx-processing/idx
+          :com.fulcrologic.fulcro.algorithms.tx-processing/ast
+          :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler
+          :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler
+          :com.fulcrologic.fulcro.algorithms.tx-processing/active?]
+    :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/options]))
+```
+
+The `ast` is the AST of the request that Fulcro wants to make.
+The `result-handler` and `update-handler` are functions you call to report the result (once and only once) or send updates.
+The `options` map will include things like the
+`abort-id`.
+
+This book implements a remote that uses a cljs pathom parser to respond (no network).
+You could define a "remote" that talks to browser local storage.
+There are really no limitations beside the fact that you must call `result-handler` once and only once.
+
+What you pass to the result handler is *also* up to you.
+If you send a "normal" Fulcro result it should have the basic form of:
+
+```
+{:body some-edn
+ :original-transaction original-tx-or-query
+ :status-code n}
+```
+
+but since you can define what happens to this data via `default-result-action` or directly in mutations it is really wide open to your own invention.
+If you follow the standard result format, then you can expect the default load and mutation return merging to work, and error/ok processing to function as well.
+If you deviate from the standard format then those functions will not work without additional intervention on your part.
+
+== Interfacing with Alternate Network Protocols
+
+Fulcro's pluggable remotes make it relatively easy to plug in alternate communication methods.
+You can interface with things like REST or GraphQL servers with relative ease, especially if you use the
+https://wilkerlucio.github.io/pathom/DevelopersGuide.html[Pathom] parser library.
+
+=== A REST Example
+
+TODO: This is an unported Fulcro 2 example. The pathom network support for fulcro is for version 2 at the moment, so
+this example would require a bit more work.
+
+Here's a simple example to give you an idea of how simple it can be:
+
+```
+(ns app.rest-remote
+  (:require [com.wsscode.pathom.connect :as pc]
+            [com.wsscode.pathom.core :as p]
+            [com.wsscode.pathom.fulcro.network :as pn]
+            [clojure.core.async :as async]
+            [com.fulcrologic.fulcro.components :as comp]
+            [fulcro.client.network :as net]))
+
+(defmulti resolver-fn pc/resolver-dispatch)
+(defonce indexes (atom {}))
+(defonce defresolver (pc/resolver-factory resolver-fn indexes))
+
+(defn rest-parser
+  "Create a REST parser. Make sure you've required all nses that define rest resolvers. The given app-atom will be available
+  to all resolvers in `env` as `:app-atom`."
+  [extra-env]
+  (p/async-parser
+    {::p/plugins [(p/env-plugin
+                    (merge extra-env
+                      {::p/reader             [p/map-reader
+                                               pc/all-async-readers]
+                       :app-atom              app-atom
+                       ::pc/resolver-dispatch resolver-fn
+                       ::pc/indexes           @indexes}))
+                  p/request-cache-plugin
+                  (p/post-process-parser-plugin p/elide-not-found)]}))
+
+(defn rest-remote [extra-env]
+  (pn/pathom-remote (rest-parser extra-env)))
+```
+
+The `rest-remote` function creates a remote that can resolve REST requests via Pathom resolvers.
+It is written to take an atom that will hold your Fulcro app, so that resolvers for REST can interact with your database.
+
+Simply add the remote into your networking on the client:
+
+```
+(app/fulcro-app
+  {:remotes {:remote     (fulcro-http-remote ...)
+             :rest       (rr/rest-remote app)}})
+```
+
+and you can use the newly defined `defresolver` to define Pathom resolvers for satisfying REST API requests, like so:
+
+```
+(defresolver `ofac
+{::pc/output [:rest/thing]}
+(fn [env _]
+  (let [name    (-> env :ast :params :name)
+        params  {"name"      name}]
+    (go
+      (let [{:keys [body]} (<!
+       (http/get "https://myrest.com/search" {:query-params      params}))]
+        {:rest/thing body})))))
+```
+
+which can then be used with:
+
+```
+(df/load this :rest/thing nil {:params {:name "Simon"}})
+```
+
+and can be targeted, use load markers, etc.
+
+Of course, you can also define resolvers that "compute" derived data with normal resolver tricks.
+See Pathom documentation.
+
+==== GraphQL
+
+The Pathom library also includes a pre-built GraphQL remote for Fulcro, along with tools that allow you to combine resolvers with GraphQL servers easily.
+Pathom's connect feature can be combined in, which allows you to morph your perception of the server's graph in ways that are more convenient for your application.
+This results in a remote for Fulcro that is far more powerful than standard GraphQL, even when GraphQL is what the server is providing!
+
 = Network Latency, Error Handling, and User Experience [[UserExperience]]
 
 Most applications have to contend with network latency.
@@ -8098,6 +8393,102 @@ Remember:
 
 You can also pass specific event data when you trigger events, so you can trigger your own state change events (instead of using `uism/set-value!`) that include the current validity of the form.
 
+= Dynamic Queries [[DynamicQueries]]
+
+Fulcro supports dynamic queries: the ability to change the query of a component at runtime.
+This feature is fully serializable (works with the support viewer and other time-travel features), and is necessary for
+code splitting since the parent component won't be able to compose in the child's query until it is loaded.
+
+== Query IDs
+
+For dynamic queries to work right they have to be stored in your application database and every aspect of them must be serializable.
+Additionally, the UI must be able to look them up at the component level in order to do optimal refresh.
+The solution to this is query IDs.
+A query ID is a simple combination of the component's fully-qualified class name combined with a user-defined qualifier (which defaults to the empty string).
+
+Since this qualifier is needed both in the code that obtains queries (`get-query`) and in the UI rendering (the factory that draws that component), it is easiest to locate the qualifier in the UI factory itself.
+This allows you to have instances of a class that can have different queries:
+
+```
+(defsc Thing ...)
+(def ui-thing (comp/factory Thing)) ; query ID is based solely on the class itself (with no qualifier)
+(def ui-thing-1 (comp/factory Thing {:qualifier :a})) ; query ID is derived from Thing plus the qualifier :a
+
+(defsc Parent [this props]
+  {:query (fn [] [{:child (comp/get-query ui-thing-1)}])}
+  ...)
+```
+
+In the above example one can now set the query for `Thing`, or "`Thing` with qualifier `:a`".
+
+The following live demo shows dynamic queries in action:
+
+.[[DynamicQuery]]<<DynamicQuery,Dynamic Query>>
+====
+++++
+<button class="inspector" onClick="book.main.focus('dynamic-queries')">Focus Inspector</button>
+<div class="short narrow example" id="dynamic-queries"></div>
+<br/>
+++++
+
+[source,clojure,role="source"]
+----
+include::src/book/book/queries/dynamic_queries.cljs[]
+----
+====
+
+== Setting a Query
+
+The whole point of a dynamic query is being able to set the query to something new on a component.
+This has one critical component that you must be very careful with: normalization.
+A component's query is augmented with metadata the marks which component is used to normalize (via idents) the entity found for the given portion of the query that it handles.
+Therefore, you must still use `get-query` to pull the query for portions of your subquery that you wish to include when setting a new query.
+If done incorrectly then normalization will not work correctly on these components.
+
+The top-level metadata will be added for you, so this is fine:
+
+```
+(defmutation change-a-query [_]
+  (action [{:keys [state]}]
+    (swap! state comp/set-query* B {:query [:MODIFIED]}))
+```
+
+but as soon as there's a join you must ensure the subqueries have the correct metadata.
+This means that the following is *incorrect* (because `[:x]` probably goes with some other normalized component):
+
+```
+(defmutation change-a-query [_]
+  (action [{:keys [state]}]
+    (swap! state comp/set-query* B {:query [:MODIFIED {:subquery [:x]}]}))
+```
+
+instead, you should use `get-query` with a state parameter to pull the query for a given component.
+So, say you wanted to change the query for this:
+
+```
+(defsc X [_ _]
+  {:query [:id :name]
+   :ident [:x/id :id]})
+
+(defsc A [_ _]
+  {:query [:id {:x (comp/get-query X)}]
+   :ident [:a/id :id]})
+```
+
+and you want to change both component's queries.
+The correct form for the resulting mutation is:
+
+```
+(defmutation change-a-query [_]
+  (action [{:keys [state]}]
+    (swap! state (fn [s]
+                    (as-> s state-map
+                      (comp/set-query* state-map X {:query [:id :address]})
+                      (comp/set-query* state-map A {:query [:id :new-prop {:x (comp/get-query X state-map}]}))))))
+```
+
+There is also a top-level API call `comp/set-query!` if you want to change a query outside of a mutation.
+
 = Dynamic Router
 
 The dynamic router in Fulcro 3 uses dynamic queries to change the route, and was designed with the following requirements in mind:
@@ -8695,129 +9086,6 @@ When checked the
 include::src/book/book/dynamic_router_example.cljs[]
 ----
 ====
-
-= Fulcro and GraphQL
-
-GraphQL is rapidly becoming the standard for writing graph-based servers.
-As a result there are many existing ways to deploy such an API, and many businesses have decided that their back-end will simply use the standard.
-There are BaaS (back-end as a service) providers that also let you quickly define and deploy a GraphQL API.
-
-All of this makes GraphQL an attractive server-side solution for Fulcro.
-
-Luckily, https://github.com/wilkerlucio/pathom[Pathom] has all of the tools necessary to make this integration simple and easy!
-
-You can see some of it in action in https://youtu.be/Yk7xFry0w2Y[one of the Fulcro video series], and read about configuring it in the https://wilkerlucio.github.io/pathom/#GraphQL[Pathom Documentation].
-
-The simplest integration is to simply use Pathom's GraphQL remote:
-
-```
-(ns app
-  (:require
-    ...
-    [com.wsscode.pathom.fulcro.network :as pfn]))
-
-(def client (fulcro/make-fulcro-client
-              {:networking {:remote (pfn/graphql-network
-                                      {::pfn/url (str "https://api.github.com/graphql?access_token=" token)})}})
-```
-
-The more powerful and extensible method allows you to combine GraphQL access with Pathom Connect.
-This gives you very powerful features, including many useful ones that GraphQL doesn't support natively!
-
-= Dynamic Queries [[DynamicQueries]]
-
-Fulcro supports dynamic queries: the ability to change the query of a component at runtime.
-This feature is fully serializable (works with the support viewer and other time-travel features), and is necessary for code splitting since the parent component won't be able to compose in the child's query until it is loaded.
-
-== Query IDs
-
-For dynamic queries to work right they have to be stored in your application database and every aspect of them must be serializable.
-Additionally, the UI must be able to look them up at the component level in order to do optimal refresh.
-The solution to this is query IDs.
-A query ID is a simple combination of the component's fully-qualified class name combined with a user-defined qualifier (which defaults to the empty string).
-
-Since this qualifier is needed both in the code that obtains queries (`get-query`) and in the UI rendering (the factory that draws that component), it is easiest to locate the qualifier in the UI factory itself.
-This allows you to have instances of a class that can have different queries:
-
-```
-(defsc Thing ...)
-(def ui-thing (comp/factory Thing)) ; query ID is based solely on the class itself (with no qualifier)
-(def ui-thing-1 (comp/factory Thing {:qualifier :a})) ; query ID is derived from Thing plus the qualifier :a
-
-(defsc Parent [this props]
-  {:query (fn [] [{:child (comp/get-query ui-thing-1)}])}
-  ...)
-```
-
-In the above example one can now set the query for `Thing`, or "`Thing` with qualifier `:a`".
-
-The following live demo shows dynamic queries in action:
-
-.[[DynamicQuery]]<<DynamicQuery,Dynamic Query>>
-====
-++++
-<button class="inspector" onClick="book.main.focus('dynamic-queries')">Focus Inspector</button>
-<div class="short narrow example" id="dynamic-queries"></div>
-<br/>
-++++
-
-[source,clojure,role="source"]
-----
-include::src/book/book/queries/dynamic_queries.cljs[]
-----
-====
-
-== Setting a Query
-
-The whole point of a dynamic query is being able to set the query to something new on a component.
-This has one critical component that you must be very careful with: normalization.
-A component's query is augmented with metadata the marks which component is used to normalize (via idents) the entity found for the given portion of the query that it handles.
-Therefore, you must still use `get-query` to pull the query for portions of your subquery that you wish to include when setting a new query.
-If done incorrectly then normalization will not work correctly on these components.
-
-The top-level metadata will be added for you, so this is fine:
-
-```
-(defmutation change-a-query [_]
-  (action [{:keys [state]}]
-    (swap! state comp/set-query* B {:query [:MODIFIED]}))
-```
-
-but as soon as there's a join you must ensure the subqueries have the correct metadata.
-This means that the following is *incorrect* (because `[:x]` probably goes with some other normalized component):
-
-```
-(defmutation change-a-query [_]
-  (action [{:keys [state]}]
-    (swap! state comp/set-query* B {:query [:MODIFIED {:subquery [:x]}]}))
-```
-
-instead, you should use `get-query` with a state parameter to pull the query for a given component.
-So, say you wanted to change the query for this:
-
-```
-(defsc X [_ _]
-  {:query [:id :name]
-   :ident [:x/id :id]})
-
-(defsc A [_ _]
-  {:query [:id {:x (comp/get-query X)}]
-   :ident [:a/id :id]})
-```
-
-and you want to change both component's queries.
-The correct form for the resulting mutation is:
-
-```
-(defmutation change-a-query [_]
-  (action [{:keys [state]}]
-    (swap! state (fn [s]
-                    (as-> s state-map
-                      (comp/set-query* state-map X {:query [:id :address]})
-                      (comp/set-query* state-map A {:query [:id :new-prop {:x (comp/get-query X state-map}]}))))))
-```
-
-There is also a top-level API call `comp/set-query!` if you want to change a query outside of a mutation.
 
 = Legacy UI Routers [[UIRouting]]
 
@@ -9696,436 +9964,114 @@ Thus, the application must do a few things in order for editing to work:
 
 TODO: example
 
-= Server-side Rendering
-
-Single-page applications have a couple of concerns when it comes to how they behave on the internet at large.
-
-The first is size.
-
-It is not unusual for a SPA to be several megabytes in size.
-This means that users on slow networks may wait a while before they see anything useful.
-Network speeds are continually on the rise so
-this is becoming less and less of an issue. If this is your only concern then it might be poor accounting to
-complicate your application just to shave a few ms off the initial load.
-
-After all, with proper serving you can get their browser to cache the js file for all but the first load of your site.
-
-You often, in fact, would do well to follow examples like gmail that simply show a loading progress bar.
-You're writing client-side *applications*, and this is often quite good enough (and much simpler).
-
-Another concern is SEO. If you have pages on your application that do not require login and you would like to have in
-search engines, then a blank HTML page with a javascript file may have a more limited reach (though search engines are
-getting better and better about indexing even SPAs).
-
-Fortunately, Fulcro has you covered for any of these options!
-
-Server-side rendering not only works well in Fulcro, the central mechanisms of Fulcro (a client-side database with mutations)
-and the fact that you're writing in one language actually make server-side rendering shockingly simple, even for pages
-that require data from a server-side store!
-
-After all, all of the functions and UI component queries needed to normalize the tree that you already know how to
-`generate on your server can be in CLJC files and can be used without writing anything new!
-
-If you're writing your UI in CLJC files to support server-side rendering then you need to make sure you use a
-conditional reader to pull in the proper server DOM functions for Clojure:
-
-```
-(ns app.ui
-  (:require
-    #?(:clj [com.fulcrologic.fulcro.dom-server :as dom]
-       :cljs [com.fulcrologic.fulcro.dom :as dom]))
-```
-
-== Overall Structure
-
-Here's how to structure your application to support SSR:
-
-. Write the entire client in CLJC.
-* Any pure js components from NPM will need to have wrappers that emit something "sane" for clojure.
-. The server will use the client initial app state plus a sequence of mutation implementations to build a "starting
-  state" normalized database based on the route.
-. The server will serve the same basic HTML page (from code) that has the following:
-* The CSS and other head-related stuff and the div on which your app will mount.
-* A div with the ID of your SPA's target mount, which will contain the HTML of the server-rendered application state
-* A script tag that embeds the server-generated normalized db (the one used in to render on the server) as a transit-encoded string on `js/window`.
-* A script tag at the bottom that loads your client SPA code
-. The client will look for initial state via a var set on `js/window` (transit-encoded string), and use that as the initial state of the app.
-. The client will mount (using the `:hydrate?` application option), which will cause react to hook up to the existing DOM.
-
-=== Building the App State on the Server
-
-There are two approaches to building the app state on the server.
-
-Headless App:: You can actually run the application itself in a
-headless mode with "loopback" remotes (e.g. a remote that directly calls your parser instead of doing network ops), trigger
-mutations, wait for things to settle down (queues are done on timeouts), and then get the props from that app's state
-for rendering. This is currently *not* the recommended approach since the feature is not well-tested and is missing a
-few hooks that would make it more approachable. Contributions desired.
-State Building:: You can grab the initial state using `build-initial-state`, and then run a series of mutation helpers
-(functions from state db -> state db) to evolve the state into the one desired, and then use that db to generate props,
-render the first frame, and send that state for use on the client. This the preferred approach, since it is free from
-timing issues.
-
-The `com.fulcrologic.fulcro.algorithms.server-render` namespace has a function called `build-initial-state` that takes the root component and an initial state tree.
-It normalizes this and plugs in any union branch data that was not in the tree itself (by walking the query and looking for components that have initial state and are union branches).
-It returns a *normalized* client application db that would be what you'd have on the client at initial startup if you'd started the client normally.
-
-So, now all you need to do is run any combination of operations on that map to bring it to the proper state.
-Here's the super-cool thing: your renderer is pure!
-It will render exactly what the state says the application is in!
-
-```
-(let [base-state (ssr/build-initial-state (my-app/get-initial-state) my-app/Root)
-      user       (get-current-user (:session req))
-      user-ident (comp/get-ident my-app/User user)]
-   (-> base-state
-     (todo-check-item-impl* 3 true) ; some combo of mutation impls
-     (assoc :current-user user-ident) ; put normalized user into root
-     (assoc-in user-ident user)))
-```
-
-So now you've got the client-side db on the server.
-Now all you need to do is pre-render it, and also get this generated state to the client!
-
-=== Rendering with Initial State
-
-Of course, the whole point is to pre-render the page.
-Now that you have a complete client database this is trivial:
-
-```
-(let [props                (fdn/db->tree (comp/get-query app/Root normalized-db) state-map state-map)
-      root-factory         (comp/factory app/Root)]
-  (binding [comp/*app* YOUR-APP] ; some APIs look for your fulcro-app in this bound var.
-    (dom/render-to-str (root-factory props))))
-```
-
-will generate a string that contains the current HTML rendering of that database state!
-
-=== Send The Completed Package!
-
-Now, while you have the correct initial look, you will still need to get this database state into the client.
-While you could technically try loading your UI's initial state, it would make the UI flicker because when React mounts it needs to see the exact DOM that is already there.
-So, you must pass the server-side generated-database as initial-state to your client.
-
-The function `com.fulcrologic.fulcro.algorithms.server-render/initial-state->script-tag` will give you a `<script>` tag that includes a string-encoded EDN data structure (using transit).
-
-We now combine what we learned about generating the application's rendering with this to get the overall response from the server:
-
-```
-(defn top-html [app normalized-db root-component-class]
-  (let [props                (db->tree (get-query root-component-class) normalized-db normalized-db)
-        root-factory         (factory root-component-class)
-        app-html             (binding [comp/*app* app] (dom/render-to-str (root-factory props)))
-        initial-state-script (ssr/initial-state->script-tag normalized-db)]
-    (str "<!DOCTYPE html>\n"
-      "<html lang='en'>\n"
-      "<head>\n"
-      "<meta charset='UTF-8'>\n"
-      "<meta name='viewport' content='width=device-width, initial-scale=1'>\n"
-      initial-state-script
-      "<title>Home Page</title>\n"
-      "</head>\n"
-      "<body>\n"
-      "<div id='app'>"
-      app-html
-      "</div>\n"
-      "<script src='js/app.js' type='text/javascript'>app.client.start_from_ssr();</script>\n"
-      "</body>\n"
-      "</html>\n")))
-```
-
-Now let's move on to the client.
-
-=== Client-Side – Use Initial State
-
-When creating your client, you will now be explicit about initial state and use a helper function (provided) to decode the server-sent state:
-
-```
-(ns app.client
-  (:require ...))
-
-(defonce app (app/fulcro-app))))
-
-(defn ^:export start-from-ssr
-  "Start the application after a server-side render"
-  []
-  (let [db (ssr/get-SSR-initial-state)]
-    (reset! (::app/state-atom app) db)
-    (app/mount! app Root "app" {:hydrate? true :initialize-state? false})))
-```
-
-You can keep your original `start` code for cases where you want to start the app without SSR (e.g. development?).
-
-= Client Networking with Fulcro HTTP Remote [[Networking]]
-
-Fulcro allows you to define any number of remote handlers for talking to any number of remote servers.
-If unspecified it defaults to using an HTTP remote named `:remote` that talks to your js origin server through HTTP POST at the `/api` URI, and uses JSON-encoded transit to communicate requests and interpret responses.
-
-You can create additional remotes of your own implementation or instances of Fulcro's built-in HTTP remote, which is written to be customizable.
-
-It has the following features:
-
-* It uses middleware for the request and response so you can customize the entire communication pipeline without having to deal with low-level networking.
-A remote can now manipulate everything from the request headers to the URL and even the raw data on the wire.
-* It supports Fulcro's `app/abort!`.
-* It reports progress, so the `progress-action` of your mutations can update the UI as the operation runs.
-
-== Creating a Remote
-
-A remote with these new features requires very little code:
-
-```
-(http-remote/fulcro-http-remote {:url "/api"})
-```
-
-You may include a `:url` parameter to specify what the server endpoint is (defaults to "/api"), and you may also provide middleware.
-
-== Request Middleware
-
-The request will, by default, be sent through pre-written middleware `fulcro.client.network/wrap-fulcro-request`.
-This middleware will convert the body to a json-encoded transit form and add content-type headers.
-If you specify request middleware you will want to compose that middleware in or normal API requests won't work.
-
-Additional middleware can do any number of things:
-
-* Re-route requests to an alternate URI
-* Change the content type and encode the body
-* Short-circuit the result of the middleware stack
-
-Middleware is just a function `(fn [handler] (fn [req] ...))`.
-The inner function can choose to modify the request and pass it through the remaining `handler`, or just return a request as the final thing to process.
-This is similar to Ring middleware on the server.
-
-Fulcro will supply the middleware with a request that contains:
-
-* `:body` - The EDN transaction to send (query or mutations).
-* `:headers` - An empty map.
-* `:url` - The default URL this remote talks to.
-* `:method` - The HTTP verb as a keyword.
-All Fulcro requests default to `:post`.
-
-Middleware should return a map with the same keys that is passed on to the next layer.
-It may add any keys it wishes.
-The final result of the middleware stack will be used as follows:
-
-* `:body` - The raw data that will be given to XhrIO send
-* `:headers` - A clj map from string to string.
-It will be converted to a jsobj and given as the headers to the request.
-* `:url` - The network target.
-Can be relative or a complete URL, assuming you have security set to allow you to talk to the given server.
-* `:method` - Converted to an upper-case HTTP verb as a string.
-
-== Client Response Middleware
-
-The response will, by default, be sent through the pre-written middleware function `http-remote/wrap-fulcro-response`
-which contains the logic to properly decode an API response (which is essentially just a transit decode).
-If you specify response middleware you will want to compose that middleware in or normal API responses won't work.
-
-Raw responses from the remote will include:
-
-* `:body` - The data that will be given back to Fulcro as the response from the server
-* `:original-transaction` - The original transaction that was sent from tx layer that the body is a response to.
-If you modify this for queries you can manipulate the final merge.
-* `:status-code` - The HTTP status code
-* `:status-text` - The HTTP status text
-* `:error` - An error code.
-Typically one of `:network-error`, `:http-error`, `:timeout`, etc.
-* `:error-text` - A string describing the error
-* `:outgoing-request` - The request that this is a response to.
-
-Your middleware can add a `:transaction` key and modify the `:body` key, which will then be used
-at the merge layer. Note that this can confuse things like normalization and mark-and-sweep merge, so it should generally
-be used with quite a bit of caution.
-If you add a :transaction key be sure to use a query from components so that normalization is done properly.
-
-NOTE: Fulcro versions prior to 3.1 used the `:transaction` key for the raw middlware input as well as output. This
-caused issues with other internals since it was difficult to tell when you'd overridden it. If you have custom
-middleware that needs to look at the original transaction you will need to port that to use the new key.
-
-IMPORTANT: Response middleware is allowed to rewrite an errant response to an OK one (by clearing the error fields and setting :status-code to 200).
-This would allow you, for example, to merge specific errors into state as you see fit instead of relying on Fulcro's built-in error handling model.
-
-=== Merging State
-
-TODO:
-REVIEW this section
-
-As mentioned above: the final response body and transaction combo will be given to Fulcro for merge.
-The basic pipeline is like this:
-
-* You run a transact that goes remote. E.g. `(transact! this '[(f {:x 1})])`. `transaction` is `[(f {:x 1})]`
-* The response is received from the server.
-This *can* be anything you want to return, but typically for mutations is just `:tempids`.
-For example `{'f {:tempids {1 2}}}`.
-This is the `body`.
-* Merge is a two-part affair:
-. Any mutation keys in the response are pulled off and run through migrate to get tempid migrations.
-. The remainder of the k/v pairs in the map are then run through normal merge (which requires a query, assumed to be in `transaction`).
-
-So, this gives you a *ton* of power in your response middleware to customize everything from error handling to doing
-post-operations on mutations.
-
-Let's say you want to write response middleware that does the following:
-If there is an error, skip Fulcro's error pipeline and instead put the information in `:my-error` key at root (which
-perhaps you have set up to pop a modal in your UI code).
-
-So, your desired merge transaction is `[:my-error]` (rewriting the transaction "as if" you had "asked" for the error),
-and the body is `{:my-error {...data for error...}}`! The entire middleware component is:
-
-```
-(defn wrap-errors [handler]
-  (fn [resp]
-    (let [{:keys [error status-code]} resp]
-      (handler
-        (if (not= 200 status-code) ; when there are errors, rewrite them "as-if" we had asked for it
-          (-> resp
-            (assoc :body {:my-error {:error error}} :transaction [:my-error] :status-code 200)
-            (dissoc :error))
-          resp)))))
-```
-
-installed with:
-
-```
-;; Resulting middleware (evaluates right to left because of nested composition)
-(def middleware (-> (net/wrap-fulcro-response) (wrap-errors)))
-
-...
-
-(def client (fc/make-fulcro-client {:networking {:remote (net/fulcro-http-remote {:url "/api" :response-middleware middleware})}})
-```
-
-== Writing Your Own Remote Implementation
-
-If you do not want to use the networking code provided in Fulcro then you may write your own.
-You could use the code in `http_remote.cljs` as a starting point.
-Here are the basics:
-
-. A remote is just a map.
-The map can contain anything you want, but *MUST* contain a `:transmit!` key whose value is a `(fn [send-node] )`.
-
-A `send-node` has the following spec:
-
-```
-(s/def :com.fulcrologic.fulcro.algorithms.tx-processing/send-node
-  (s/keys
-    :req [:com.fulcrologic.fulcro.algorithms.tx-processing/id
-          :com.fulcrologic.fulcro.algorithms.tx-processing/idx
-          :com.fulcrologic.fulcro.algorithms.tx-processing/ast
-          :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler
-          :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler
-          :com.fulcrologic.fulcro.algorithms.tx-processing/active?]
-    :opt [:com.fulcrologic.fulcro.algorithms.tx-processing/options]))
-```
-
-The `ast` is the AST of the request that Fulcro wants to make.
-The `result-handler` and `update-handler` are functions you call to report the result (once and only once) or send updates.
-The `options` map will include things like the
-`abort-id`.
-
-This book implements a remote that uses a cljs pathom parser to respond (no network).
-You could define a "remote" that talks to browser local storage.
-There are really no limitations beside the fact that you must call `result-handler` once and only once.
-
-What you pass to the result handler is *also* up to you.
-If you send a "normal" Fulcro result it should have the basic form of:
-
-```
-{:body some-edn
- :original-transaction original-tx-or-query
- :status-code n}
-```
-
-but since you can define what happens to this data via `default-result-action` or directly in mutations it is really wide open to your own invention.
-If you follow the standard result format, then you can expect the default load and mutation return merging to work, and error/ok processing to function as well.
-If you deviate from the standard format then those functions will not work without additional intervention on your part.
-
-== Interfacing with Alternate Network Protocols
-
-Fulcro's pluggable remotes make it relatively easy to plug in alternate communication methods.
-You can interface with things like REST or GraphQL servers with relative ease, especially if you use the
-https://wilkerlucio.github.io/pathom/DevelopersGuide.html[Pathom] parser library.
-
-=== A REST Example
-
-TODO: This is an unported Fulcro 2 example. The pathom network support for fulcro is for version 2 at the moment, so
-this example would require a bit more work.
-
-Here's a simple example to give you an idea of how simple it can be:
-
-```
-(ns app.rest-remote
-  (:require [com.wsscode.pathom.connect :as pc]
-            [com.wsscode.pathom.core :as p]
-            [com.wsscode.pathom.fulcro.network :as pn]
-            [clojure.core.async :as async]
-            [com.fulcrologic.fulcro.components :as comp]
-            [fulcro.client.network :as net]))
-
-(defmulti resolver-fn pc/resolver-dispatch)
-(defonce indexes (atom {}))
-(defonce defresolver (pc/resolver-factory resolver-fn indexes))
-
-(defn rest-parser
-  "Create a REST parser. Make sure you've required all nses that define rest resolvers. The given app-atom will be available
-  to all resolvers in `env` as `:app-atom`."
-  [extra-env]
-  (p/async-parser
-    {::p/plugins [(p/env-plugin
-                    (merge extra-env
-                      {::p/reader             [p/map-reader
-                                               pc/all-async-readers]
-                       :app-atom              app-atom
-                       ::pc/resolver-dispatch resolver-fn
-                       ::pc/indexes           @indexes}))
-                  p/request-cache-plugin
-                  (p/post-process-parser-plugin p/elide-not-found)]}))
-
-(defn rest-remote [extra-env]
-  (pn/pathom-remote (rest-parser extra-env)))
-```
-
-The `rest-remote` function creates a remote that can resolve REST requests via Pathom resolvers.
-It is written to take an atom that will hold your Fulcro app, so that resolvers for REST can interact with your database.
-
-Simply add the remote into your networking on the client:
-
-```
-(app/fulcro-app
-  {:remotes {:remote     (fulcro-http-remote ...)
-             :rest       (rr/rest-remote app)}})
-```
-
-and you can use the newly defined `defresolver` to define Pathom resolvers for satisfying REST API requests, like so:
-
-```
-(defresolver `ofac
-{::pc/output [:rest/thing]}
-(fn [env _]
-  (let [name    (-> env :ast :params :name)
-        params  {"name"      name}]
-    (go
-      (let [{:keys [body]} (<!
-       (http/get "https://myrest.com/search" {:query-params      params}))]
-        {:rest/thing body})))))
-```
-
-which can then be used with:
-
-```
-(df/load this :rest/thing nil {:params {:name "Simon"}})
-```
-
-and can be targeted, use load markers, etc.
-
-Of course, you can also define resolvers that "compute" derived data with normal resolver tricks.
-See Pathom documentation.
-
-==== GraphQL
-
-The Pathom library also includes a pre-built GraphQL remote for Fulcro, along with tools that allow you to combine resolvers with GraphQL servers easily.
-Pathom's connect feature can be combined in, which allows you to morph your perception of the server's graph in ways that are more convenient for your application.
-This results in a remote for Fulcro that is far more powerful than standard GraphQL, even when GraphQL is what the server is providing!
+= Synchronous Operation
+
+The default transaction processing system of Fulcro 3 is highly asynchronous. This is partly for legacy compatibility with
+some now-deprecated features that were inherited from Fulcro 2, and partly an attempt to provide semantics that make sense
+when transactions are submitted from within the action handlers of mutations (nested transactions).
+
+Unfortunately this asynchrony adds in a bit of overhead, leads to occasional over-rendering (a top-level + nested tx will lead
+to 2 renders even though only one is probably necessary), and makes any kind of full-app unit testing quite difficult.
+
+Fulcro 3 was designed with extreme flexibility in mind, and most of the internal algorithms are replaceable. The transaction
+processing itself is one of these algorithms. Of course, replacing such a central item can lead too all sorts of application
+regressions and problems since the tx processing is the central mode of operation in Fulcro overall.
+
+In Fulcro 3.2.16 and above there is a new version of the tx processing algorithm in
+`com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing`. You can plug it in when you create your
+application:
+
+[source]
+-----
+(app/fulcro-app {:submit-transaction! stx/sync-tx!})
+-----
+
+and now any call to `(transact! ...)` will do *as much work as possible* synchronously, *while* preserving the expressed
+transactional semantics of Fulcro's transaction system:
+
+* The top-level transaction's optimistic actions will *all* complete before any *nested* submission (i.e. a call to
+`transact!` within a mutation body) starts.
+* The top-level transaction's remote actions will be queued (and idle remotes will start the sends)
+* Any *synchronous* remote (e.g. a Datatscript database behind Pathom in the client) that reports results will cause
+action handlers in mutations to run *after* the optimistic actions of the top-level transaction are complete, but
+still synchronously overall.
+
+Futhermore, any nested transaction submission that happen in the above synchronous steps will be post-processed on the
+same synchronous call before rendering.
+
+Finally, a synchronous call to an immediate synchronous render will happen once there is no more immediate work to do. Technically
+this could lead to an attempt to render more than 60fps, but in reality the next transaction will have to be triggered by
+a user-driven event or network response. The only real consideration is if you're transacting in response to something
+like a mouse move event, in which case you might consider debouncing your calls to `transact!` or use component-local state.
+(NOTE: browsers often limit event reporting to animation frames, so it is actually unlikely you'll submit transactions
+faster than 60fps).
+
+== Testing Full Apps using Synchronous Operation
+
+Synchronous operation can be quite useful even if you find the syncrhonous operation unsuitable for your production application. It
+comes in particularly handy when you'd like to set your remotes to something synchronous, and run full integration tests
+against a headless app. This is such a handy thing that there is a helper function that will set up an app for just this
+purpose: `app/headless-synchronous-app`.
+
+Here is an example test from Fulcro's own `ui_state_machine_spec.cljc` that demonstrates how you might use this to
+test the full operation of your application (sans rendering):
+
+[source]
+-----
+(uism/defstatemachine test-machine2
+  {::uism/aliases {:name [:actor/child :name]}
+   ::uism/states  {:initial {::uism/handler (fn [env] (-> env
+                                                        (uism/assoc-aliased :name "Tony")
+                                                        (uism/activate :state/a)))}
+                   :state/a {::uism/events {:event/bang! {::uism/handler (fn [env]
+                                                                           (-> env
+                                                                             (uism/apply-action update :WOW inc)
+                                                                             (uism/activate :state/b)))}}}
+                   :state/b {::uism/events {:event/bang! {::uism/handler (fn [env]
+                                                                           (-> env
+                                                                             (uism/apply-action update :WOW inc)
+                                                                             (uism/activate :state/a)))}}}}})
+
+(defsc Child [this {:keys [:name] :as props}]
+  {:query         [:name]
+   :ident         (fn [] [:component/id :child])
+   :initial-state {:name "Bob"}})
+
+(defsc TestRoot [_ _]
+  {:query         [{:root/child (comp/get-query Child)}]
+   :initial-state {:root/child {}}})
+
+(specification "Integration test (using sync tx processing)"
+  (let [app     (app/headless-synchronous-app TestRoot {})
+        fget-in (fn [path] (get-in (app/current-state app) path))]
+    (uism/begin! app test-machine2 ::id {:actor/child Child} {})
+    (assertions
+      "After begin, ends up in :state/a"
+      (uism/get-active-state app ::id) => :state/a
+      "Applies the action from the handler"
+      (fget-in [:component/id :child :name]) => "Tony")
+
+    (behavior "Triggering an event from state a"
+      (uism/trigger! app ::id :event/bang!)
+      (assertions
+        "Moves to the correct state"
+        (uism/get-active-state app ::id) => :state/b
+        "Applies the expected actions"
+        (fget-in [:WOW]) => 1))
+
+    (behavior "Triggering an event from state b"
+      (uism/trigger! app ::id :event/bang!)
+      (assertions
+        "Moves to the correct state"
+        (uism/get-active-state app ::id) => :state/a
+        "Applies the expected actions"
+        (fget-in [:WOW]) => 2))))
+-----
+
+Note in the test above we make a couple of components with no UI, just queries/idents/initial state. The headless app
+will properly initialize, and will be ready for any calls. Everything that applications do in Fulcro that affect
+state boils down calls to `transact!` (including loads). With the sync tx processing you can therefore simply walk through
+a sequence of calls and check the resulting state as you go.
 
 = Security [[Security]]
 
@@ -11118,6 +11064,166 @@ Fulcro spec has some limitations that are inherent to the underlying programming
 . You're always creating "partial mocks".
 Expanding a function will often invalidate the mocking around it.
 
+= Server-side Rendering
+
+Single-page applications have a couple of concerns when it comes to how they behave on the internet at large.
+
+The first is size.
+
+It is not unusual for a SPA to be several megabytes in size.
+This means that users on slow networks may wait a while before they see anything useful.
+Network speeds are continually on the rise so
+this is becoming less and less of an issue. If this is your only concern then it might be poor accounting to
+complicate your application just to shave a few ms off the initial load.
+
+After all, with proper serving you can get their browser to cache the js file for all but the first load of your site.
+
+You often, in fact, would do well to follow examples like gmail that simply show a loading progress bar.
+You're writing client-side *applications*, and this is often quite good enough (and much simpler).
+
+Another concern is SEO. If you have pages on your application that do not require login and you would like to have in
+search engines, then a blank HTML page with a javascript file may have a more limited reach (though search engines are
+getting better and better about indexing even SPAs).
+
+Fortunately, Fulcro has you covered for any of these options!
+
+Server-side rendering not only works well in Fulcro, the central mechanisms of Fulcro (a client-side database with mutations)
+and the fact that you're writing in one language actually make server-side rendering shockingly simple, even for pages
+that require data from a server-side store!
+
+After all, all of the functions and UI component queries needed to normalize the tree that you already know how to
+`generate on your server can be in CLJC files and can be used without writing anything new!
+
+If you're writing your UI in CLJC files to support server-side rendering then you need to make sure you use a
+conditional reader to pull in the proper server DOM functions for Clojure:
+
+```
+(ns app.ui
+  (:require
+    #?(:clj [com.fulcrologic.fulcro.dom-server :as dom]
+       :cljs [com.fulcrologic.fulcro.dom :as dom]))
+```
+
+== Overall Structure
+
+Here's how to structure your application to support SSR:
+
+. Write the entire client in CLJC.
+* Any pure js components from NPM will need to have wrappers that emit something "sane" for clojure.
+. The server will use the client initial app state plus a sequence of mutation implementations to build a "starting
+  state" normalized database based on the route.
+. The server will serve the same basic HTML page (from code) that has the following:
+* The CSS and other head-related stuff and the div on which your app will mount.
+* A div with the ID of your SPA's target mount, which will contain the HTML of the server-rendered application state
+* A script tag that embeds the server-generated normalized db (the one used in to render on the server) as a transit-encoded string on `js/window`.
+* A script tag at the bottom that loads your client SPA code
+. The client will look for initial state via a var set on `js/window` (transit-encoded string), and use that as the initial state of the app.
+. The client will mount (using the `:hydrate?` application option), which will cause react to hook up to the existing DOM.
+
+=== Building the App State on the Server
+
+There are two approaches to building the app state on the server.
+
+Headless App:: You can actually run the application itself in a
+headless mode with "loopback" remotes (e.g. a remote that directly calls your parser instead of doing network ops), trigger
+mutations, wait for things to settle down (queues are done on timeouts), and then get the props from that app's state
+for rendering. This is currently *not* the recommended approach since the feature is not well-tested and is missing a
+few hooks that would make it more approachable. Contributions desired.
+State Building:: You can grab the initial state using `build-initial-state`, and then run a series of mutation helpers
+(functions from state db -> state db) to evolve the state into the one desired, and then use that db to generate props,
+render the first frame, and send that state for use on the client. This the preferred approach, since it is free from
+timing issues.
+
+The `com.fulcrologic.fulcro.algorithms.server-render` namespace has a function called `build-initial-state` that takes the root component and an initial state tree.
+It normalizes this and plugs in any union branch data that was not in the tree itself (by walking the query and looking for components that have initial state and are union branches).
+It returns a *normalized* client application db that would be what you'd have on the client at initial startup if you'd started the client normally.
+
+So, now all you need to do is run any combination of operations on that map to bring it to the proper state.
+Here's the super-cool thing: your renderer is pure!
+It will render exactly what the state says the application is in!
+
+```
+(let [base-state (ssr/build-initial-state (my-app/get-initial-state) my-app/Root)
+      user       (get-current-user (:session req))
+      user-ident (comp/get-ident my-app/User user)]
+   (-> base-state
+     (todo-check-item-impl* 3 true) ; some combo of mutation impls
+     (assoc :current-user user-ident) ; put normalized user into root
+     (assoc-in user-ident user)))
+```
+
+So now you've got the client-side db on the server.
+Now all you need to do is pre-render it, and also get this generated state to the client!
+
+=== Rendering with Initial State
+
+Of course, the whole point is to pre-render the page.
+Now that you have a complete client database this is trivial:
+
+```
+(let [props                (fdn/db->tree (comp/get-query app/Root normalized-db) state-map state-map)
+      root-factory         (comp/factory app/Root)]
+  (binding [comp/*app* YOUR-APP] ; some APIs look for your fulcro-app in this bound var.
+    (dom/render-to-str (root-factory props))))
+```
+
+will generate a string that contains the current HTML rendering of that database state!
+
+=== Send The Completed Package!
+
+Now, while you have the correct initial look, you will still need to get this database state into the client.
+While you could technically try loading your UI's initial state, it would make the UI flicker because when React mounts it needs to see the exact DOM that is already there.
+So, you must pass the server-side generated-database as initial-state to your client.
+
+The function `com.fulcrologic.fulcro.algorithms.server-render/initial-state->script-tag` will give you a `<script>` tag that includes a string-encoded EDN data structure (using transit).
+
+We now combine what we learned about generating the application's rendering with this to get the overall response from the server:
+
+```
+(defn top-html [app normalized-db root-component-class]
+  (let [props                (db->tree (get-query root-component-class) normalized-db normalized-db)
+        root-factory         (factory root-component-class)
+        app-html             (binding [comp/*app* app] (dom/render-to-str (root-factory props)))
+        initial-state-script (ssr/initial-state->script-tag normalized-db)]
+    (str "<!DOCTYPE html>\n"
+      "<html lang='en'>\n"
+      "<head>\n"
+      "<meta charset='UTF-8'>\n"
+      "<meta name='viewport' content='width=device-width, initial-scale=1'>\n"
+      initial-state-script
+      "<title>Home Page</title>\n"
+      "</head>\n"
+      "<body>\n"
+      "<div id='app'>"
+      app-html
+      "</div>\n"
+      "<script src='js/app.js' type='text/javascript'>app.client.start_from_ssr();</script>\n"
+      "</body>\n"
+      "</html>\n")))
+```
+
+Now let's move on to the client.
+
+=== Client-Side – Use Initial State
+
+When creating your client, you will now be explicit about initial state and use a helper function (provided) to decode the server-sent state:
+
+```
+(ns app.client
+  (:require ...))
+
+(defonce app (app/fulcro-app))))
+
+(defn ^:export start-from-ssr
+  "Start the application after a server-side render"
+  []
+  (let [db (ssr/get-SSR-initial-state)]
+    (reset! (::app/state-atom app) db)
+    (app/mount! app Root "app" {:hydrate? true :initialize-state? false})))
+```
+
+You can keep your original `start` code for cases where you want to start the app without SSR (e.g. development?).
+
 = Logging
 
 Fulcro 3 uses https://github.com/ptaoussanis/timbre[Timbre].
@@ -12030,6 +12136,35 @@ broser.cljs    - A namespace that requires all of the `*-browser` namespaces, an
 
 and finally your two top-level entry points, each of which will require the correct runtime (native or browser) to
 include it in the build.
+
+= Fulcro and GraphQL
+
+GraphQL is rapidly becoming the standard for writing graph-based servers.
+As a result there are many existing ways to deploy such an API, and many businesses have decided that their back-end will simply use the standard.
+There are BaaS (back-end as a service) providers that also let you quickly define and deploy a GraphQL API.
+
+All of this makes GraphQL an attractive server-side solution for Fulcro.
+
+Luckily, https://github.com/wilkerlucio/pathom[Pathom] has all of the tools necessary to make this integration simple and easy!
+
+You can see some of it in action in https://youtu.be/Yk7xFry0w2Y[one of the Fulcro video series], and read about configuring it in the https://wilkerlucio.github.io/pathom/#GraphQL[Pathom Documentation].
+
+The simplest integration is to simply use Pathom's GraphQL remote:
+
+```
+(ns app
+  (:require
+    ...
+    [com.wsscode.pathom.fulcro.network :as pfn]))
+
+(def client (fulcro/make-fulcro-client
+              {:networking {:remote (pfn/graphql-network
+                                      {::pfn/url (str "https://api.github.com/graphql?access_token=" token)})}})
+```
+
+The more powerful and extensible method allows you to combine GraphQL access with Pathom Connect.
+This gives you very powerful features, including many useful ones that GraphQL doesn't support natively!
+
 
 ++++
 <style>
