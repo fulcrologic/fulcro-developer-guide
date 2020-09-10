@@ -10006,6 +10006,15 @@ like a mouse move event, in which case you might consider debouncing your calls 
 (NOTE: browsers often limit event reporting to animation frames, so it is actually unlikely you'll submit transactions
 faster than 60fps).
 
+Some other notes:
+
+* Using the `synchronous? true` option (which is auto-added to options when using the `!!` variants of functions)
+when leveraging the sync tx processing will *additionally* render *only* the component
+that submitted the top-most transaction. This means `set-string!!`, `transact!!`, and such will all do the absolute
+minimum work to get the single submitting component up-to-date with as little overhead as possible. This *only* applies if
+the component in question *has an ident*. Remember that your Root component is special and *cannot* have an ident.
+* Other rendering options (specified by your renderer of choice) are still passed through to render.
+
 == Testing Full Apps using Synchronous Operation
 
 Synchronous operation can be quite useful even if you find the syncrhonous operation unsuitable for your production application. It
