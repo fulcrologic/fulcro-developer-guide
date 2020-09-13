@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: September 9, 2020
+:revdate: September 12, 2020
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -9977,13 +9977,14 @@ Fulcro 3 was designed with extreme flexibility in mind, and most of the internal
 processing itself is one of these algorithms. Of course, replacing such a central item can lead too all sorts of application
 regressions and problems since the tx processing is the central mode of operation in Fulcro overall.
 
-In Fulcro 3.2.16 and above there is a new version of the tx processing algorithm in
-`com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing`. You can plug it in when you create your
+In Fulcro 3.2.17 and above there is a new version of the tx processing algorithm in
+`com.fulcrologic.fulcro.algorithms.tx-processing.synchronous-tx-processing` (`stx`). You can plug it in when you create your
 application:
 
 [source]
 -----
-(app/fulcro-app {:submit-transaction! stx/sync-tx!})
+(stx/with-synchronous-transactions
+  (app/fulcro-app {}))
 -----
 
 and now any call to `(transact! ...)` will do *as much work as possible* synchronously, *while* preserving the expressed
