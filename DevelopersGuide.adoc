@@ -723,6 +723,8 @@ Our directory structure must match this in CLJ(S), so we create `src/main/app/cl
   []
   ;; re-mounting will cause forced UI refresh, update internals, etc.
   (app/mount! app Root "app")
+  ;; As of Fulcro 3.3.0, this addition will help with stale queries when using dynamic routing:
+  (comp/refresh-dynamic-queries! app)
   (js/console.log "Hot reload"))
 ```
 
@@ -961,6 +963,8 @@ and now you can trim your `client.cljs` down to just the initialization code:
 (defn ^:export refresh []
   ;; re-mounting will cause forced UI refresh
   (app/mount! app ui/Root "app")
+  ;; 3.3.0+ Make sure dynamic queries are refreshed
+  (comp/refresh-dynamic-queries! app)
   (js/console.log "Hot reload"))
 ```
 
@@ -8488,6 +8492,43 @@ The correct form for the resulting mutation is:
 ```
 
 There is also a top-level API call `comp/set-query!` if you want to change a query outside of a mutation.
+
+== Hot Code Reload and Dynamic Queries
+
+Dynamic queries are stored in app state. This means that if you use dynamic queries then hot code reload will *not*
+see your static query changes to components automatically. The solution was either to reset the queries manually with
+new calls to `set-query!` (nobody ever did this) or reload the entire page.
+
+In order to make this work better, you need to understand how dynamic queries work:
+
+* The children of a query are normalized into app state.
+* Joins point to the normalized value of the child queries.
+
+So, Fulcro closes over the *tree* of queries, even when you just set something on a local component (every join child
+has to be tracked, or you could then not reliably set a query on a child).
+
+Needless to say, reloading the app is not a great dev experience.
+
+We note an important (and easy to leverage) fact to fix this
+We only care to keep the query for components that have their query dynamically set. This children are closed over
+as a matter of necessity. We can safely refresh those (static query) children without hurting our actual application
+operation.
+
+As of Fulcro 3.3.0 there is a utility function that can be used in your hot code reload refresh function that
+can refresh queries: `(comp/refresh-dynamic-queries! app)`.  This function scans the app state for dynamic queries
+and resets the app state version to the static version.
+
+By default it will *skip* any component that has a `:preserve-dynamic-query? true` option set on it:
+
+[source]
+-----
+(defsc MyThing [this props]
+  {:preserve-dynamic-query? true
+   ...})
+-----
+
+Dynamic routers now set this option, so they will not be affected by hot reload query refresh. If you use dynamic
+queries on a component, then it is likely you'll want to mark them as well.
 
 = Dynamic Router
 
