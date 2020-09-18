@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: September 15, 2020
+:revdate: September 18, 2020
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -3778,6 +3778,53 @@ The `components` namespace includes a `with-parent-context` function that can do
 ```
 
 If you look at the source of `react-interop`, you'll see that both things are being done in order to make the target child component tolerant of being wrapped by a HOC pattern.
+
+== React Errors
+
+React 16 adopted a new form of error handling where an exception in components "burns down" the
+entire UI up to an "error boundary". If you don't supply one, then your UI will go completely blank on errors: a
+very bad experience for users and developers. See the https://reactjs.org/docs/error-boundaries.html[React documentation]
+for manually handling this situation (all of the lifecycle methods are available from Fulcro's `defsc`)
+
+Fulcro 3.3.3+ includes a namespace with a helper macro that makes this a lot easier: `com.fulcrologic.fulcro.react.error-boundaries`.
+
+The macro in this namespace emits code that will render the children within a nested pair of stateless react elements
+that will catch these errors and properly render something useful in the area of the UI affected.
+
+To use it:
+
+. (Optionally) set the *render-error* to a function that renders the replacement UI.
+. Wrap bits of your UI using the macro.
+
+[source]
+-----
+;; At app initialization: (in CLJ, use alter-var-root)
+(set! error-boundaries/*render-error* (fn [this error] (dom/div ...)))
+
+;; within your UI rendering:
+
+(error-boundary
+  (dom/div ...))
+-----
+
+In development mode the UI can use component-local state to allow the developer to retry rendering (after a
+hot code reload). The default rendering for errors looks like this, if you need help knowing what to do
+when writing an override:
+
+[source]
+-----
+(def ^:dynamic *render-error*
+  (fn [this cause]
+    (dom/div
+      (dom/h2 :.header "Unexpected Error")
+      (dom/p "An error occurred while rendering the user interface.")
+      (dom/p (str cause))
+      (when #?(:clj false :cljs goog.DEBUG)
+        (dom/button {:onClick (fn []
+                                (comp/set-state! this {:error false
+                                                       :cause nil}))} "Dev Mode: Retry rendering")))))
+-----
+
 
 = EQL -- The Query and Mutation Language
 
