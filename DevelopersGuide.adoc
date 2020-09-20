@@ -6081,14 +6081,15 @@ The `ident` functions are used to determine the table locations and idents to pl
 === Using `com.fulcrologic.fulcro.components/merge!`
 
 Fulcro includes a function that takes care of the rest of these bits for you.
-It requires the reconciler (which as we mentioned earlier can be obtained from the Fulcro App).
+It requires the app or a component.
 The arguments are similar to `tree->db`:
 
 ```
-(merge/merge! (:reconciler @app) ROOT-data ROOT-query)
+(merge/merge! app ROOT-data ROOT-query)
 ```
 
-The same things apply as `tree->db` (idents especially), however, the result of the transform will make its way into the app state (which is owned by the reconciler).
+The same things apply as `tree->db` (idents especially), however, the result of the transform will make its way into the
+app state.
 
 *IMPORTANT*:
 The biggest challenge with using this function is that it requires the data and query to be structured from the ROOT of the database!
@@ -6110,7 +6111,7 @@ I want to merge into that component's entry in a table, but I want to make sure 
 `merge-component!` also integrates the functionality of `targeting/integrate-ident*` to pepper the ident of the merged entity
 throughout your app database, and can often serve as a total one-stop shop for merging data that is coming from some external source.
 
-This first argument can be an application or reconciler.
+This first argument can be an application or component.
 
 ==== Merge-component! Demo
 
@@ -8103,7 +8104,7 @@ The ident will be derived by calling
 `(comp/get-ident class {})`.
 This actor will work properly with remote return values and loads.
 A component instance (e.g. `this`)::
-A component instance can be `this`, or can be found using Fulcro's live indexes (e.g. `(comp/ref->any reconciler [:person/id 1])`).
+A component instance can be `this`, or can be found using Fulcro's live indexes (e.g. `(comp/ident->any app [:person/id 1])`).
 A component instance is sufficient for the state machine to find the correct ident _and_ query for the UI component, so it will work with loads/mutations.
 
 ==== Example Starts
@@ -8143,7 +8144,7 @@ Puts a raw (unmodified) value into the given data alias and sends a `::uism/valu
 You can define other "custom" events to stand for whatever you want (and they can include aux data that you can pass along to the handlers).
 To trigger arbitrary events use:
 
-`(uism/trigger! comp-or-reconciler state-machine-id event)`::
+`(uism/trigger! comp-or-app state-machine-id event)`::
 Trigger an arbitrary event on the given state machine.
 
 For example:
@@ -8156,7 +8157,7 @@ would send a (user-defined) `:event/failure` event.
 Event data is just a map that can be passed as an additional parameter:
 
 ```
-(uism/trigger! reconciler ::loginsm :event/failure {:message "Server is down. Try in 15 minutes."})
+(uism/trigger! app ::loginsm :event/failure {:message "Server is down. Try in 15 minutes."})
 ```
 
 === Looking at The Running Instance
@@ -8847,11 +8848,11 @@ This makes it easy to do things like alias one path found in the URI to a differ
 
 Additional useful functions are:
 
-`(current-route component-or-reconciler starting-component)`::
+`(current-route component-or-app starting-component)`::
 Returns a vector of the path components on the current (live) route starting at the given `starting-component`.
 If you use your root component it will be the absolute path, and using some other component router will give the relative path from there.
 
-`(change-route-relative this-or-reconciler relative-class-or-instance new-route timeouts)`::
+`(change-route-relative this-or-app relative-class-or-instance new-route timeouts)`::
 Just like `change-route`, but can take a relative `new-route` and apply it starting and the given `relative-class-or-instance`.
 Thus, some module of a program can route in a relative manner which will further decouple the components, making it easier to use a module in a development card or refactor it to a different location in the app without breaking local concerns.
 
@@ -9708,7 +9709,7 @@ with components like:
 Normally you might throw this into your application state with something like:
 
 ```
-(merge/merge-component! reconciler PersonForm person-tree)
+(merge/merge-component! app PersonForm person-tree)
 ```
 
 which will insert and normalize the person and phone number.
@@ -9717,7 +9718,7 @@ If you also are supporting form interactions then you can augment the form with 
 
 ```
 (def person-tree-with-form-support (fs/add-form-config PersonForm person-tree))
-(merge/merge-component! reconciler PersonForm person-tree-with-form-support)
+(merge/merge-component! app PersonForm person-tree-with-form-support)
 ```
 
 IMPORTANT: `add-form-config` will look at all of the form (and subforms reachable from that form), but it will only add config to the ones that are missing it.
@@ -10533,9 +10534,9 @@ The demo application includes two such pre-installed routes (`Login` and `NewUse
 The code (called at application startup via `:client-did-mount`) to set up the pre-loaded routes and is:
 
 ```
-(defn application-loaded! [{:keys [reconciler]}]
+(defn application-loaded! [app]
   ; Let the dynamic router know that two of the routes are already loaded.
-  (comp/transact! reconciler `[(r/install-route {:target-kw :new-user :component ~NewUser})
+  (comp/transact! app `[(r/install-route {:target-kw :new-user :component ~NewUser})
                                (r/install-route {:target-kw :login :component ~Login})
                                (r/route-to {:handler :login})])
   ; Clojurescript requires you call this on every successfully "loaded" module:
