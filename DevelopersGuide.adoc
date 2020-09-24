@@ -7799,7 +7799,7 @@ and then `config` (after start) will simply contain the EDN of the defaults/conf
 
 = Custom Type Support
 
-Available in Fulcro 3.3.5+.
+Available in Fulcro 3.3.6+.
 
 NOTE: This is API stable and definitely usable as parameters for mutations, but needs more testing with respect to usage
 in the state database. We *intend* to support the custom types everywhere, but test your use of them carefully.
