@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: September 18, 2020
+:revdate: September 24, 2020
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -7796,6 +7796,78 @@ If you are using something like https://github.com/tolitius/mount[mount], then y
 ```
 
 and then `config` (after start) will simply contain the EDN of the defaults/config file merge.
+
+= Custom Type Support
+
+Available in Fulcro 3.3.5+.
+
+NOTE: This is API stable and definitely usable as parameters for mutations, but needs more testing with respect to usage
+in the state database. We *intend* to support the custom types everywhere, but test your use of them carefully.
+
+Fulcro has leveraged Cognitect's Transit for on-the-wire communicaation since the beginning. Earlier versions allowed
+you to extend the types supported by transit on a per-function basis (i.e. every time you used a subsystem/function
+that leveraged transit, you could supply transit options to install handlers).
+
+Unfortunately as the ecosystem grew this became harder and harder to manage. Remembering to install transit handlers
+and passing transit options down through trees of calls just isn't a very "black box" approach, and many very nice
+features of the library are "hard to reach" this way.
+
+Starting in version 3.3.5 we added support for a central type registry, and evolved all of the dependent libraries and
+functions to use it. You can still pass the custom handers as options to everything that used to accept them, but now
+those will be merged with whatever is in the global Fulcro registry.
+
+The `com.fulcrologic.fulcro.algorithms.transit` namespace (referred to here as `transit`) contains both the registry
+and the functions needed to create/add type support to it. It is a CLJC file, and The interface is identical for CLJ
+and CLJS. Here is an example of adding support for a geometric `Point` type:
+
+[source]
+-----
+(ns com.app.custom-types
+  (:require
+    [com.fulcrologic.fulcro.algorithms.transit :as transit]))
+
+(deftype Point [x y])
+
+(defn install! []
+  (transit/install-type-handler!
+    (transit/type-handler Point "geo/point"
+      (fn [^Point p] [(.-x p) (.-y p)])
+      (fn [[x y]] (Point. x y)))))
+-----
+
+You simply support the type, a string to tag the type (globally unique within your handlers), and two functions. One that
+can convert from the type to a representation, and another that can convert from that representation back to the type.
+
+The "representation" must be something Transit already
+https://github.com/cognitect/transit-format#ground-and-extension-types[supports], or a type that you have installed
+a custom handler for (i.e. you can nest definitions). For example, this is legal:
+
+[source]
+-----
+(deftype Point [x y])
+(deftype Rectangle [^Point ul ^Point lr])
+
+(defn install! []
+  (transit/install-type-handler!
+    (transit/type-handler Point "geo/point"
+      (fn [^Point p] [(.-x p) (.-y p)])
+      (fn [[x y]] (Point. x y))))
+  (transit/install-type-handler!
+    (transit/type-handler Rectangle "geo/rect"
+      (fn [^Rectangle p] [(.-ul p) (.-lr p)])
+      (fn [[a b]] (Rectangle. a b)))))
+-----
+
+Fulcro's HTTP remote, Websocket Remote (v3.2.0+), string conversion support (e.g. `transit/transit-clj->str`),
+Fulcro RAD, and even Fulcro Inspect can leverage these custom types to provide a more seamless experience around
+data that needs (or already has) some kind of "type". Common examples can include things like
+transmitting/receiving instances of things like Java's `LocalDate` when using js-joda with CLJC java.time.
+
+IMPORTANT: It is *critical* that you install your type handlers as early as possible.
+Some aspects of libraries have to access (and close over) this type registry
+on initialization. For example, websockets support requires you install these before you create a client or server
+instance.
+
 
 = UI State Machines
 
