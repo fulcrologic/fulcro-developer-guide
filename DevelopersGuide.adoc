@@ -954,6 +954,7 @@ and now you can trim your `client.cljs` down to just the initialization code:
   (:require
     [app.application :refer [app]]
     [app.ui :as ui]
+    [com.fulcrologic.fulcro.components :as comp]
     [com.fulcrologic.fulcro.application :as app]))
 
 (defn ^:export init []
