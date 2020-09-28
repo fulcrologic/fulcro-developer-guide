@@ -3232,9 +3232,7 @@ So, the current best practice is for your controlled input usage to look like th
 
 Violla! You're now doing forms the React way while still *looking like* you're doing them the Fulcro way!
 
-This special `transact!!` will work just as well with imported (vanilla js) React input components. The mutation helpers in the mutations
-namespace (`toggle!`, `set-string!`, `set-integer!`, and `set-value!`) use `transact!!`, so they will all function
-properly.
+This special `transact!!` will work just as well with imported (vanilla js) React input components.
 
 You can technically improve the performance of this (very slightly) by telling Fulcro that you no longer want the
 `dom/input` to be a wrapped input by setting a compiler option, but beginners should not bother with this.
@@ -3247,6 +3245,8 @@ component passed as an argument (which *must* have an ident). This ensure speedy
 component uses the props of children to derive values (e.g. the number of items checked), then the parent will
 not refresh. The most general way to solve that is to schedule your own UI refresh via `app/schedule-render!`
 at a point that makes sense in your application (e.g. perhaps on field blur).
+
+See also the <<Synchronous Operation, synchronous transaction plugin>> for Fulcro.
 
 === StringBufferedInput
 
@@ -10138,7 +10138,7 @@ Unfortunately this asynchrony adds in a bit of overhead, leads to occasional ove
 to 2 renders even though only one is probably necessary), and makes any kind of full-app unit testing quite difficult.
 
 Fulcro 3 was designed with extreme flexibility in mind, and most of the internal algorithms are replaceable. The transaction
-processing itself is one of these algorithms. Of course, replacing such a central item can lead too all sorts of application
+processing itself is one of these algorithms. Of course, replacing such a central item can lead to all sorts of application
 regressions and problems since the tx processing is the central mode of operation in Fulcro overall.
 
 In Fulcro 3.2.17 and above there is a new version of the tx processing algorithm in
