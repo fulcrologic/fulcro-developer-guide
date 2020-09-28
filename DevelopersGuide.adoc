@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: September 27, 2020
+:revdate: September 28, 2020
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -8674,7 +8674,7 @@ Code Splitting:: A complete routing system for SPAs should make it easy to do co
 DRY:: It should not be necessary to repeat the "route path" as an external data structure when it matches the UI structure.
 The UI composition itself can easily act as a "default" routing path structure.
 
-URI <=> UI Routes should be flexible and able to "alias"::  Reshaping the URI can be done by optional functions that sit in-between browser URI and code.
+URI <-> UI Routes should be flexible and able to "alias"::  Reshaping the URI can be done by optional functions that sit in-between browser URI and code.
 
 Navigable Code:: During development it should be easy to see (as local concerns) what happens along a given UI route.
 Code navigation (jumping from root through subcomponents) should make it trivial to understand all routing concerns.
@@ -8781,7 +8781,7 @@ Each `router` in the UI should be thought of as a stand-in for a "/" in an HTML5
 MUST contain only strings and keywords.
 
 `:will-enter`::
-A notification that this route target should be shown.
+A notification that this route target will be shown.
 Can return a value indicating a desire to do so immediately, or that it would like a delay (for some I/O).
 This method is called *before* the component is on-screen, so it cannot receive a react component instance.
 It is passed the app and router parameters which can be used to do things like issues loads and run mutations.
@@ -8800,7 +8800,7 @@ This is called on the instance, so `this` and `props` are available.
 A request to change routes will signal this method from deepest child towards the parent, and will stop if any returns false.
 Optional. WARNING: As of v3.1.23 this function's return value is *deprecated*. `:allow-route-change?` should be used
 for that functionality. When using this new technique `will-leave` is a *promise*, not a *request*. If you don't have
-`allow-route-change?` then the return value of this function is still used, but a deprecation warning is issued in the console.
+`allow-route-change?` then the return value of this function is still used, but a deprecation warning will be shown in the console.
 
 `:allow-route-change?`:: v3.1.23+. A `(fn [this] boolean?)` that must not side effect. Takes over HALF of the responsibility of
 `:will-leave` and should be side-effect free. When using this `:will-leave` should be considered a promise (not a request).
@@ -8811,19 +8811,24 @@ code to *ask* if route changes are allowed, and the ability for routing to tell 
 responsible for a failure.  This `(fn [this router relative-path])` *can* side-effect to issue UI messages, and can
 also do things like use `js/confirm` to override its decision using `dr/retry-route!`.
 
-WARNING: `will-enter` SHOULD NOT side-effect (order of operations could cause strange behavior), but must instead do any I/O in the lambda passed to `route-deferred`.
-It must also trigger the `dr/target-ready` mutation to indicate that the route is ready.
+WARNING: `will-enter` *can be* called multiple times as part of the route resolution algorithm and MUST NOT side-effect.
+Any I/O must be done in the lambda passed to `route-deferred`, which
+must then trigger the `dr/target-ready` mutation to indicate that the route is ready.
 You can use plain `transact!`
-to start a mutation within route-deferred, and the mutation can use `target-ready!` to send the signal.
+to start a mutation within `route-deferred`, and the mutation can use `target-ready!` to send the signal.
 
 Route targets can be singletons or regular components that have multiple instances.
 In the latter case you must be sure that the ident returned from `will-enter` points to valid data in state by the time the route is resolved.
 
 == Initial Route
 
-The dynamic routing relies on a call to `change-route` in order to start the routing system.
-Therefore you MUST make a call to `change-route` on start in order for the dynamic routers to work; however, there is
-also the concern of what gets rendered on the "first frame" of application mount.
+The dynamic routing relies on a call to `change-route!` in order to start the routing system. You can use `dr/initialize!`
+to ensure that the state machines for all routers are started at application startup, but your application will be in
+an "unrouted" state until you explicitly set a route!
+
+Therefore you MUST make a call to `change-route!` on start in order for the dynamic routers to work; however, there is
+also the concern of what gets rendered on the "first frame" of application mount (before you've had a chance to
+call `change-route!`).
 
 Your top-most router will be in an "uninitialized" state on initial load.
 You can use the body of that router to render the "first frame" of your mounted app:
@@ -8843,9 +8848,50 @@ The function
 `dr/ssr-initial-state` (written, but untested) can be used to help you construct the proper state for a given path (which must be used for the server-side render, and also as the initial state for the client).
 Technically, this means that the function can also be used to generate initial state for the client on the front-end as well.
 
+=== Setting the Route Early
+
+Fulcro applications are capable of running "headless". In general we recommend you actually start your app before mounting
+it, set up your routes and perhaps even do some initial loads, then mount the application. This will ensure a more
+consistent (and less flickering) user experience.
+
+You can do this as follows:
+
+[source]
+-----
+(defonce SPA (app/fulcro-app ...))
+
+(defn start []
+  (app/set-root! app ui/Root {:initialize-state? true})
+  (dr/change-route! SPA ["langing-page"])
+  (app/mount! app ui/Root "app" {:initialize-state? false}))
+-----
+
+An even better approach is to use state to block rendering until such time as a route or load is ready
+just by looking at the current state of your top-most router's state machine.
+
+* Query for the router's state machine in order to be able to ask the current state.
+* The active state may be nil (not started)
+* For nil or :initial state, simply don't render the router.
+
+[source]
+-----
+(defrouter RootRouter ...)
+
+(def ui-router (comp/factory RootRouter))
+
+(defsc Root [this {:root/keys [router]}]
+  {:query [{:root/router (get-query RootRouter)}
+           ;; The UISM id of a router's state machine is just the FQ keyword name of the router's class
+           [::uism/asm-id ::RootRouter]]}
+  (let [top-router-state (or (uism/get-active-state this ::RootRouter) :initial)]
+    (if (= :initial top-router-state)
+      (dom/div :.loading "Loading...")
+      (ui-router router))))
+-----
+
 == Initial State
 
-It is essential for correct rendering that the router's (initial) state is composed in its parent's (initial) state.
+It is essential for correct first-frame rendering that the router's (initial) state is composed into its parent's (initial) state.
 
 If the parent's data is loaded dynamically, you must make sure to include the router in it manually. Typically with `:pre-merge`, like here:
 
@@ -8923,13 +8969,14 @@ This makes it easy to do things like alias one path found in the URI to a differ
 
 Additional useful functions are:
 
-`(current-route component-or-app starting-component)`::
+`(current-route! component-or-app starting-component)`::
 Returns a vector of the path components on the current (live) route starting at the given `starting-component`.
 If you use your root component it will be the absolute path, and using some other component router will give the relative path from there.
 
-`(change-route-relative this-or-app relative-class-or-instance new-route timeouts)`::
+`(change-route-relative! this-or-app relative-class-or-instance new-route timeouts)`::
 Just like `change-route`, but can take a relative `new-route` and apply it starting and the given `relative-class-or-instance`.
-Thus, some module of a program can route in a relative manner which will further decouple the components, making it easier to use a module in a development card or refactor it to a different location in the app without breaking local concerns.
+Thus, some module of a program can route in a relative manner which will further decouple the components, making
+it easier to use a module in a development card or refactor it to a different location in the app without breaking local concerns.
 
 `(path-to components-and-args)`::
 Returns a route path vector (e.g. `["user" 1]`), but derives it from the UI target classes.  This function is about making your code for routing IDE-navigable. See below.
@@ -8937,6 +8984,56 @@ Returns a route path vector (e.g. `["user" 1]`), but derives it from the UI targ
 NOTE: This library will not have any code that connects HTML5 routing events to UI routing.
 That is a relatively simple exercise and there are plenty of libraries that can help with the task.
 The logic of transforming a URI to the correct vector and calling a function is trivial, and the concern of aliasing and legacy path transforms is something you will likely want to put in the middle of that.
+
+=== Partial Routes
+
+A source of potential confusion is how dynamic routing will behave when you give it an "incomplete" path on a routing
+request. It is part of the intentional design to allow you to do this, but it can result in bad behavior if you misuse it.
+
+The actual behavior of the system is *very* simple and easy to understand:
+
+* A request to affect a route is always relative (`change-route!` is relative to your application's root).
+* We only trigger routing events on the *specific* routers and targets that are *included* in the destination path.
+
+This allows for much richer composition, including the ability for multiple routers to be on-screen at the same time;
+however, it also means that it is easy for you to confuse yourself by not routing to a real "leaf".
+
+Say you've got the example we listed earlier:
+
+image::tree.png[]
+
+and you route to `["settings"]` *but you fail to add a path segment that matches either pane*. This is a *legal* operation,
+but the implicit instruction is "Change the top level route, but don't touch the route that settings is currently
+pointing to". The problem is that if you've *never* asked for a route from the nested settings router then *it has
+never seen a `will-enter` event*. It is in an "undefined" state (and in fact may not even have a running state machine).
+
+The generalized support for router composition adds this unavoidable element of complexity, but the logic for working
+with it is rather simple:
+
+Every router must be given an initial routing instruction, which *you* must issue in order to get the correct
+behavior for your use-case.
+
+The easiest way to always satisfy this rule is to *use paths in routing instructions that include an ultimate leaf target*.
+
+If you were following this rule in the above example then you'd issue routes like `["settings" "pane1"]` and *never*
+`["settings"]`. Note, however, that in relative routing it's perfectly fine to do
+`(change-route-relative! this Settings ["pane1"])`, since that names an ultimate leaf in the routing tree.
+
+There are other strategies that can work as well. For example you could pre-issue relative routing instructions at
+application startup for any nested routers. An off-screen router can be told to route without affecting the on-screen
+result.
+
+[source]
+-----
+(defn start []
+   (app/mount ...)
+   ;; Routers do *not* have to be on-screen in order to handle a relative route change.
+   (dr/change-route-relative! SPA Settings ["pane1"])
+   (dr/change-route-relative! SPA SomeOtherThing ["some-child"])
+   (dr/change-route-relative! SPA TheOtherOtherThing ["that-other-child"])
+   ...)
+-----
+
 
 === Targets Denying Routes v3.1.23+
 
@@ -9040,18 +9137,6 @@ later:
 -----
 
 Now when you move the settings under a different part of the top-level app this link won't break.
-
-== Aborting a Route Change
-
-The `:will-leave` is called when a target is going to leave the screen, and may return false.
-If it does so AND is active on the screen then it prevents the entire route change.
-This allows a screen to hold up routing in case edits would be lost, etc.
-Of course you should do something in this method to change the UI so the user knows what is going on.
-This is a non-static method and receives the component, so it can `transact!`, etc.
-
-TODO:
-Needs to be a bit more capable: the "route being attempted" should be available somehow in case the component wants to save it for a later "continue" operation (e.g. "Are You Sure?", "Yes").
-Perhaps as a `retry` lambda that is passed in as a parameter.
 
 == Deferred Routing
 
@@ -9188,6 +9273,35 @@ The ID of the active state machine will be the keyword name of the router:
          ...))
    ...
 ```
+
+== Simultaneous On-Screen Routers
+
+A more complex scenario involves the desire to have more than one router on screen at a time.  Since dynamic routers
+don't specifically require a mapping to URLs (of which there can only be one at a time) there is nothing preventing
+you from nesting routers in a way where different routers can be responsible for subsections of a UI.
+
+The main complication is that such nested routers simply need to make more use of relative routing. Thus you won't name
+the "leaves" in the nested routes when triggering top-level routes.
+
+This also creates a situation where you must make sure that nested routers are routed to a known (relative) path in
+some kind of lifecycle that you control. For example, say you have a top router that routes to `["a"]`, and within
+that target there are *two routers* that render side-by-side (call them `X` and `Y`). Those two routers
+will not have received any instruction to route when you to a top-level `change-route!` to `["a"]`, and are therefore
+in an unrouted state.
+
+Using a single route command could initialize one of these (i.e. path `["a" "x1"]` might set the `X` router to its first
+target), but that would still leave router `Y` in an incomplete state. You must use `change-route-relative!` to resolve
+these situations (sending an explicit relative route command to router `X` and `Y` on timelines that make sense for
+your use-case).
+
+Notive that dynamic routing *cannot* properly resolve this situation for you. You may, in fact, *not* want to trigger routing
+on the children. Imagine that the user was just on this route, and local relative navigation events had resulted
+in `X` and `Y` showing some specific sub-routes side-by-side. The user navigates away, but then they come back. You may
+want to show them what they were seeing when they last left. Finally, since the
+`will-enter` on any give router can do I/O it is never a good idea for the library to automatically trigger routes
+because that could result in unexpected I/O and side-effects for off-screen components.
+
+Thus, routing itself is always an explicit request under *your* control.
 
 === Code Splitting
 
