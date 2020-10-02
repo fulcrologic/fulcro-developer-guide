@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: September 28, 2020
+:revdate: October 2, 2020
 :lang: en
 :encoding: UTF-8
 :doctype: book
@@ -8984,6 +8984,14 @@ Returns a route path vector (e.g. `["user" 1]`), but derives it from the UI targ
 NOTE: This library will not have any code that connects HTML5 routing events to UI routing.
 That is a relatively simple exercise and there are plenty of libraries that can help with the task.
 The logic of transforming a URI to the correct vector and calling a function is trivial, and the concern of aliasing and legacy path transforms is something you will likely want to put in the middle of that.
+
+In Fulcro 3.4.2 `change-route-relative!` gained the ability to route relative to `this`:
+
+```
+(change-route-relative! this this [:.. "sibling-segment"])
+```
+
+The special keyword `:..` can be repeated at the start of the new path just like in filesystem navigation.
 
 === Partial Routes
 
