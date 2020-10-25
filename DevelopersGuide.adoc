@@ -2965,7 +2965,7 @@ There is a problem, though: the rendering refresh algorithms of Fulcro tries to 
 In this case the thing that is changing is a child (it is being toggled).
 Technically this changes the parent's props (because the child flows through it) but some of Fulcro's rendering optimizations might not see it that way (nothing the parent *directly* queried for changed).
 
-If you're using the default ident-optimized render, then you'll want to add a refresh option to the transaction that changes the child:
+If you're using the ident-optimized render, then you'll want to add a refresh option to the transaction that changes the child:
 
 ```
 (comp/transact! this [(toggle-checkbox {...})] {:refresh [:list/items]})
@@ -11154,11 +11154,11 @@ the performance leves of component-local state while still using the central dat
 
 ==== Ident-optimized render
 
-NOTE: This is the default renderer, but we now recommend using keyframe-render2 for most applications. This is
+NOTE: This was the default renderer, but we now recommend using keyframe-render2 for most applications. This is
 still the default to prevent legacy application regressions, but keyframe render 2 is much easier to use,
 and can be easily hand-optimized to be as fast as component-local state in most situaltions.
 
-The ident-optimized render is the most complex of the options, and is the default. It is described below mainly
+The ident-optimized render is the most complex of the options. It is described below mainly
 to inform you of the kind of things an optimized renderer can do, in case you want to roll your own. The description
 includes the optimizations that are always done by the `defsc` component.
 
