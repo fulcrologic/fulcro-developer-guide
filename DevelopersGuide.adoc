@@ -10897,6 +10897,7 @@ Next, the basic server is then:
     [ssr-dynamic-routing.ui.root :as root]
     [com.fulcrologic.fulcro.dom-server :as dom]
     [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]))
 
 (defn build-ui-tree [match]
@@ -10907,7 +10908,7 @@ Next, the basic server is then:
                     (r/install-route* :other other/Other)
                     (r/route-to* match))]
     ;; CRITICAL: Pass the final database to get-query!!! Or you won't get the updated dynamic query
-    (comp/db->tree (comp/get-query root/Root final-db) final-db final-db)))
+    (fdn/db->tree (comp/get-query root/Root final-db) final-db final-db)))
 
 (defn server-side-render [env {:keys [handler] :as match}]
   (let [ui-tree (build-ui-tree match)
