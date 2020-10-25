@@ -40,9 +40,9 @@
 (declare Item)
 
 (defmutation change-label [{:keys [db/id]}]
-  (remote [{:keys [ast state]}]
-    (-> ast
-      (m/returning state Item)
+  (remote [env]
+    (-> env
+      (m/returning Item)
       (m/with-params {:db/id id}))))
 
 (defn set-overlay-visible* [state-map visible?] (assoc-in state-map [:overlay :visible?] visible?))
@@ -57,8 +57,8 @@
             (assoc-in idnt {:db/id id :item/value value})
             (set-overlay-visible* true)
             (fc/integrate-ident idnt :append [:list/by-id list-id :list/items]))))))
-  (remote [{:keys [state ast]}]
-    (m/returning ast state Item)))
+  (remote [env]
+    (m/returning Item)))
 
 (defsc Item [this {:keys [db/id item/value]}]
   {:query [:db/id :item/value]
