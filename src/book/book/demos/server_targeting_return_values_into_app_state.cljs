@@ -39,16 +39,16 @@
   "This mutation simply creates a new entity, but targets it to a specific location
   (in this case the `:child` field of the invoking component)."
   [{:keys [where?] :as params}]
-  (remote [{:keys [ast ref state]}]
+  (remote [{:keys [ast ref state] :as env}]
     (let [path-to-target (conj ref :children)
           ; replacement cannot succeed if there is nothing present...turn those into appends
           no-items?      (empty? (get-in @state path-to-target))
           where?         (if (and no-items? (= :replace-first where?))
                            :append
                            where?)]
-      (cond-> (-> ast
+      (cond-> (-> env
                 ; always set what kind of thing is coming back
-                (m/returning state Entity)
+                (m/returning Entity)
                 ; strip the where?...it is for local use only (not server)
                 (m/with-params (dissoc params :where?)))
         ; Add the targeting...based on where?

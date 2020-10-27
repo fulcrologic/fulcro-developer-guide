@@ -2965,7 +2965,7 @@ There is a problem, though: the rendering refresh algorithms of Fulcro tries to 
 In this case the thing that is changing is a child (it is being toggled).
 Technically this changes the parent's props (because the child flows through it) but some of Fulcro's rendering optimizations might not see it that way (nothing the parent *directly* queried for changed).
 
-If you're using the default ident-optimized render, then you'll want to add a refresh option to the transaction that changes the child:
+If you're using the ident-optimized render, then you'll want to add a refresh option to the transaction that changes the child:
 
 ```
 (comp/transact! this [(toggle-checkbox {...})] {:refresh [:list/items]})
@@ -5416,9 +5416,9 @@ All special targets are supported:
 ```
 (defmutation f [params]
   (action [env] ...)
-  (remote [{:keys [ast state]}]
-    (-> ast
-      (m/returning state Item)
+  (remote [env]
+    (-> env
+      (m/returning Item)
       (m/with-target
         (targeting/multiple-targets
           (targeting/append-to [:table 3 :field])
@@ -5461,16 +5461,16 @@ which is targeting to-many so we can demo more features.
   "This mutation simply creates a new entity, but targets it to a specific location
   (in this case the `:child` field of the invoking component)."
   [{:keys [where?] :as params}]
-  (remote [{:keys [ast ref state]}]
+  (remote [{:keys [ast ref state] :as env}]
     (let [path-to-target (conj ref :children)
           ; replacement cannot succeed if there is nothing present...turn those into appends
           no-items?      (empty? (get-in @state path-to-target))
           where?         (if (and no-items? (= :replace-first where?))
                            :append
                            where?)]
-      (cond-> (-> ast
+      (cond-> (-> env
                 ; always set what kind of thing is coming back
-                (m/returning state Entity)
+                (m/returning Entity)
                 ; strip the where?...it is for local use only (not server)
                 (m/with-params (dissoc params :where?)))
         ; Add the targeting...based on where?
@@ -10105,7 +10105,7 @@ If you'd like to wait until the server indicates everything is ok, then you can 
    :ident [:submission-status/id :id]})
 
 (defmutation submit-person [{:keys [id]}]
-  (remote [{:keys [ast state]] (com.fulcrologic.fulcro.mutations/returning ast @state SubmissionStatus))
+  (remote [env] (com.fulcrologic.fulcro.mutations/returning env SubmissionStatus))
 
 (defmutation finish-person-submission [{:keys [id]}]
   (action [{:keys [state]}]
@@ -10897,6 +10897,7 @@ Next, the basic server is then:
     [ssr-dynamic-routing.ui.root :as root]
     [com.fulcrologic.fulcro.dom-server :as dom]
     [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
     [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]))
 
 (defn build-ui-tree [match]
@@ -10907,7 +10908,7 @@ Next, the basic server is then:
                     (r/install-route* :other other/Other)
                     (r/route-to* match))]
     ;; CRITICAL: Pass the final database to get-query!!! Or you won't get the updated dynamic query
-    (comp/db->tree (comp/get-query root/Root final-db) final-db final-db)))
+    (fdn/db->tree (comp/get-query root/Root final-db) final-db final-db)))
 
 (defn server-side-render [env {:keys [handler] :as match}]
   (let [ui-tree (build-ui-tree match)
@@ -11153,11 +11154,11 @@ the performance leves of component-local state while still using the central dat
 
 ==== Ident-optimized render
 
-NOTE: This is the default renderer, but we now recommend using keyframe-render2 for most applications. This is
+NOTE: This was the default renderer, but we now recommend using keyframe-render2 for most applications. This is
 still the default to prevent legacy application regressions, but keyframe render 2 is much easier to use,
 and can be easily hand-optimized to be as fast as component-local state in most situaltions.
 
-The ident-optimized render is the most complex of the options, and is the default. It is described below mainly
+The ident-optimized render is the most complex of the options. It is described below mainly
 to inform you of the kind of things an optimized renderer can do, in case you want to roll your own. The description
 includes the optimizations that are always done by the `defsc` component.
 
