@@ -5881,7 +5881,7 @@ This makes it possible to track component classes in app state (since the name i
 (defmutation f [params]
   (action [{:keys [state]}]
     (let [todo-list-class (comp/registry-key->class :com.company.app/TodoList)]
-      (swap! merge/merge-component todo-list-class {:list/id ...}))))
+      (swap! state merge/merge-component todo-list-class {:list/id ...}))))
 ```
 
 === IDE Integration
