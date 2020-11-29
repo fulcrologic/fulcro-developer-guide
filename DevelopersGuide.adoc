@@ -542,6 +542,8 @@ These tools will save you countless hours of frustration.
 
 Fulcro Inspect is a free extension for Chrome, and Binaryage devtools is a library that can be injected via a preload (which shadow-cljs does for you if it is in your dependencies).
 
+NOTE: Recent releases of Fulcro Inspect are incompatible with the version of Fulcro used in this book. Until the book is updated, an https://github.com/fulcrologic/fulcro-inspect/releases/tag/1.0.21[older version] of the extension must be used in order to inspect the provided examples.
+
 All of the examples in the book have a "Focus Inspector" button.
 If you open Chrome devtools, choose the Fulcro Inspect tab, and then press that button you will focus the inspector on that example so you can see its database.
 The first example in this book looks like this when you do that:
