@@ -5,23 +5,28 @@
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.algorithms.data-targeting :as targeting]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [com.fulcrologic.fulcro.data-fetch :as df]))
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.wsscode.pathom.connect :as pc]
+    [com.wsscode.pathom.core :as p]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#_#_#_(def ids (atom 1))
+(def ids (atom 1))
+(pc/defmutation server-error-mutation [env params]
+  {::pc/sym `trigger-error}
+  ;; Throw a mutation error for the client to handle
+  (throw (ex-info "Mutation error" {:random-reason (rand-int 100)})))
 
-    (server/defmutation trigger-error [_]
-      (action [env]
-        {:error "something bad"}))
+(pc/defmutation server-create-entity [env {:keys [db/id]}]
+  {::pc/sym `create-entity}
+  (let [real-id (swap! ids inc)]
+    {:db/id        real-id
+     :entity/label (str "Entity " real-id)
+     :tempids      {id real-id}}))
 
-    (server/defmutation create-entity [{:keys [db/id]}]
-      (action [env]
-        (let [real-id (swap! ids inc)]
-          {:db/id        real-id
-           :entity/label (str "Entity " real-id)
-           :tempids      {id real-id}})))
+(def resolvers [server-error-mutation server-create-entity])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLIENT:
@@ -32,8 +37,8 @@
   "This mutation causes an unstructured error (just a map), but targets that value
    to the field `:error-message` on the component that invokes it."
   [_]
-  (remote [{:keys [ast ref]}]
-    (m/with-target ast (conj ref :error-message))))
+  (remote [{:keys [ref] :as env}]
+    (m/with-target env (conj ref :error-message))))
 
 (defmutation create-entity
   "This mutation simply creates a new entity, but targets it to a specific location
@@ -56,10 +61,10 @@
         (= :prepend where?) (m/with-target (targeting/prepend-to path-to-target))
         (= :replace-first where?) (m/with-target (targeting/replace-at (conj path-to-target 0)))))))
 
-(defsc Entity [this {:keys [entity/label]}]
+(defsc Entity [this {:keys [db/id entity/label]}]
   {:ident [:entity/by-id :db/id]
    :query [:db/id :entity/label]}
-  (dom/div label))
+  (dom/li {:key id} label))
 
 (def ui-entity (comp/factory Entity {:keyfn :db/id}))
 
@@ -67,19 +72,22 @@
   {:query         [:db/id :error-message {:children (comp/get-query Entity)}]
    :initial-state {:db/id :param/id :children []}
    :ident         [:item/by-id :db/id]}
-  (dom/div {:style {:float  "left"
-                    :width  "200px"
-                    :margin "5px"
-                    :border "1px solid black"}}
+  (dom/div :.ui.container.segment #_{:style {:float  "left"
+                                             :width  "200px"
+                                             :margin "5px"
+                                             :border "1px solid black"}}
     (dom/h4 (str "Item " id))
-    (when error-message
-      (dom/div "The generated error was: " (pr-str error-message)))
     (dom/button {:onClick (fn [evt] (comp/transact! this `[(trigger-error {})]))} "Trigger Error")
+    (dom/button {:onClick (fn [evt] (comp/transact! this `[(create-entity {:where? :prepend :db/id ~(tempid/tempid)})]))} "Prepend one!")
+    (dom/button {:onClick (fn [evt] (comp/transact! this `[(create-entity {:where? :append :db/id ~(tempid/tempid)})]))} "Append one!")
+    (dom/button {:onClick (fn [evt] (comp/transact! this `[(create-entity {:where? :replace-first :db/id ~(tempid/tempid)})]))} "Replace first one!")
+    (when error-message
+      (dom/div
+        (dom/p "Error:")
+        (dom/pre (pr-str error-message))))
     (dom/h6 "Children")
-    (map ui-entity children)
-    (dom/button {:onClick (fn [evt] (comp/transact! this `[(create-entity {:where? :prepend :db/id ~(comp/tempid)})]))} "Prepend one!")
-    (dom/button {:onClick (fn [evt] (comp/transact! this `[(create-entity {:where? :append :db/id ~(comp/tempid)})]))} "Append one!")
-    (dom/button {:onClick (fn [evt] (comp/transact! this `[(create-entity {:where? :replace-first :db/id ~(comp/tempid)})]))} "Replace first one!")))
+    (dom/ul
+      (map ui-entity children))))
 
 (def ui-item (comp/factory Item {:keyfn :db/id}))
 

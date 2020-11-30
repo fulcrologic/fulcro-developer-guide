@@ -47,6 +47,7 @@
     book.demos.loading-data-targeting-entities
     book.demos.loading-in-response-to-UI-routing
     book.demos.loading-indicators
+    book.demos.server-targeting-return-values-into-app-state
     book.demos.paginating-large-lists-from-server
     book.demos.parallel-vs-sequential-loading
     book.demos.parent-child-ownership-relations
@@ -70,7 +71,8 @@
     [book.example-1 :as ex1]
     [com.fulcrologic.fulcro.data-fetch :as df]
     [com.fulcrologic.fulcro.application :as app]
-    [taoensso.encore :as encore]))
+    [taoensso.encore :as encore]
+    [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ior]))
 
 (def non-conflicting-resolvers [autocomplete/list-resolver
                                 book.forms.form-state-demo-2/resolvers
@@ -85,8 +87,10 @@
                                 book.demos.parallel-vs-sequential-loading/long-query-resolver
                                 book.demos.server-error-handling/resolvers
                                 book.server.ui-blocking-example/submit-form-mutation
+                                book.demos.loading-in-response-to-UI-routing/all-settings-resolver
                                 book.server.network-activity/silly-resolver
-                                #_book.demos.cascading-dropdowns/model-resolver])
+                                book.demos.server-targeting-return-values-into-app-state/resolvers
+                                book.demos.cascading-dropdowns/model-resolver])
 
 (defonce people-server (po/mock-remote db/general-resolvers {:connection db/connection}))
 (defonce example-server (po/mock-remote non-conflicting-resolvers))
@@ -161,7 +165,7 @@
 (defexample "Network Interactions and Forms" book.forms.form-state-demo-2/Root "form-state-demo-2" :remotes book.main/example-server)
 
 (defexample "Autocomplete" autocomplete/AutocompleteRoot "autocomplete-demo" :remotes book.main/example-server)
-;(defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :remotes book.main/example-server)
+(defexample "Cascading Dropdowns" book.demos.cascading-dropdowns/Root "cascading-dropdowns" :remotes book.main/example-server)
 (defexample "Dynamic Router" book.dynamic-router-example/Root "dynamic-router-example"
   :client-did-mount book.dynamic-router-example/client-did-mount
   :remotes book.main/people-server)
@@ -169,7 +173,7 @@
   :client-did-mount book.demos.dynamic-ui-routing/application-loaded
   :remotes book.main/example-server)
 (defexample "Recursive Demo 1" book.queries.recursive-demo-1/Root "recursive-demo-1")
-(defexample "Recursive Demo 2" book.queries.recursive-demo-2/Root "recursive-demo-2")
+(defexample "Recursive Demo 2" book.queries.recursive-demo-2/Root "recursive-demo-2" :optimized-render! ior/render!)
 (defexample "Recursive Demo 3" book.queries.recursive-demo-3/Root "recursive-demo-3")
 (defexample "Recursive Demo 4" book.queries.recursive-demo-bullets/Root "recursive-demo-bullets")
 ;
@@ -209,7 +213,7 @@
 ;#?(:cljs (defexample "Manually Merging Server Mutation Return Values" book.demos.server-return-values-manually-merging/Root "server-return-values-manually-merging"
 ;           :mutation-merge book.demos.server-return-values-manually-merging/merge-return-value
 ;           :remotes book.main/example-server))
-;#?(:cljs (defexample "Targeting Mutation Return Values" book.demos.server-targeting-return-values-into-app-state/Root "server-targeting-return-values-into-app-state" :remotes book.main/example-server))
+(defexample "Targeting Mutation Return Values" book.demos.server-targeting-return-values-into-app-state/Root "server-targeting-return-values-into-app-state" :remotes book.main/example-server)
 
 (defonce server-control-app
   (app/fulcro-app

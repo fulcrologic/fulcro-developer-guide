@@ -7,21 +7,24 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [book.elements :as ele]
     [taoensso.timbre :as log]
-    [com.wsscode.pathom.connect :as pc]))
+    [com.wsscode.pathom.connect :as pc]
+    [com.fulcrologic.fulcro.mutations :as m]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Server
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn option [value text]
-  {:text text :value value})
+(defn option [text]
+  {:text text :value text})
 
 (pc/defresolver model-resolver [env _]
-  {::pc/output [:models]}
-  (let [make (-> env :ast :params :make)]
-    {:models (case make
-               :ford [(option :escort "Escort") (option :F-150 "F-150")]
-               :honda [(option :civic "Civic") (option :accort "Accord")])}))
+  {::pc/output [::models]}
+  (let [{:car/keys [make]} (-> env :ast :params)]
+    {::models
+     (case make
+       "Ford" [(option "Escort") (option "F-150")]
+       "Honda" [(option "Civic") (option "Accord")]
+       [])}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Client
@@ -36,36 +39,50 @@
       (dom/link {:rel "stylesheet" :href "https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css"})
       children)))
 
-(comment
+(defsc Car [this {:car/keys [id make model]
+                  :ui/keys  [car-model-options] :as props}]
+  {:query         [:car/id :car/make :car/model
+                   :ui/car-model-options
+                   ;; Link queries goes to root of database. Here we're accessing the named load markers
+                   [df/marker-table '_]]
+   :initial-state {:car/id 1}
+   :ident         :car/id}
+  (let [models-loading? (df/loading? (get props [df/marker-table ::dropdown-loading]))]
+    (dom/div :.ui.container.form
+      (dom/h4 "Car")
+      (dom/div :.ui.field
+        (dom/label {:htmlFor "carmake"} "Make")
+        (dropdown/ui-dropdown
+          {:value       make
+           :name        "carmake"
+           :button      true
+           :placeholder "Select"
+           :options     [{:text "Ford" :value "Ford"}
+                         {:text "Honda" :value "Honda"}]
+           :onChange    (fn [_ item] (let [v (.-value item)]
+                                       (m/set-string! this :car/make :value v)
+                                       (m/set-string! this :car/model :value "")
+                                       (df/load this ::models nil {; custom marker so we can show that the dropdown is busy
+                                                                   :marker ::dropdown-loading
+                                                                   ; A server parameter on the query
+                                                                   :params {:car/make v}
+                                                                   :target [:car/id id :ui/car-model-options]})))}))
+      (dom/div :.ui.field
+        (dom/label "Model")
+        (dropdown/ui-dropdown
+          {:onSelect    (fn [item] (log/info item))
+           :button      true
+           :placeholder "Select"
+           :options     (or car-model-options [{:text "Select Make" :value ""}])
+           :value       (or model "")
+           :onChange    (fn [_ item]
+                          (m/set-string! this :car/model :value (.-value item)))
+           :loading     models-loading?})))))
 
-  (defmutation show-list-loading
-    "Change the items of the dropdown with the given ID to a single item that indicates Loading..."
-    [{:keys [id]}]
-    (action [{:keys [state]}]
-      (swap! state assoc-in
-        [:bootstrap.dropdown/by-id id :fulcro.ui.bootstrap3/items]
-        [(assoc (bs/dropdown-item :loading "Loading...") :fulcro.ui.bootstrap3/disabled? true)])))
+(def ui-car (comp/factory Car {:keyfn :car/id}))
 
-  (defsc Root [this {:keys [make-dropdown model-dropdown]}]
-    {:initial-state {}
-     :query         [; initial state for two Bootstrap dropdowns
-                     {:make-dropdown (comp/get-query bs/Dropdown)}
-                     {:model-dropdown (comp/get-query bs/Dropdown)}]}
-    (let [{:keys [:fulcro.ui.bootstrap3/items]} model-dropdown]
-      (render-example "200px" "200px"
-        (dom/div
-          (dropdown/ui-dropdown
-            {:onSelect  (fn [item]
-                          ; Update the state of the model dropdown to show a loading indicator
-                          (comp/transact! this `[(show-list-loading {:id :model})])
-                          ; Issue the remote load. Note the use of DropdownItem as the query, so we get proper normalization
-                          ; The targeting is used to make sure we hit the correct dropdown's items
-                          (df/load this :models bs/DropdownItem {:target [:bootstrap.dropdown/by-id :model :fulcro.ui.bootstrap3/items]
-                                                                 ; don't overwrite state with loading markers...we're doing that manually to structure it specially
-                                                                 :marker false
-                                                                 ; A server parameter on the query
-                                                                 :params {:make item}}))
-             :stateful? true})
-          (dropdown/ui-dropdown model-dropdown
-            {:onSelect  (fn [item] (log/info item))
-             :stateful? true}))))))
+(defsc Root [this {:keys [form]}]
+  {:initial-state {:form {}}
+   :query         [{:form (comp/get-query Car)}]}
+  (render-example "400px" "400px"
+    (ui-car form)))

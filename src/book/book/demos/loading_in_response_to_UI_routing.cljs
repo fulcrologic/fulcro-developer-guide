@@ -12,10 +12,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (pc/defresolver all-settings-resolver [env input]
-  {::pc/output [{:all-settings [:id :value]}]}
-  {:all-settings [{:id 1 :value "Gorgon"}
-                  {:id 2 :value "Thraser"}
-                  {:id 3 :value "Under"}]})
+  {::pc/output [{::all-settings [:id :value]}]}
+  {::all-settings [{:id 1 :value "Gorgon"}
+                   {:id 2 :value "Thraser"}
+                   {:id 3 :value "Under"}]})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; CLIENT:
@@ -57,7 +57,7 @@
 (def ui-tabs (comp/factory UITabs))
 
 (m/defmutation choose-tab [{:keys [tab]}]
-  (action [{:keys [state]}] (swap! state r/set-route :ui-router [tab :tab])))
+  (action [{:keys [state]}] (swap! state r/set-route* :ui-router [tab :tab])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; LAZY LOADING TAB CONTENT
@@ -79,9 +79,7 @@
   (action [{:keys [app state] :as env}]
     ; Specify what you want to load as one or more calls to load-action (each call adds an item to load):
     (when (missing-tab? state tab)
-      (df/load! app :all-settings SomeSetting
-        {:target  [:settings :tab :settings]
-         :refresh [:settings]}))))
+      (df/load! app ::all-settings SomeSetting {:target [:settings :tab :settings]}))))
 
 (defsc Root [this {:keys [current-tab] :as props}]
   ; Construction MUST compose to root, just like the query. The resulting tree will automatically be normalized into the
@@ -91,11 +89,8 @@
   (dom/div
     ; The selection of tabs can be rendered in a child, but the transact! must be done from the parent (to
     ; ensure proper re-render of the tab body). See comp/computed for passing callbacks.
-    (dom/button {:onClick #(comp/transact! this `[(choose-tab {:tab :main})])} "Main")
-    (dom/button {:onClick #(comp/transact! this `[(choose-tab {:tab :settings})
-                                                  ; extra mutation: sample of what you would do to lazy load the tab content
-                                                  (lazy-load-tab {:tab :settings})])} "Settings")
+    (dom/button {:onClick #(comp/transact! this [(choose-tab {:tab :main})])} "Main")
+    (dom/button {:onClick #(comp/transact! this [(choose-tab {:tab :settings})
+                                                 ; extra mutation: sample of what you would do to lazy load the tab content
+                                                 (lazy-load-tab {:tab :settings})])} "Settings")
     (ui-tabs current-tab)))
-
-
-

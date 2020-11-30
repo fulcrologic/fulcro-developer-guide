@@ -3733,7 +3733,8 @@ The `com.fulcrologic.fulcro.algorithms.react-interop` namespace includes a funct
 (def ui-target-of-hoc (interop/hoc-factory TargetOfHOC hocFunction))
 ```
 
-The following two live examples show you how to use this function in the context of the Google Maps React API, and the Stripe Elements API.
+The following two live examples show you how to use this function in the context of the Google Maps React API
+(the example requires billing now, but you can see it embeds the map), and the Stripe Elements API.
 
 .[[HOCGoogleMaps]]<<HOCGoogleMaps,HOC With Google Maps>>
 ====
@@ -4308,6 +4309,12 @@ include::src/book/book/queries/recursive_demo_2.cljs[]
 The problem is that when you touch Sally the UI refresh updates *just* that component; however, that component has a recursive query of depth 1, so it ends up returning Joe as her spouse!
 This is technically correct, but almost certainly isn't what you want!
 
+NOTE: The above problem will only manifest for certain Fulcro configurations. The more recent default will not show this
+particular issue, so the above demo has been set up with an older renderer that will have the issue known as
+the "ident optimized renderer". The more current default rendering renders from root with the above code, and will not have a
+problem; however, technically the fix below is still recommended because there are other ways for a localized refresh
+to cause this problem to manifest.
+
 The fix is equally simple: calculate depth and pass it to the child.
 Use the calculated depth to prevent the extra rendering when local refresh gives you data you don't need.
 The demo below has this fix.
@@ -4316,7 +4323,7 @@ The demo below has this fix.
 ====
 ++++
 <button class="inspector" onClick="book.main.focus('recursive-demo-3')">Focus Inspector</button>
-<div class="short narrow example" id="recursive-demo-3"></div>
+<div class="tall wide example" id="recursive-demo-3"></div>
 <br/>
 ++++
 

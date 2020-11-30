@@ -61,3 +61,4 @@ docs/.jekyll-metadata
 .shadow-cljs
 resources/public/workspaces
 docs/DevelopersGuide.pdf
+package-lock.json
