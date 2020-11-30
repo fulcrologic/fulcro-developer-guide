@@ -11,7 +11,7 @@
 ;; SERVER
 
 (pc/defresolver random-person-resolver [env {:keys [id]}]
-  {::pc/input [:person/id]
+  {::pc/input  {:person/id}
    ::pc/output [:person/name]}
   {:person/id id :person/name (str "Person " id)})
 

@@ -44,9 +44,9 @@
     book.demos.dynamic-ui-routing
     book.demos.initial-app-state
     book.demos.loading-data-basics
-    book.demos.loading-data-targeting-entities
+    ;book.demos.loading-data-targeting-entities
     book.demos.loading-in-response-to-UI-routing
-    book.demos.loading-indicators
+    ;book.demos.loading-indicators
     book.demos.server-targeting-return-values-into-app-state
     book.demos.paginating-large-lists-from-server
     book.demos.parallel-vs-sequential-loading

@@ -15,7 +15,7 @@ build-report:
 
 bookdemos:
 	rm -rf docs/js/book docs/js/book.js
-	npm install
+	yarn
 	shadow-cljs release book
 
 publish: book
