@@ -1,6 +1,6 @@
 = Fulcro Developers Guide
 :author: Tony Kay
-:revdate: October 2, 2020
+:revdate: November 29, 2020
 :lang: en
 :encoding: UTF-8
 :doctype: book
