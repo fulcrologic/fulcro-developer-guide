@@ -64,8 +64,8 @@
                    :ui/new-countdown-label]}
   (dom/div
     (dom/h3 "Counters")
-    (dom/button {:onClick #(comp/transact! this [`(create-countdown ~{::counter-id    (tempid/tempid)
-                                                                      ::counter-label "New"})])}
+    (dom/button {:onClick #(comp/transact! this [(create-countdown {::counter-id    (tempid/tempid)
+                                                                    ::counter-label "New"})])}
       "Add counter")
     (dom/div {:style {:display "flex" :alignItems "center" :justifyContent "space-between"}}
       (mapv ui-countdown all-counters))))

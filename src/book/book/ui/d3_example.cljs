@@ -72,9 +72,9 @@
    :initial-state {:squares []}}
   (dom/div
     (dom/button {:onClick #(comp/transact! this
-                             `[(add-square {})])} "Add Random Square")
+                             [(add-square {})])} "Add Random Square")
     (dom/button {:onClick #(comp/transact! this
-                             `[(clear-squares {})])} "Clear")
+                             [(clear-squares {})])} "Clear")
     (dom/br)
     (dom/br)
     (d3-thing props)))

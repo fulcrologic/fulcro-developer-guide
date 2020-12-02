@@ -25,7 +25,7 @@
     (dom/div "Name:" name)
     (dom/div "Age:" age
       (dom/button {:onClick
-                   #(comp/transact! this `[(make-older {:id ~id})])} "Make Older"))
+                   #(comp/transact! this [(make-older {:id id})])} "Make Older"))
     (when (and (= 0 render-depth) spouse)
       (dom/ul
         (dom/div "Spouse:"

@@ -33,7 +33,7 @@
    :ident         [:child/by-id :id]}
   (dom/div
     (dom/p "Current volume: " volume)
-    (dom/button {:onClick #(comp/transact! this `[(crank-it-up ~{:value volume})])} "+")))
+    (dom/button {:onClick #(comp/transact! this [(crank-it-up {:value volume})])} "+")))
 
 (def ui-child (comp/factory Child))
 

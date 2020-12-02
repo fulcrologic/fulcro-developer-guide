@@ -35,7 +35,7 @@
    :query         [{:counters (comp/get-query Counter)}]
    :ident         (fn [] [:panels/by-kw :counter])}
   (let [click-callback (fn [id] (comp/transact! this
-                                  `[(increment-counter {:id ~id}) :counter/by-id]))]
+                                  [(increment-counter {:id id}) :counter/by-id]))]
     (dom/div
       ; embedded style: kind of silly in a real app, but doable
       (dom/style ".counter { width: 400px; padding-bottom: 20px; }

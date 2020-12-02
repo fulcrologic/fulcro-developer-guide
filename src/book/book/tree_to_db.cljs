@@ -34,7 +34,7 @@
       (dom/h4 "Normalized Result (click below to normalize)")
       (when result
         (html-edn result)))
-    (dom/button {:onClick (fn [] (comp/transact! this `[(normalize-from-to-result {})]))} "Normalized (Run tree->db)")
-    (dom/button {:onClick (fn [] (comp/transact! this `[(reset {})]))} "Clear Result")))
+    (dom/button {:onClick (fn [] (comp/transact! this [(normalize-from-to-result {})]))} "Normalized (Run tree->db)")
+    (dom/button {:onClick (fn [] (comp/transact! this [(reset {})]))} "Clear Result")))
 
 

@@ -33,11 +33,11 @@
    :query         [{:router (comp/get-query RootRouter)}]}
   (dom/div
     (dom/a {:onClick #(comp/transact! this
-                        `[(r/set-route {:router :root/router
-                                        :target [:PAGE/index 1]})])} "Index") " | "
+                        [(r/set-route {:router :root/router
+                                       :target [:PAGE/index 1]})])} "Index") " | "
     (dom/a {:onClick #(comp/transact! this
-                        `[(r/set-route {:router :root/router
-                                        :target [:PAGE/settings 1]})])} "Settings")
+                        [(r/set-route {:router :root/router
+                                       :target [:PAGE/settings 1]})])} "Settings")
     (ui-root-router router)))
 
 

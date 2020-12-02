@@ -53,7 +53,7 @@
     ;; if the mutation fails, the fallback will be called
     (dom/button {:onClick #(df/load! this :fulcro/read-error nil {:fallback `read-error})}
       "Failing read with a fallback")
-    (dom/button {:onClick #(comp/transact! this `[(error-mutation {})])} "Failing mutation")
+    (dom/button {:onClick #(comp/transact! this [(error-mutation {})])} "Failing mutation")
     ))
 
 (def ui-child (comp/factory Child))

@@ -4065,7 +4065,7 @@ Usually we recommend namespacing your mutations (with `defmutation`) and then us
   (:require [app.mutations :as am]))
 
 ...
-   (comp/transact! this `[(am/do-something {})])
+   (comp/transact! this [(am/do-something {})])
 ```
 
 We talked about <<Transactions,syntax quoting transactions>> in the Getting Started chapter.
@@ -5177,9 +5177,9 @@ Fulcro will automatically queue remote reads *after* writes when they are submit
 The following code:
 
 ```
-(comp/transact! this `[(f)])
+(comp/transact! this [(f)])
 (df/load this :thing Thing)
-(comp/transact! this `[(g)])
+(comp/transact! this [(g)])
 ```
 
 will result in two network interactions.

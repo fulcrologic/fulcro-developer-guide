@@ -42,11 +42,11 @@
                      :subpage     (comp/get-initial-state SettingsRouter {})})}
   (dom/div
     (dom/a {:onClick #(comp/transact! this
-                        `[(r/set-route {:router :settings/router
-                                        :target [:PAGE/email 1]})])} "Email") " | "
+                        [(r/set-route {:router :settings/router
+                                       :target [:PAGE/email 1]})])} "Email") " | "
     (dom/a {:onClick #(comp/transact! this
-                        `[(r/set-route {:router :settings/router
-                                        :target [:PAGE/color 1]})])} "Colors")
+                        [(r/set-route {:router :settings/router
+                                       :target [:PAGE/color 1]})])} "Colors")
     (js/console.log :p (comp/props this))
     (ui-settings-router subpage)))
 
@@ -65,11 +65,11 @@
    :query         [{:router (comp/get-query RootRouter)}]}
   (dom/div
     (dom/a {:onClick #(comp/transact! this
-                        `[(r/set-route {:router :root/router
-                                        :target [:PAGE/index 1]})])} "Index") " | "
+                        [(r/set-route {:router :root/router
+                                       :target [:PAGE/index 1]})])} "Index") " | "
     (dom/a {:onClick #(comp/transact! this
-                        `[(r/set-route {:router :root/router
-                                        :target [:PAGE/settings 1]})])} "Settings")
+                        [(r/set-route {:router :root/router
+                                       :target [:PAGE/settings 1]})])} "Settings")
     (ui-root-router router)))
 
 

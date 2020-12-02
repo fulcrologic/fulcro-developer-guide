@@ -40,7 +40,7 @@
     (dom/input {:type     "text"
                 :value    query
                 :onChange #(m/set-string! this :query :event %)})
-    (dom/button {:onClick #(comp/transact! this `[(record-parsing-trace ~{:query query})])} "Run Parser")
+    (dom/button {:onClick #(comp/transact! this [(record-parsing-trace {:query query})])} "Run Parser")
     (dom/h4 "Parsing Trace")
     (html-edn trace)))
 

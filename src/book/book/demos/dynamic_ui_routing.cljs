@@ -32,16 +32,16 @@
                    r/routing-tree-key]}
   (dom/div nil
     ; Sample nav mutations
-    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :ui-main})])} "Main") " | "
-    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "
-    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :login})])} "Login") " | "
+    (dom/a {:onClick #(comp/transact! this [(r/route-to {:handler :ui-main})])} "Main") " | "
+    (dom/a {:onClick #(comp/transact! this [(r/route-to {:handler :new-user})])} "New User") " | "
+    (dom/a {:onClick #(comp/transact! this [(r/route-to {:handler :login})])} "Login") " | "
     (dom/div (if pending-route "Loading" "Done"))
     (r/ui-dynamic-router top-router)))
 
 ; Use this as started-callback. These would happen as a result of module loads:
 (defn application-loaded [app]
   ; Let the dynamic router know that two of the routes are already loaded.
-  (comp/transact! app `[(r/install-route {:target-kw :new-user :component ~NewUser})
+  (comp/transact! app [(r/install-route {:target-kw :new-user :component ~NewUser})
                         (r/install-route {:target-kw :login :component ~Login})
                         (r/route-to {:handler :login})]))
 

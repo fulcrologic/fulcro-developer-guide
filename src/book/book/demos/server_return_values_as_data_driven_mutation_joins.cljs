@@ -6,7 +6,8 @@
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [fulcro.client :as fc]
     [fulcro.server :as server]
-    [com.fulcrologic.fulcro.data-fetch :as df]))
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
@@ -64,7 +65,7 @@
   {:query [:db/id :item/value]
    :ident [:item/by-id :db/id]}
   (dom/li {:onClick (fn [evt]
-                      (comp/transact! this `[(change-label {:db/id ~id})]))} value))
+                      (comp/transact! this [(change-label {:db/id id})]))} value))
 
 (def ui-item (comp/factory Item {:keyfn :db/id}))
 
@@ -77,11 +78,11 @@
   (dom/div {:style {:width "600px" :height example-height}}
     (dom/h3 title)
     (dom/ul (map ui-item items))
-    (dom/button {:onClick #(comp/ptransact! this `[(add-item {:list-id ~id
-                                                              :id      ~(comp/tempid)
-                                                              :value   "A New Value"})
-                                                   (set-overlay {:visible? false})
-                                                   :overlay])} "Add item")))
+    (dom/button {:onClick #(comp/ptransact! this [(add-item {:list-id id
+                                                             :id      (tempid/tempid)
+                                                             :value   "A New Value"})
+                                                  (set-overlay {:visible? false})
+                                                  :overlay])} "Add item")))
 
 (def ui-list (comp/factory ItemList {:keyfn :db/id}))
 

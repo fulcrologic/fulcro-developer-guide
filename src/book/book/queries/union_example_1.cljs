@@ -134,7 +134,7 @@
                              :item-detail (comp/get-initial-state ItemDetail nil)}))}
   (let [; This is the only thing to do: Route the to the detail screen with the given route params!
         showDetail (fn [[kind id]]
-                     (comp/transact! this `[(r/route-to {:handler :detail :route-params {:kind ~kind :id ~id}})]))]
+                     (comp/transact! this [(r/route-to {:handler :detail :route-params {:kind kind :id id}})]))]
     ; devcards, embed in iframe so we can use bootstrap css easily
     (div {:key "example-frame-key"}
       (dom/style ".boxed {border: 1px solid black}")

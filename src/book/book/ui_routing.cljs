@@ -99,11 +99,11 @@
                    {:top-router (comp/get-query TopRouter)}]}
   (dom/div
     ; Sample nav mutations
-    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :main})])} "Main") " | "
-    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :new-user})])} "New User") " | "
-    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :login})])} "Login") " | "
-    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :status :route-params {:report-id :a}})])} "Status A") " | "
-    (dom/a {:onClick #(comp/transact! this `[(r/route-to {:handler :graph :route-params {:report-id :a}})])} "Graph A")
+    (dom/a {:onClick #(comp/transact! this [(r/route-to {:handler :main})])} "Main") " | "
+    (dom/a {:onClick #(comp/transact! this [(r/route-to {:handler :new-user})])} "New User") " | "
+    (dom/a {:onClick #(comp/transact! this [(r/route-to {:handler :login})])} "Login") " | "
+    (dom/a {:onClick #(comp/transact! this [(r/route-to {:handler :status :route-params {:report-id :a}})])} "Status A") " | "
+    (dom/a {:onClick #(comp/transact! this [(r/route-to {:handler :graph :route-params {:report-id :a}})])} "Graph A")
     (ui-top top-router)))
 
 

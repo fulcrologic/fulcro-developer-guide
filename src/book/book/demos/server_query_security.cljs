@@ -104,10 +104,10 @@
     (when server-error
       (dom/p (pr-str "SERVER ERROR: " server-error)))
     (dom/button {:onClick (fn []
-                            (comp/transact! this `[(clear-error {})])
+                            (comp/transact! this [(clear-error {})])
                             (df/load this :person Person {:refresh [:person]}))} "Query for person with credit card")
     (dom/button {:onClick (fn []
-                            (comp/transact! this `[(clear-error {})])
+                            (comp/transact! this [(clear-error {})])
                             (df/load this :person Person {:refresh [:person] :without #{:cc-number}}))} "Query for person WITHOUT credit card")
     (df/lazily-loaded ui-person person)))
 

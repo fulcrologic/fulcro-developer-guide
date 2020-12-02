@@ -13,5 +13,5 @@
    :initial-state {:ui/number 0}}
   (dom/div
     (dom/h4 "This is an example.")
-    (dom/button {:onClick #(comp/transact! this `[(bump-number {})])}
+    (dom/button {:onClick #(comp/transact! this [(bump-number {})])}
       "You've clicked this button " number " times.")))

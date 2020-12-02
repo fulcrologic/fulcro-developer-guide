@@ -104,8 +104,8 @@
    :ident         (fn [] [:list/by-id 1])}
   (let [{:keys [page/number]} current-page]
     (dom/div
-      (dom/button {:disabled (= 1 number) :onClick #(comp/transact! this `[(goto-page {:page-number ~(dec number)})])} "Prior Page")
-      (dom/button {:onClick #(comp/transact! this `[(goto-page {:page-number ~(inc number)})])} "Next Page")
+      (dom/button {:disabled (= 1 number) :onClick #(comp/transact! this [(goto-page {:page-number (dec number)})])} "Prior Page")
+      (dom/button {:onClick #(comp/transact! this [(goto-page {:page-number (inc number)})])} "Next Page")
       (ui-list-page current-page))))
 
 (def ui-list (comp/factory LargeList))
@@ -118,4 +118,4 @@
 (defn initialize
   "To be used as started-callback. Load the first page."
   [{:keys [app]}]
-  (comp/transact! app `[(goto-page {:page-number 1})]))
+  (comp/transact! app [(goto-page {:page-number 1})]))

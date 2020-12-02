@@ -77,10 +77,10 @@
                                              :margin "5px"
                                              :border "1px solid black"}}
     (dom/h4 (str "Item " id))
-    (dom/button {:onClick (fn [evt] (comp/transact! this `[(trigger-error {})]))} "Trigger Error")
-    (dom/button {:onClick (fn [evt] (comp/transact! this `[(create-entity {:where? :prepend :db/id ~(tempid/tempid)})]))} "Prepend one!")
-    (dom/button {:onClick (fn [evt] (comp/transact! this `[(create-entity {:where? :append :db/id ~(tempid/tempid)})]))} "Append one!")
-    (dom/button {:onClick (fn [evt] (comp/transact! this `[(create-entity {:where? :replace-first :db/id ~(tempid/tempid)})]))} "Replace first one!")
+    (dom/button {:onClick (fn [evt] (comp/transact! this [(trigger-error {})]))} "Trigger Error")
+    (dom/button {:onClick (fn [evt] (comp/transact! this [(create-entity {:where? :prepend :db/id (tempid/tempid)})]))} "Prepend one!")
+    (dom/button {:onClick (fn [evt] (comp/transact! this [(create-entity {:where? :append :db/id (tempid/tempid)})]))} "Append one!")
+    (dom/button {:onClick (fn [evt] (comp/transact! this [(create-entity {:where? :replace-first :db/id (tempid/tempid)})]))} "Replace first one!")
     (when error-message
       (dom/div
         (dom/p "Error:")

@@ -77,8 +77,8 @@
   "Update the marker in app state. Derives normalized coordinates, and updates the marker in application state."
   [child evt]
   (let [canvas (gobj/get child "canvas")]
-    (comp/transact! child `[(update-marker
-                              {:coords ~(event->normalized-coords evt canvas)})])))
+    (comp/transact! child [(update-marker
+                             {:coords (event->normalized-coords evt canvas)})])))
 
 (defn hover-marker
   "Updates the hover location of a proposed marker using canvas coordinates. Hover location
@@ -119,8 +119,8 @@
   {:query         [{:child (comp/get-query Child)}]
    :initial-state (fn [params] {:ui/react-key "K" :child (comp/get-initial-state Child nil)})}
   (dom/div
-    (dom/button {:onClick #(comp/transact! this `[(make-bigger {})])} "Bigger!")
-    (dom/button {:onClick #(comp/transact! this `[(make-smaller {})])} "Smaller!")
+    (dom/button {:onClick #(comp/transact! this [(make-bigger {})])} "Bigger!")
+    (dom/button {:onClick #(comp/transact! this [(make-smaller {})])} "Smaller!")
     (dom/br)
     (dom/br)
     (ui-child child)))

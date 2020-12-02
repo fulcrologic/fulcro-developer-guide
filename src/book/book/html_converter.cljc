@@ -148,7 +148,7 @@
                    :onChange (fn [evt] (m/set-string! this :html :event evt))
                    :value    html})
     (dom/button :.c-button {:onClick (fn [evt]
-                                       (comp/transact! this `[(convert {})]))} "Convert")
+                                       (comp/transact! this [(convert {})]))} "Convert")
     (dom/pre {} (with-out-str (pprint (:code cljs))))))
 
 (def ui-html-convert (comp/factory HTMLConverter))

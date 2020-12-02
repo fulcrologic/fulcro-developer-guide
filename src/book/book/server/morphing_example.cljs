@@ -75,8 +75,8 @@
 (defsc Toolbar [this {:keys [toolbar/categories]}]
   {:query [{:toolbar/categories (comp/get-query ToolbarCategory)}]}
   (dom/div
-    (dom/button {:onClick #(comp/transact! this `[(group-items {})])} "Trigger Post Mutation")
-    (dom/button {:onClick #(comp/transact! this `[(group-items-reset {})])} "Reset")
+    (dom/button {:onClick #(comp/transact! this [(group-items {})])} "Trigger Post Mutation")
+    (dom/button {:onClick #(comp/transact! this [(group-items-reset {})])} "Reset")
     (dom/ul
       (map ui-toolbar-category categories))))
 

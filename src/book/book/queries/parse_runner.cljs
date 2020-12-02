@@ -27,7 +27,7 @@
     (dom/input {:type     "text"
                 :value    query
                 :onChange (fn [evt] (m/set-string! this :ui/query :event evt))})
-    (dom/button {:onClick #(comp/transact! this `[(run-query ~{:query query :database database :parser parser})])} "Run Parser")
+    (dom/button {:onClick #(comp/transact! this [(run-query {:query query :database database :parser parser})])} "Run Parser")
     (when error
       (dom/div (str error)))
     (dom/div

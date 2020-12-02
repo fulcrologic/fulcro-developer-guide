@@ -36,7 +36,7 @@
    :initial-state {:db/id 5 :left/value 42}
    :ident         [:left/by-id :db/id]}
   (dom/div {:style {:float "left"}}
-    (dom/button {:onClick #(comp/transact! this `[(ping-right {})])} "Ping Right")
+    (dom/button {:onClick #(comp/transact! this [(ping-right {})])} "Ping Right")
     (str value)))
 
 (def ui-left (comp/factory Left {:keyfn :db/id}))
@@ -46,7 +46,7 @@
    :initial-state {:db/id 1 :right/value 99}
    :ident         [:right/by-id :db/id]}
   (dom/div {:style {:float "right"}}
-    (dom/button {:onClick #(comp/transact! this `[(ping-left {})])} "Ping Left")
+    (dom/button {:onClick #(comp/transact! this [(ping-left {})])} "Ping Left")
     (str value)))
 
 (def ui-right (comp/factory Right {:keyfn :db/id}))

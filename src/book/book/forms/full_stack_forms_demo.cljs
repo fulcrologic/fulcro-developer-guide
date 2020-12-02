@@ -102,7 +102,7 @@
 (defsc PhoneDisplayRow [this {:keys [db/id phone/type phone/number]}]
   {:query [:ui/fetch-state :db/id :phone/type :phone/number]
    :ident (fn [] (phone-ident id))}
-  (b/row {:onClick #(comp/transact! this `[(edit-phone {:id ~id})])}
+  (b/row {:onClick #(comp/transact! this [(edit-phone {:id id})])}
     (b/col {:xs 2} (name type)) (b/col {:xs 2} number)))
 
 (def ui-phone-row (comp/factory PhoneDisplayRow {:keyfn :db/id}))
@@ -123,16 +123,16 @@
         save        (fn [evt]
                       (when valid?
                         (comp/transact! this
-                          `[(f/commit-to-entity {:form ~number-to-edit :remote true})
+                          [(f/commit-to-entity {:form number-to-edit :remote true})
                             (r/route-to {:handler :route/phone-list})
                             ; ROUTING HAPPENS ELSEWHERE, make sure the UI for that router updates
                             :main-ui-router])))
         cancel-edit (fn [evt]
                       (comp/transact! this
-                        `[(f/reset-from-entity {:form-id ~(phone-ident (:db/id number-to-edit))})
-                          (r/route-to {:handler :route/phone-list})
-                          ; ROUTING HAPPENS ELSEWHERE, make sure the UI for that router updates
-                          :main-ui-router]))]
+                        [(f/reset-from-entity {:form-id (phone-ident (:db/id number-to-edit))})
+                         (r/route-to {:handler :route/phone-list})
+                         ; ROUTING HAPPENS ELSEWHERE, make sure the UI for that router updates
+                         :main-ui-router]))]
     (dom/div
       (dom/h1 "Edit Phone Number")
       (when number-to-edit
