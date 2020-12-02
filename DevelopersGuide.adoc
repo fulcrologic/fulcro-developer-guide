@@ -432,26 +432,34 @@ During operation you will need to make things happen.
 Mutations are a first-class higher-order citizen of Fulcro, and encode all of the possible interactions that your UI might need to have with the local graph database and any remote servers.
 Mutations are similar to specific "handler cases" of reducers in Redux, but are more akin to the "request" of a CQRS system in that they are serialized into a network-compatible form so that a single operation can be abstractly communicated to both the local logic and remote server(s) without having to deal with the low-level details.
 
-The UI-layer need know nothing about these details because it simply submits transactions that look like this:
+The UI-layer need know nothing about these details because it submits transactions that look like data (notice the syntax quote and unquote (~)):
 
 ```
-(comp/transact! this [(add-person {:name name})])
+(comp/transact! this `[(add-person {:name ~name})])
 ```
 
-`add-person` in this case is not a function, but instead a *mutation*.
-If you call `add-person` as a function, it simply returns the expression as namespace-resolved CLJ(S) data (a list containing a fully-qualified symbol and the (evaluated) parameters):
+`add-person` in this case is not a function, but instead a *mutation* (which at the UI layer is **just data**).
+
+The `defmutation` macro that is used to create mutations emits a binding for the symbol, that when
+called returns the expression as namespace-resolved CLJ(S) data
+(a list containing a fully-qualified symbol and the (evaluated) parameters):
 
 ```
+;; Assume in ns.of.mutation you have:
+(defmutation add-person ...)
+
+;; Then:
+user=> (require '[ns.of.mutation :refer [add-person]])
 user=> (def name "Tony")
 user=> (add-person {:name name})
 ;;=> (ns.of.mutation/add-person {:name "Tony"})
 ```
 
 This is an important point.
-You can also write these with Clojure quoting (which makes it even more obvious that you're not calling something in the UI):
+Thus you can write transactions without the need to quote:
 
 ```
-(comp/transact! this `[(add-person ~{:name name})])
+(comp/transact! this [(add-person {:name name})])
 ```
 
 The core point is that the UI submits an abstract bit of data to Fulcro's transaction system.
@@ -1428,13 +1436,13 @@ Namespacing is encouraged, and of course syntax quoting honors namespace aliases
 ```
 
 is asking the underlying system to run the mutation `ops/delete-person` (where ops can be an alias established in the `ns`).
-Of course, you'll typically use unquote to embed data from local variables:
+Of course, you would typically use unquote to embed data from local variables:
 
 ```
 (comp/transact! this `[(ops/delete-person {:list-name ~name :person ~person})])
 ```
 
-IMPORTANT: When you define mutations they are actually set up to return themselves as data instead if called like functions.
+IMPORTANT: When you define mutations they are actually set up to return *themselves* as data.
 This allows you to avoid the need to quote in most circumstances.
 
 The `defmutation` macro returns a function-like object that just returns itself as data when called "normally":
@@ -1448,7 +1456,7 @@ So, here are the rules of using mutations in `transact!`:
 
 1. If you can require the mutation namespace without causing circular references, then you can just "call" the mutation within the transaction as-if it were a function (avoiding quoting).
 The result will still just embed the mutations as raw data.
-2. If you cannot require the namespace, then you *must* quote it, ensure the fully-qualified namespace is correct, and unquote any data from the surrounding scope.
+2. If you cannot require the namespace (i.e. that would cause a circular require), then you *must* quote it, ensure the fully-qualified namespace is correct, and unquote any data from the surrounding scope.
 
 With the require:
 
@@ -4043,15 +4051,19 @@ include::src/book/book/queries/union_example_1.cljs[]
 == Mutations [[Mutations]]
 
 Mutations are also just data, as we mentioned earlier.
-However, they are intended to *look like* single- argument function calls where the single argument is a map of parameters:
+However, they are intended to *look like* single-argument function calls where the single argument is a map of parameters:
 
 ```
 [(do-something)]
 ```
 
 The main concern is that this expression, in normal Clojure, will be evaluated because it contains a raw list.
-In order to keep it data, one must quote expressions with mutations.
+In order to keep it data, one can quote expressions with mutations.
 Of course you may use syntax quoting or literal quoting.
+
+NOTE: In Fulcro 3 the mutation itself, when called, just returns itself as data. This eliminates the
+requirement to quote unless a circular reference prevents you from requiring the namespace.
+
 Usually we recommend namespacing your mutations (with `defmutation`) and then using syntax quoting to get reasonably short expressions:
 
 ```
@@ -4097,13 +4109,13 @@ A join is similarly parameterized:
 
 with the same kind of effect.
 
-NOTE: The plain list has the same requirement as for mutations: quoting.
-Generally syntax quoting is again the best choice, since you'll often need unquoting.
+Unfortunately lists have special meaning to Clojure, so if you need to use them you'll
+have to use syntax quoting.
 For example, the join example above would actually be written in code as:
 
 ```
   ...
-  (query [this] `[({:child ~(comp/get-query Child)} {:x 1})])
+  :query (fn [this] `[({:child ~(comp/get-query Child)} {:x 1})])
   ...
 ```
 
@@ -5838,8 +5850,22 @@ Of course since mutations are just data you can just quote the fully-qualified m
 and it also leads to another problem:
 Did you notice the error in that last expression?  `params` wasn't *un*-quoted!:
 
+but this won't work:
+
 ```
 (comp/transact! this '[(some.namespace.that.is.long/f ~params)])
+```
+
+because we're not using syntax quoting. Changing the quote style fixes it:
+
+```
+(comp/transact! this `[(some.namespace.that.is.long/f ~params)])
+```
+
+or you can build the list manually and use literal quote:
+
+```
+(comp/transact! this [(list 'some.namespace.that.is.long/f params)])
 ```
 
 ==== Declare Your Mutations Elsewhere
