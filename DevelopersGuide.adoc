@@ -808,7 +808,7 @@ Now running `(js/alert "Hi")` should cause the browser to throw up an alert on y
 == Basic UI Components
 
 Fulcro supplies a `defsc` macro to build React components.
-This macro emits class-based React components (hook support is coming soon, but does not work with `defsc`).
+This macro emits class-based React components (or, with `:use-hooks? true`, a pure functions with hooks support).
 These components are augmented with Fulcro's data management and render refresh.
 
 There are also factory functions for generating all standard HTML5 DOM elements in React in the
