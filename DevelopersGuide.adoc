@@ -1830,7 +1830,16 @@ See the tool's documentation for more information.
 The https://github.com/nubank/workspaces[Workspaces library] allows you to start up a development environment where you can code components, full-stack elements, or even entire applications in a flexible environment.
 Remember, we can actually split off chunks of the application because they are all fed data via a normalized database and coupled only to their parent.
 
-Setting up an alternate build for creating sections of your application in isolation can be a real productivity boost.
+Setting up an alternate build for workspace in which you can create and edit portions of your
+application in isolation can be a real productivity boost. It enables you to focus on the
+selected components without having to bother with the rest of the application.
+
+Some common useful cases:
+
+* Work on the layout of a component
+* Test out complex components in isolation.
+* Feed generated (spec-based) data to components and see if they break.
+* Work on a subset of screens as a mini-application. You can embed an entire app in a card!
 
 == Going Remote! [[GoingRemote]]
 
