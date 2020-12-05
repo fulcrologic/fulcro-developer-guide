@@ -3095,7 +3095,7 @@ Basically, the child or children can simply be dropped into the place where they
 ```
 
 The main trick is making sure you get the data feed right.
-In this case the data is all obtained by the component rendering this custer, even though the UI tree has a slightly different shape.
+In this case the data is all obtained by the component rendering this cluster, even though the UI tree has a slightly different shape.
 Technically they are all "data children" of `Component`.
 Often, the `Parent` in this situation is something like a modal or layout component that may or may not even need a query.
 
