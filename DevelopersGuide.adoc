@@ -2807,8 +2807,9 @@ The `:pre-merge` lambda receives a single map containing the following keys:
 * `:state-map` - the current normalized client database (as a map, not an atom)
 * `:query` - the query being used to for this request (user may have modified the original using `:focus`, `:without` or `:update-query` during the load call
 
-and returns the data that should actually be merged into app state.
-This feature requires a complete understanding of normalization and full stack operation, and is covered in a
+and returns the data that should actually be merged into app state. You will need it when for example loading
+domain data from the server while also requiring the presence of some ui-only props (such as a child router state
+or form data). This feature requires a complete understanding of normalization and full stack operation, and is covered in a
 <<PreMerge, later chapter>>.
 
 === Component Constructor
