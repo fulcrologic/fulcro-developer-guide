@@ -2698,7 +2698,6 @@ The template mode currently does not support union queries or wildcards.
 It is also useful when you want to disable the sanity checks for any reason.
 
 To use this mode, specify your query as `(fn [] [:x])`.
-In lambda mode, `this` comes from the argument list of `defsc`.
 
 === Initial State
 
