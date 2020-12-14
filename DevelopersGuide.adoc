@@ -9336,7 +9336,7 @@ the "leaves" in the nested routes when triggering top-level routes.
 This also creates a situation where you must make sure that nested routers are routed to a known (relative) path in
 some kind of lifecycle that you control. For example, say you have a top router that routes to `["a"]`, and within
 that target there are *two routers* that render side-by-side (call them `X` and `Y`). Those two routers
-will not have received any instruction to route when you to a top-level `change-route!` to `["a"]`, and are therefore
+will not have received any instruction to route when you do a top-level `change-route!` to `["a"]`, and are therefore
 in an unrouted state.
 
 Using a single route command could initialize one of these (i.e. path `["a" "x1"]` might set the `X` router to its first
