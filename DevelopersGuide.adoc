@@ -8865,8 +8865,8 @@ In the latter case you must be sure that the ident returned from `will-enter` po
 == Initial Route
 
 The dynamic routing relies on a call to `change-route!` in order to start the routing system. You can use `dr/initialize!`
-to ensure that the state machines for all routers are started at application startup, but your application will be in
-an "unrouted" state until you explicitly set a route!
+to ensure that the state machines for all routers that can be found in the current query are started at application startup, 
+but your application will be in an "unrouted" state until you explicitly set a route!
 
 Therefore you MUST make a call to `change-route!` on start in order for the dynamic routers to work; however, there is
 also the concern of what gets rendered on the "first frame" of application mount (before you've had a chance to
