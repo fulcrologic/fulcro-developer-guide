@@ -9344,7 +9344,7 @@ target), but that would still leave router `Y` in an incomplete state. You must 
 these situations (sending an explicit relative route command to router `X` and `Y` on timelines that make sense for
 your use-case).
 
-Notive that dynamic routing *cannot* properly resolve this situation for you. You may, in fact, *not* want to trigger routing
+Notice that dynamic routing *cannot* properly resolve this situation for you. You may, in fact, *not* want to trigger routing
 on the children. Imagine that the user was just on this route, and local relative navigation events had resulted
 in `X` and `Y` showing some specific sub-routes side-by-side. The user navigates away, but then they come back. You may
 want to show them what they were seeing when they last left. Finally, since the
