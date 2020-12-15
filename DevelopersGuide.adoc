@@ -9084,6 +9084,9 @@ result.
    ...)
 -----
 
+Or you could `change-route-relative!` in the `dr/route-deferred` of a ancestor target's `:will-enter`, if there is one.
+(Just beware infinite transaction loops.)
+
 
 === Targets Denying Routes v3.1.23+
 
