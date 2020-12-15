@@ -3712,7 +3712,7 @@ of the parent, nor do you pass it props.  The floating class can simply be passe
 normal React class.
 
 WARNING: Remember that things like the dynamic router, which leverage the query composition for introspection, will
-not be able to "see" across this boundary.  You'd have to use `change-route-relative` against some class in the
+not be able to "see" across this boundary.  You'd have to use `change-route-relative!` against some class in the
 subroot in order for it to function properly.
 
 == React Higher-Order Components
@@ -8828,8 +8828,8 @@ Can return a value indicating a desire to do so immediately, or that it would li
 This method is called *before* the component is on-screen, so it cannot receive a react component instance.
 It is passed the app and router parameters which can be used to do things like issues loads and run mutations.
 Defaults to `(route-immediate (get-ident class {}))` The `params` passed to the function will include the declared
-params in the route, along with any extra items in the timeouts-and-params option of `change-route` and
-`change-route-relative` (extra parameter support requires v3.1.23+).
+params in the route, along with any extra items in the timeouts-and-params option of `change-route!` and
+`change-route-relative!` (extra parameter support requires v3.1.23+).
 
 `:route-cancelled`::
 A notification that this route target was in a deferred state but the user made some other routing decision during that delay.
@@ -8885,7 +8885,7 @@ You can use the body of that router to render the "first frame" of your mounted 
     (dom/div "No route selected.")))
 ```
 
-If you are doing SSR, then you will need to simulate calling `change-route` there.
+If you are doing SSR, then you will need to simulate calling `change-route!` there.
 The function
 `dr/ssr-initial-state` (written, but untested) can be used to help you construct the proper state for a given path (which must be used for the server-side render, and also as the initial state for the client).
 Technically, this means that the function can also be used to generate initial state for the client on the front-end as well.
@@ -9001,7 +9001,7 @@ This mechanism makes routing as simple as "read the URI, split the string, and c
 The function to cause a route change is:
 
 ```
-(dr/change-route this ["user" "1"])
+(dr/change-route! this ["user" "1"])
 ```
 
 and it *always* starts from the root of your application and causes a full update of the correct route.
@@ -9016,7 +9016,7 @@ Returns a vector of the path components on the current (live) route starting at 
 If you use your root component it will be the absolute path, and using some other component router will give the relative path from there.
 
 `(change-route-relative! this-or-app relative-class-or-instance new-route timeouts)`::
-Just like `change-route`, but can take a relative `new-route` and apply it starting and the given `relative-class-or-instance`.
+Just like `change-route!`, but can take a relative `new-route` and apply it starting and the given `relative-class-or-instance`.
 Thus, some module of a program can route in a relative manner which will further decouple the components, making
 it easier to use a module in a development card or refactor it to a different location in the app without breaking local concerns.
 
@@ -9117,7 +9117,7 @@ split on `/` of the URL: ["user" "1"]`); however, seeing this in some arbitrary 
 
 [source, clojure]
 -----
-(change-route this ["root" "settings" "user" "1"])
+(change-route! this ["root" "settings" "user" "1"])
 -----
 
 can be quite painful for the person editing the code even a few minutes after writing it.  When you're reading this
@@ -9165,11 +9165,11 @@ To make this better use the `dr/path-to` function, which lets you express it lik
 
 [source, clojure]
 -----
-(dr/change-route this (dr/path-to MyIndex Settings UserPane {:user-id "1"}))
+(dr/change-route! this (dr/path-to MyIndex Settings UserPane {:user-id "1"}))
 
 ;; or just
 
-(dr/change-route this (dr/path-to MyIndex Settings UserPane "1"))
+(dr/change-route! this (dr/path-to MyIndex Settings UserPane "1"))
 -----
 
 The arguments to `path-to` can be an interleaved sequence of route targets with their parameters, or a sequence of
@@ -9183,7 +9183,7 @@ later:
 
 [source, clojure]
 -----
-(dr/change-route-relative this SettingPanesRouter (dr/path-to UserPane "1"))
+(dr/change-route-relative! this SettingPanesRouter (dr/path-to UserPane "1"))
 -----
 
 Now when you move the settings under a different part of the top-level app this link won't break.
@@ -9297,7 +9297,7 @@ Regular named load markers are also a good way of giving user feedback.
 You can specify overrides for the default timeouts when you call `change-route`:
 
 ```
-(change-route this ["new" "path"] {:error-timeout 2000 :deferred-timeout 200})
+(change-route! this ["new" "path"] {:error-timeout 2000 :deferred-timeout 200})
 ```
 
 They default to 5000ms and 100ms.
