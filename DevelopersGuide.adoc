@@ -9956,7 +9956,8 @@ Normally you might throw this into your application state with something like:
 
 which will insert and normalize the person and phone number.
 
-If you also are supporting form interactions then you can augment the form with form configuration data like so:
+Then to get form-state support you'd add form configuration. This snapshot's the state (person-tree) and uses the
+options on the component to set up state tracking of fields:
 
 ```
 (def person-tree-with-form-support (fs/add-form-config PersonForm person-tree))
