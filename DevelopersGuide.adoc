@@ -12,7 +12,7 @@
 :sectanchors:
 :leveloffset: 1
 :sectnums:
-:imagesdir: /assets/img
+:imagesdir: assets/img
 :scriptsdir: js
 :imagesoutdir: docs/assets/img
 :favicon: assets/favicon.ico
@@ -169,7 +169,7 @@ The
 <<Getting Started>> chapter walks you through the evolution of the model in a way that is intended to lead to the best understanding, but it is a lot of minutiae to absorb just to get the "big picture" and there is some chance you'll misunderstand where that is going and stop before you get to the good stuff.
 This book is also a rather large work intended to serve as a complete reference guide, so reading it cover to cover may not be all that desirable for your purposes.
 
-If you really want to learn to *use* Fulcro, feel free to skip this chapter and read <<Getting Started>>; however, if you'd rather learn the central ideas and approach of Fulcro this is a good place to start.
+If you really want to learn to *use* Fulcro, feel free to skip this chapter and read <<Core Concepts>>; however, if you'd rather learn the central ideas and approach of Fulcro this is a good place to start.
 
 At its core Fulcro and its companion library https://wilkerlucio.github.io/pathom[`pathom`] are a full-stack application programming system centered around graph-based UI and data management.
 
@@ -531,6 +531,390 @@ We've known for years that state machines are a great way to manage this kind of
 
 Fulcro's central normalized database and mutation model made an internal version of state machines a very good match.
 Not only is it easy to define them, the model makes them reusable: that is to say you can indicate which UI components serve roles within the machine, leading to things like CRUD state machines can manage the interactions (edit, list, save, reset, cancel, etc.) for most of the entities in a form system.
+
+= Core Concepts
+
+This chapter covers some detail about the core library features and theory that are important in the Fulcro ecosystem. You
+need not read this chapter to use Fulcro, but it will aid in your understanding of it quite a bit, especially if you're
+relatively new to Clojurescript.
+
+== Immutable Data Structures
+
+Many of the most interesting and compelling features of Fulcro are directly or
+indirectly enabled (or made simpler) by the use of persistent data structures
+that are a first-class citizen of the language.
+
+In imperative programming languages like Java and Javascript you have no idea what
+a function or method might do to your program state:
+
+[source,java]
+-----
+Person p = new Person();
+
+doSomethingOnAnotherThread(p);
+
+p.fumble();
+
+// did p just change??? Did I just cause a race condition???
+-----
+
+This leads to all sorts of subtle bugs and is arguably the source of many of
+the hardest problems in keeping software sustainable today. What if `Person` couldn't
+change and you instead had to copy instead if you wanted to modify?
+
+[source,java]
+-----
+Person p = new Person();
+
+doSomethingOnAnotherThread(p);
+
+Person q = p.fumble();
+
+// p is definitely unchanged, but q could be different
+-----
+
+Now you can reason about what will happen. The other thread will see `p` exactly as
+it was when you (locally) reasoned about it. Furthermore, `q` cannot be affected
+because if `p` is truly "read-only" then I still know what it is when I use it to
+derive `q` (the other thread can't modify it either).
+
+In order to derive these benefits you need to either write objects that enforce
+this behavior (which is highly inconvenient and hard to make efficient
+in imperative langauges), or use a programming language that supplies the ability
+to do so as a first-class feature.
+
+Another benefit is that persistent data structures can do *structural sharing*. Basically
+the new version of a map, vector, list, or set can use references to point to any
+parts of the old version that are still the same in the new version. This means,
+for example, that adding an element to the head of a list that had 1,000,000 entries
+(where only one is being changed) is still a constant time operation!
+
+Here are some of the features in Fulcro that trivially result from using persistent data structures:
+
+. A Time-travel UI history viewer that consumes little space.
+. Extremely efficient detection of data changes that affect the UI (can be ref compare instead of data compare)
+. "Pure Rendering" is possible and convenient without having to resort to hidden variables in the UI.
+
+== Pure Rendering
+
+Fulcro's default rendering system uses Facebook's React to accomplish updates to the browser DOM. React, in
+concept, is really simple:
+
+Render is a function you make that generates a data structure known as the
+VDOM (a lightweight virtual DOM)
+
+. On The first "frame", the real DOM is made to match this data structure.
+. On every subsequent frame, render is used to make a new VDOM. React
+compares the prior VDOM (which is cached) to the new one, and then applies the
+changes to the DOM.
+
+The cool realization the creators of React had was that the DOM operations
+that are slow and heavy, but there are efficient ways to figure out what
+needs to be changed via the VDOM without you having to write a bunch of
+controller logic.
+
+Now, because React lives in a mutable space (Javascript), it allows all sorts of things
+that can embed "rendering logic" within a component. This sounds like a good
+idea to our OOP brains, but consider this:
+
+What if you could have a complete snapshot of the state of your application, pass
+that to a function, and have the screen just "look right". Like writing a 2D game: you
+just redraw the screen based on the new "state of the world". All of the sudden your
+mind shifts away from "bit twiddling" to thinking more about the representation
+of your model with minimal data!
+
+That is what we mean by "pure rendering".
+
+[[PureRenderingDiagram]]
+[ditaa, target=rendering]
+....
+
+   /-------\   /-------\   /-------\   /-------\
+   | state |-->| state |-->| state |-->| state |
+   \-------/   \-------/   \-------/   \-------/
+       |           |           |           |
+       |render     |render     |render     |render
+       |           |(diff)     |(diff)     |(diff)
+       v           v           v           v
+   /-------\   /-------\   /-------\   /-------\
+   |  DOM  |   |  DOM  |   |  DOM  |   |  DOM  |
+   \-------/   \-------/   \-------/   \-------/
+....
+
+Here's an example to whet your appetite: Nested check-boxes.
+In imperative programming each checkbox has its own state, and when we want a "check all"
+we end up writing nightmares of logic to make sure the thing works right because we're
+having to *store a mutable value* into an object that then does the rendering.
+Then we play with it and find out we
+forgot to handle that event where some sub-box gets unchecked to
+fire an event to ensure to uncheck the "select all"...oh wait, but when I do that
+it accidentally fires the event from "check all" which unchecks everything
+and then goes into an infinite loop!
+
+What a mess! Maybe you eventually figure out something that's tractable, but
+that extra bit of state in the "check all" is definitely the source of bugs.
+
+Here's what you do in pure rendering with immutable data:
+
+Each sub-item checkbox is a simple data structure with a `:checked?` key that has a boolean
+value. You use that to directly tell the checkbox what its state should be
+(and React enforces that...making it impossible for the UI to draw it any
+differently)
+
+```
+(def state {:items [{:id :a :checked? true} {:id :b :checked? false} ...]})
+```
+
+For a "state of the world", these are read-only. (you have to make a "new
+state of the world" to change one). When you render, the state of the
+check-all is just the conjunction of its children's `:checked?`:
+
+```
+(let [all-checked (every? :checked? (get state :items)]
+   (dom/input {:checked all-checked}))
+```
+
+The check-all button would have *no application state at all*, and React will
+force it to the correct state based on the calculated value.
+When the sub-items change, a new "state of the world"
+is generated with the altered item:
+
+```
+(def next-state (assoc-in state [:items 0 :checked?] false))
+```
+
+and the *entire* UI is re-rendered (React makes this fast
+using the VDOM diff), the "check all" checkbox will just be
+right!
+
+If the "check all" button is pressed, then the logic is similarly very simple:
+change the state for the subitems to checked if any were unchecked, or set them
+all to unchecked if they were all checked:
+
+```
+(def next-state-2
+  (let [all-checked? (every? :checked? (get state :items))
+        c            (not all-checked?)
+        old-items    (get state :items)
+        new-items    (mapv #(assoc % :checked? c) old-items)]
+    (assoc state :items new-items)))
+```
+
+and again you get to pretend you're rendering an entire new frame on the screen!
+
+You'll be continually surprised at how simple your logic gets in the UI once you
+adjust to this way of thinking about the problem.
+
+== Data-Driven
+
+Data-driven concepts were pioneered in web development by Facebook's GraphQL and
+Netflix's Falcor. The idea is quite powerful, and eliminates huge amounts of
+complexity in your network communication and application development.
+
+The basic idea is this: Your UI, which might have various versions (mobile, web, tablet)
+all have different, but related, data needs. The prevalent way of talking to our
+servers is to use REST, but REST itself isn't a very good query 'or' update
+language. It creates a lot of complexity that we have to deal with in order
+to do the simplest things. In the small, it is "easy". In the large, it isn't
+the best fit.
+
+Data-driven applications basically use a more detailed protocol that allows the
+client UIs to specify what they need, and also typically includes a "mutation
+on the wire" notation that allows the client to abstractly say what it
+needs the server to do.
+
+So, instead of `/person/3` you can instead say "I need person 3, but only their
+name, age, and billing info. But in the billing info, I only need to know their
+billing zip code".
+
+Notice that this abstract expression (which of course has a syntax we're
+not showing you yet) is "walking a graph". This is why Facebook calls their language
+"GraphQL".
+
+You can imagine that the person and billing info might be stored in two tables
+of a database, with a to-one relationship, and our query is basically asking
+to query this little sub-graph:
+
+[ditaa,graph-query-abstract]
+....
+[person: age? name?]--->[billing info: zip?]
+....
+
+Modifications are done in a similar, abstract way. We model them as if
+they were "function calls on the wire". Like RPC/RMI:
+
+```
+'(change-person {:id 3 :age 44})
+```
+
+but instead of actually 'calling' the function, we encode this list as
+a data structure (it is a list containing a symbol and a map: the power of Clojure!) and then process that
+data locally (in the back-end of the UI) and optionally also
+transmit it 'as data' over the wire for server processing!
+
+== Graph Database [[GraphDB]]
+
+The client-side of Fulcro keeps all relevant data in a simple graph database, which
+is referenced by a single top-level atom. The database itself is a persistent map.
+
+The database should be thought of as a root-level node (the top-level map itsef),
+and tables that can hold data relevant to any
+particular component or entity in your program (component or entity nodes).
+
+[ditaa,target=dbmodel]
+....
++---------------------+
+| prop     42         |
+|                     |
+| table  { ID entity  |
+|          ... }      |
+| table  { ID entity  |
+|          ... }      |
+|                     |
++---------------------+
+....
+
+The tables are also simple maps, with a naming convention and well-defined structure.
+The name of the table is typically namespaced with the "kind" of thing you're storing,
+and has a name that indicates the way it is indexed:
+
+```
+{ :person/id { 4    { :person/id 4 :person/name "Joe" }}}
+;   ^        ^ ^    ^
+; kind   table id   entity value itself
+```
+
+=== Idents
+
+Items are joined together into a graph using a tuple of the table name and the key of
+an entity. For example, the item above is known as `[:person/by-id 4]`. Notice that this
+tuple is also exactly the vector you'd need in an operation that would pull data from that
+entity or modify it:
+
+```
+(update-in state-db [:person/by-id 4] assoc :person/age 33)
+(get-in state-db [:person/by-id 4])
+```
+
+These tuples are known as 'idents'. Idents can be used anywhere one node
+in the graph needs to point to another. If the idents (which are vectors)
+'appear' in a vector, then you are creating a 'to-many' relation:
+
+[source,clojure]
+------
+{ :person/id
+    {  1  {:person/id 1 :person/name "Joe"
+           :person/spouse [:person/id 2]         ; <1>
+           :person/children [ [:person/id 3]
+                              [:person/id 4] ] } ; <2>
+       2  { :person/id 2
+            :person/name "Julie"
+            :person/spouse [:person/id 1]}       ; <3>
+       3  { :person/id 3
+            :person/name "Billy" }
+       4  { :person/id 4
+            :person/name "Heather"}}
+------
+
+<1> A to-one relation to Joe's spouse (Julie)
+<2> A to-many relation to Joe's kids
+<3> A to-relation back to Joe from Julie
+
+Notice in the example above that Joe and Julie point at each other. This creates
+a 'loop' in the graph. This is perfectly legal. Graphs can contain loops. The
+table in the example contains 4 nodes.
+
+The client database treats the 'root' node as a special set of non-table properties
+in the top of the database map. Thus, an entire state database with 'root node'
+properties might look like this:
+
+The above data structure is now a graph database that looks like this:
+
+[ditaa,target=dbgraph]
+....
+
+ root of db       +---> [:person/id 1]    <----+
++---------------+ |    +-----------------+     |
+|               | |    | id 1            |     |
+| root/people ----+    | name "Joe"      |     |
+|               | |    | spouse ----+    |     |
+|               | |    | children --+------+------+
++---------------+ |    +------------|-----     |  |
+                  |                 v          |  |
+                  +--->[:person/id 2]          |  |
+                  |    +-----------------+     |  |
+                  |    | id 2            |     |  |
+                  |    | name "Julie     |     |  |
+                  |    | spouse ---------------+  |
+                  |    +------------------        |
+                  |                               |
+                  +--> [:person/id 3]    <--------+
+                  |    +-----------------+        |
+                  |    | id 3            |        |
+                  |    | name "Billie"   |        |
+                  |    |                 |        |
+                  |    +-----------------+        |
+                  |                               |
+                  +--> [:person/id 4]    <--------+
+                       +-----------------+
+                       | id 4            |
+                       | name "Heather"  |
+                       |                 |
+                       +-----------------+
+
+....
+
+This makes for a very compact representation of a graph with an arbitrary number of nodes and edges.
+All nodes but the special "root node" live in tables. The root node itself is special because
+it is the storage location for both root properties *and* for the tables themselves.
+
+IMPORTANT: Since the root node and the tables containing other nodes are merged
+together into the same overall map it is important that you use
+care when storing things so as not to accidentally collide on a name. Larger programs
+should namespace all keywords.
+
+=== A Special Note about The Client-Side Database
+
+The graph database on the client is the most central and key concept to understand in Fulcro. Remember
+that we are doing pure rendering. This means that the UI is simply a function transforming this
+graph database into the UI.
+
+There are two primary things to write in Fulcro: the UI and the mutations. The UI pulls data from
+this database and displays it. The mutations evolve this database to a new version.
+Every interaction that changes the UI should be thought of as a *data manipulation*. You're making
+a new *state of the world* that your pure renderer turns into DOM.
+
+The graph format of the database means that your data manipulation, the main dynamic thing in
+the entire application, is simplified down to updating properties/nodes, which themselves
+live at the top of the state atom or are only 2-3 levels deep:
+
+```
+; change the root list of people, and modify the name and age of person 2
+(swap! state (fn [s]
+               (-> s
+                 (assoc :root/people [[:person/id 1] [:person/id 2]])
+                 (assoc-in [:person/id 2 :person/name] "George")
+                 (assoc-in [:person/id 2 :person/age] 33))))
+```
+
+For the most part the UI takes care of itself. Clojure has very good functions for manipulating
+maps and vectors, so even when your data structures get more complex the task is still about
+as simple as it can be.
+
+=== Client Database Naming Conventions
+
+We recommend the following naming conventions to avoid accidental data collisions in your database and to better understand your data:
+
+[horizontal]
+*UI-only Properties*:: `:ui/name`. These are special in that they never end up in server queries
+derived from components. Can be used on any node to hold UI-only state. Not needed if the node itself
+is not involved with server interaction. You can customize the remote layer to ignore other attributes for network requests as well.
+*Tables*:: `:entity-type/index-indicator`. Most commonly something like: `:person/id`
+*Root properties*:: `:root/prop-name`
+*Node properties*:: `:entity-type/property-name`. Examples: `:person/name` or `:graph/data`
+*Singleton Components*:: Use a constant ident for components that are singleton UI elements. I prefer `[:component/id ::Component]`, where
+`::Component` is the keywordized version of the fully-qualified component name.
+
 
 = Getting Started
 
