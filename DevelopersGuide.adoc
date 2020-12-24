@@ -50,7 +50,7 @@ endif::[]
   margin-right: auto;
   position: relative;
   min-height: 400px;
-  background-color: lightgray;
+  background-color: lightgtray;
   border: 3px groove white;
   border-radius: 5px;
   padding: 5px;
@@ -3847,7 +3847,7 @@ when writing an override:
 
 = EQL -- The Query and Mutation Language
 
-Before reading this chapter you should make sure you've read <<GraphDB,The Graph Database Section>>.
+Before reading this chapter you should make sure you've read https://book.fulcrologic.com/fulcro2/#GraphDB[The Graph Database Section] of the fulcro 2 book (that part is the same with fulcro 3).
 It details the low-level format of the application state, and talks about general details that are referenced in this chapter.
 
 In Fulcro all data is queried and manipulated from the UI using the EDN Query Language (EQL).
