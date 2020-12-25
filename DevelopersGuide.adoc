@@ -828,8 +828,6 @@ The client database treats the 'root' node as a special set of non-table propert
 in the top of the database map. Thus, an entire state database with 'root node'
 properties might look like this:
 
-The above data structure is now a graph database that looks like this:
-
 [ditaa,target=dbgraph]
 ....
 
