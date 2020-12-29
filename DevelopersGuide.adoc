@@ -394,7 +394,7 @@ Loading is just as trivial and uses the same mechanisms.
 Loading a particular person from the server might look like this:
 
 ```
-(df/load app [:person/id 22] Person)
+(df/load! app [:person/id 22] Person)
 ```
 
 ==== Nested Things
@@ -7401,7 +7401,7 @@ Let's say you were loading a blog post that has comments.
 Perhaps you'd like to load the comments later:
 
 ```
-(df/load app :server/blog Blog {:params {:id 1}
+(df/load! app :server/blog Blog {:params {:id 1}
                                 :without #{:blog/comments}})
 ```
 
@@ -9602,7 +9602,7 @@ For example, say you wanted to load a user before routing to them:
                       (when-let [user-id (some-> user-id (js/parseInt))]
                         (dr/route-deferred
                           [:user/id user-id]
-                          #(df/load app [:user/id user-id] User {:post-mutation        `dr/target-ready
+                          #(df/load! app [:user/id user-id] User {:post-mutation        `dr/target-ready
                                                                  :post-mutation-params {:target [:user/id user-id]}}))))]
   (dom/div ...))
 ```
@@ -10622,7 +10622,7 @@ When the application loads it uses `data-fetch/load` to query the server for
 `:all-numbers`.
 
 ```
-(df/load app :all-numbers PhoneDisplayRow {:target [:screen/phone-list :tab :phone-numbers]})
+(df/load! app :all-numbers PhoneDisplayRow {:target [:screen/phone-list :tab :phone-numbers]})
 ```
 
 We have a very simple database that looks like this on the server:
