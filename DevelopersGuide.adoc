@@ -3220,9 +3220,9 @@ So, normalization can do this:
 
 . Walk the tree in parallel with the EQL
 . At a join:
-** As the query for the metadata, and pull the ident function from there
-** Run the ident function on the tree's data to get the ident
-** Put the map of tree data into the normalized form (`(assoc-in result ident tree-value)`)
+** Ask the query for the metadata, and pull the ident function from there.
+** Run the ident function on the tree's data to get the ident.
+** Put the map of tree data into the normalized form (`(assoc-in result ident tree-value)`).
 . Continue...
 
 [source]
@@ -3385,7 +3385,7 @@ that to add some advanced feature, but most users will never want to.
 Structured manipulation is where Fulcro starts to get really nice. It is *very* common for a Fulcro application to
 want to *add* something to the graph dynamically. It is most easy to do that using a tree of data and the
 built-in normalization features. You can, of course, do this within a mutation using `tree->db`, but because there
-are some common use-cases there are pre-build functions to help you with this task. The primary two are `df/load!` and
+are some common use-cases there are pre-built functions to help you with this task. The primary two are `df/load!` and
 `merge/merge-component!`.
 
 Both of these functions are just fancy versions of `tree->db`: that is to say take a tree of data and merge it into
@@ -3401,8 +3401,8 @@ obtain the tree remotely.
 
 NOTE: You can still do the following code in a CLJ REPL!
 
-Let's say you set up a running application. The `:headless` keyword is just an arbitrary placeholding in CLJ. There
-is no actual UI mounted, but we have to pass something as the mount node to match function arity.
+Let's say you set up a running application. The `:headless` keyword is just an arbitrary placeholder in CLJ. There
+is no actual UI mounted, but we have to pass something to match the function's arity.
 
 [source]
 -----
@@ -3436,7 +3436,7 @@ Let's say we want to add another person to this database. This usually involves 
 . Putting the new data into a normalized table
 . Fixing the "edges" of the graph so that it will show up in the right place.
 
-We could use a mutation an do those steps manually, but it gets really tedious if there are complete subgraphs to
+We could use a mutation and do those steps manually, but it gets really tedious if there are complete subgraphs to
 normalize. Instead, we use `merge/merge-component!` from `[com.fulcrologic.fulcro.algorithms.merge :as merge]`:
 
 [souce]
@@ -3450,9 +3450,9 @@ normalize. Instead, we use `merge/merge-component!` from `[com.fulcrologic.fulcr
 -----
 
 Notice that this put the new map of data in the correct (normalized) place. If there were sub-children of a person
-(e.g. `:person/address`) this this would have normalized (and joined) those parts as well.
+(e.g. `:person/address`) then this would have normalized (and joined) those parts as well.
 
-Modify the two components in the REPL as follows and you'll see:
+For example,
 
 [source]
 -----
@@ -12318,7 +12318,7 @@ includes the optimizations that are always done by the `defsc` component.
 
 * Each component has a `shouldComponentUpdate` that checks to see if the props have actually changed.
 If a component is asked to "double render" or render without changed props, then it will short-circuit (e.g. it is a PureComponent).
-Checking this fact in CLJS is *very very* fast, since we use immutable data structures where reference comparisons are enough to ensure two things are identical.
+Checking this fact in CLJS is *very* fast, since we use immutable data structures where reference comparisons are enough to ensure two things are identical.
 * Fulcro keeps indexes of *mounted* components by their *idents* (and can also look them up by query keywords).
 Thus, at any given time it knows exactly which on-screen components "represent" something like `[:person/id 1]` or
 query for attributes like `:person/name`. It keeps these up to date via hooks on React's lifecycle.
@@ -13257,7 +13257,7 @@ The demo also ensures you cannot run out of browser memory by removing items and
 You can demostrate this by moving ahead by more than 4 pages, then page back 5.
 You should see a reload of that early page when you go back to it.
 
-The UI of this example is a great example of how a complex application behavior remains very very simple at the UI layer with Fulcro.
+The UI of this example is a great example of how a complex application behavior remains very simple at the UI layer with Fulcro.
 
 We represent the list items as you might expect:
 
