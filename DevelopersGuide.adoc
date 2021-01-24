@@ -2870,6 +2870,732 @@ That person should still be missing, indicating that it really was removed from 
 At this point you've gotten more detailed view of what a Fulcro application looks like.
 The remaining chapters of this book go into considerably more detail about each important part of the API.
 
+= Core API
+
+The Core API of Fulcro centers around manipulating the graph of data in your client-side database. Fulcro's APIs are
+CLJC, and many of them have nothing at all to do with rendering. In fact, most of the operations of Fulcro can be
+used in a completely "headless" CLJ REPL.
+
+You can safely skip this chapter, but since Fulcro uses a very simple model of operation centered around these
+functions it is useful to see these them in isolation so you can more easily understand how things work.
+
+First we'll talk about denormalization and normalization. These two are the yin and yang of Fulcro's operation, and
+it is difficult to choose which to cover first. We'll start with denormalization because it requires no extra
+knowledge other than a map in Fulcro's graph database format.
+
+== Denormalization
+
+Denormalization in Fulcro is the process of running an EQL query against a normalized Fulcro client database. The
+algorithm is pretty trivial in the common case, but since EQL supports recursion, wildcards, and union queries the actual implementation
+is somewhat difficult to read and understand.
+
+Fortunately, using it is much simpler.
+
+The primary algorithm for denormalization is `db->tree`, found in the `[com.fulcrologic.fulcro.algorithms.denormalize :as fdn]`
+namespace.
+
+The `db->tree` function is designed to be used in two different contexts:
+
+* Starting from the root of a Fulcro database, and running EQL from there.
+* Starting from some arbitrary *node* of a Fulcro database, and running EQL from there.
+
+Notice that since the Fulcro database *itself* is just a special (the root) node of the database that the two cases are
+really identical in practice. The first case is just a "well-known" node to start at.
+
+Let's make it more concrete. Assume you have the following Fulcro database:
+
+[source]
+-----
+(def sample-db
+  {:people    [[:person/id 1] [:person/id 2]]
+   :person/id {1 {:person/name "Bob"}
+               2 {:person/name "Judy"}}})
+-----
+
+I can pull a tree of data using:
+
+[source]
+-----
+(let [starting-node sample-db]
+  (fdn/db->tree [{:people [:person/name]}] starting-node sample-db))
+=> {:people [#:person{:name "Bob"} #:person{:name "Judy"}]}
+-----
+
+I want you to note a few very important things:
+
+. The EQL drives a simple recursive walk of the database.
+. The main task of `db->tree` is to do a `(get-in db ident)` any time it sees an ident (for an EQL join) to replace that
+  ident with the corresponding map.
+
+For clarity, let's build this up a step at a time:
+
+[source]
+-----
+;; The query just asks for a top-level prop.
+(let [starting-node sample-db]
+  (fdn/db->tree [:people] starting-node sample-db))
+=> {:people [[:person/id 1] [:person/id 2]]}
+
+;; The query just asks for a table
+(let [starting-node sample-db]
+  (fdn/db->tree [:person/id] starting-node sample-db))
+=> #:person{:id {1 #:person{:name "Bob"}, 2 #:person{:name "Judy"}}}
+-----
+
+Notice that both of the above queries stop where the EQL stops (even if there are unresolved idents). If you say you
+want `:people` as a prop, then you get that value as an "opaque" literal. You are free to store whatever you like
+at a prop in a Fulcro database, and the denormalization will *only* resolve an ident when it is told to expect a join.
+
+Now, let's suppose you wanted to query the details of a person, but you didn't want to follow any joins. Well, in that
+case you can essentially use `db->tree` much like `clojure.core/select-keys`:
+
+[source]
+-----
+(let [starting-entity {:person/name "Joe" :person/age 42}
+      empty-db {}]
+  (fdn/db->tree [:person/name] starting-entity empty-db))
+=> #:person{:name "Joe"}
+-----
+
+In this case I can supply an empty database for the final argument _because that database is only used to resolve
+idents_. In fact, if I have a *tree* of data with no normalization, I can use `db->tree` to simply "prune it" as if
+it were a more advanced version of `select-keys`:
+
+[source]
+-----
+(let [starting-entity {:person/name "Joe" :person/age 42 :person/spouse {:person/name "Judy" :person/age 45}}
+      empty-db {}]
+  (fdn/db->tree [:person/name {:person/spouse [:person/age]}] starting-entity empty-db))
+=> #:person{:name "Joe", :spouse #:person{:age 45}}
+-----
+
+Thus, you see that the final database argument is *only* about resolving idents when they are crossed by a *join* in
+the EQL.
+
+=== Idents as a Query Element
+
+EQL allows for the use of idents in the query itself. Basically these are just instructing `db->tree` to "move" the context
+to some *particular* normalized entity in the database.
+
+[source]
+-----
+(def sample-db
+  {:people    [[:person/id 1] [:person/id 2]]
+   :person/id {1 {:person/name "Bob" :person/spouse [:person/id 2]}
+               2 {:person/name "Judy"}}})
+
+(let [starting-entity {}]
+  (fdn/db->tree [[:person/id 1]] starting-entity sample-db))
+=> {[:person/id 1] #:person{:name "Bob", :spouse [:person/id 2]}}
+-----
+
+In the above case the starting *entity* is irrelevant, because the given EQL says "Join to a particular entity
+in the database". The start entity isn't part of the query. Now, of course the two can be mixed:
+
+[source]
+-----
+(def sample-db
+  {:people      [[:person/id 1] [:person/id 2]]
+   :some-number 99
+   :person/id   {1 {:person/name "Bob" :person/spouse [:person/id 2]}
+                 2 {:person/name "Judy"}}})
+
+(let [starting-entity sample-db]
+  (fdn/db->tree [:some-number [:person/id 1]] starting-entity sample-db))
+=> {:some-number 99, [:person/id 1] #:person{:name "Bob", :spouse [:person/id 2]}}
+-----
+
+Again make note of the fact that no _extra_ idents were *followed* when the EQL didn't make a join of them (in this
+case the `:person/spouse` was treated as an EQL prop).
+
+Of course we can also use an ident query element with EQL join syntax to then start walking the database to generate
+a tree:
+
+[source]
+-----
+(fdn/db->tree [{[:person/id 1] [:person/name {:person/spouse [:person/name]}]}] {} sample-db)
+=> {[:person/id 1] #:person{:name "Bob", :spouse #:person{:name "Judy"}}}
+-----
+
+However, note that all the ident is doing in the above case is *naming the starting entity*!
+We can of course just give a particular table entry as the starting entity by pulling it out
+ourselves!
+
+[source]
+-----
+(let [starting-entity (get-in sample-db [:person/id 1])]
+  (fdn/db->tree [:person/name] starting-entity sample-db))
+=> #:person{:name "Bob"}
+-----
+
+and this is in fact what Fulcro *has* to do when doing a localized refresh of some UI component. It has to ask the component
+"what is your ident?", pull that entry from the db, then asks the component "OK, what is your query". It then combines
+that into the above call to `db->tree` to get the desired props for rendering that component.
+
+One final note: you may have noticed that `db->tree` doesn't *care* that the entities themselves know their identity. For
+simplicity I left the IDs out of all of the person maps. This was intentional for two reasons:
+
+* `db->tree` does not need the entities to have an ID in their map, it only needs them to be in properly indexed tables.
+* To highlight that there is no magic. Most of denormalization is just doing recursive evaluation of `get-in` on idents
+according to the data requested in the supplied EQL, and the *location* (i.e. `[:person/id 1]`) in the database of those entities.
+
+== Normalization
+
+The normalization of data is the reverse process of denormalization. Take an arbitrary tree of data and turn it into Fulcro's normalized
+graph database form. Note that, except for the root of the tree, that every element in the tree is *relative* to
+another element:
+
+[source]
+-----
+{:root {:child {:children [{:x 1} {:x 2} ...]}}}
+-----
+
+our task in normalization is to recursively replace every *relative* child with a "lookup ref" (known to Fulcro as
+an *ident*), and to place that child at the location indicated by that lookup ref.
+
+How do we do that?
+
+=== Deriving Idents
+
+The central questions of normalization are, when a map is found:
+
+. *Should* that map be normalized?
+. *Where* should it be normalized _to_?
+
+Imagine your processing a tree of data and find the map `{:x 1}`. How do you decide when to replace it with an ident,
+and how do you determine what the ident is?
+
+==== Determining When to Normalize
+
+If you remember back in the denormalization section we consider "props" in EQL to be opaque. If you query it as a prop
+you *may* want to get an ident, but you might also just want to get a map that was left denormalized in the database
+(intentionally). If you query it as a join then you're either *pruning* an intentionally non-normalized map, or you
+want to follow an ident.
+
+What we're getting at is that the normalization process _MUST be told_ which you mean to do. It must *not* normalize
+a nested map unless that is your intention.
+
+Fortunately, there is a trivial thing we can use to make that determination: the very query you want to be able
+to run (and which will be in your UI).
+
+==== Determining Target Location
+
+Figuring out the ident for an arbitrary map could be done in any number of ways:
+
+. A registry of "ID" props to look for? This sort of works, but it has a few weaknesses: It's a little slow to scan
+each map for a known ID, but the bigger problem is that a map *could* have more than one ID. It is rare but entirely
+plausible (sometimes desirable) to overlay the identities of two things (i.e. a primary address with customer data).
+. A naming convention? This is just like the prior solution, but only rids us of the need to make a registry.
+. Some find of global function you provide? This isn't much better than a naming convention. Your global function would
+have to analyze the map in question and try to deduce what to use as an ident.
+
+Fulcro's solution combines the following observations:
+
+* A UI component will typically correspond to the normalization boundaries. We're interested in each component having
+a deduplicated value in the database.
+* Our primary goal with data-driven EQL is to co-locate the requirements of a component's data (a co-located query) with
+that component.
+* We need to know if the component wants to treat the data at some location as a prop, or as a join. This is the
+answer to the "when to normalize" question.
+
+Thus, it seems like *the component itself* could tell us *where* to put the data during normalization!
+
+Here's how it works. Every component has an *optional* function associated with it called `ident`, stored in its
+`component-options`. In a CLJ REPL you can see this with:
+
+[source]
+-----
+(defsc X [this props]
+  {:ident (fn [] [:x 1])})
+
+(let [options  (comp/component-options X)
+      ident-fn (get options :ident)]
+  (ident-fn X {}))
+=> [:x 1]
+-----
+
+The convenience function `comp/get-ident` does the work of pulling the function out of component options, so we can
+shorten usage to:
+
+[source]
+-----
+(comp/get-ident X {})
+=> [:x 1]
+-----
+
+The `defsc` macro, for convenience, allows you to pretend to close over the two arguments of the class (the first of
+which will either be passed to use as the class or the live on-screen instance). It can also auto-generate this function
+from two other syntax annotations:
+
+[source]
+-----
+(defsc Person [this props]
+  {:ident (fn [] [:person/id (:person/id props)])})
+
+(defsc Person [this props]
+  {:ident [:person/id :person/id]})
+
+(defsc Person [this props]
+  {:ident :person/id})
+-----
+
+The first is explicit. Whatever you return, which can be derived from a map of data (props) is the ident. This form
+is commonly used when the component has a *constant* (singleton) ident. The second
+form generates a lambda where the first element of the supplied vector is literal, and the second is used to get
+data from `props`. The final one recognizes that we commonly just use the ID field name as *both* the table name and
+the method of finding the ID, and is the most compact and common notation. All three are exactly equivalent in the above.
+
+Now, note that `props` is a bit of a misnomer. The component-centric `ident` function just needs a map of data to
+generate the desired location, and _that_ is exactly what we have when we are normalizing things.
+
+The question is now this: How do we know *which* component's ident function to use when we run across the map
+`{:person/id 2 :person/name "Judy"}`?
+
+Remember that we need the *query* of the component to know *when* to normalize
+something, so we've already agreed that we must use the component's query on the map. Therefore it seems obvious that we should
+also just use the component's ident. The problem is this: how do we find either of those things (the query and ident)
+when we're normalizing an arbitrary map?
+
+The answer turns out to be quite simple: shape.
+
+The shape of the UI tree will *naturally match* the shape of the *data tree*, which in turn MUST match the shape of
+the query (or the query would not be able to supply the data for the UI tree to render)!
+
+[source]
+-----
+(defsc Person [this props]
+  {:query [:person/id :person/name]
+   :ident :person/id})
+
+(defsc Root [this props]
+  {:query [{:root/people (comp/get-query Person)}]})
+
+(comp/get-query Root)
+=> [#:root{:people [:person/id :person/name]}]
+-----
+
+Notice that the query is nothing more than a literal tree-like composition, and the expected shape looks just
+like you'd expect:
+
+[source]
+-----
+(def sample-tree {:root/people [{:person/id 1 :person/name "Bob"}
+                                {:person/id 2 :person/name "Judy"}]})
+-----
+
+and remember that you can use a query and `db->tree` to get the effect of an advanced `select-keys`:
+
+[source]
+-----
+(fdn/db->tree (comp/get-query Root) sample-tree sample-tree)
+=> #:root{:people [#:person{:id 1, :name "Bob"} #:person{:id 2, :name "Judy"}]}
+-----
+
+but now we can answer how we'll go about *finding* the function to generate idents! The `comp/get-query` function
+in Fulcro *adds metadata* to the query!
+
+[source]
+-----
+(meta (comp/get-query Person))
+=>
+{:component {:com.fulcrologic.fulcro.components/component-class? true,
+             :fulcro$options {:query #object[user$eval16991$query_STAR___16992
+                                             0x5836a00c
+                                             "user$eval16991$query_STAR___16992@5836a00c"],
+                              :ident #object[user$eval16991$ident_STAR___16994
+                                             0x7f934ca2
+                                             "user$eval16991$ident_STAR___16994@7f934ca2"],
+                              :render #object[com.fulcrologic.fulcro.components$eval16408$wrap_base_render__16433$fn__16434
+                                              0x3caa065
+                                              "com.fulcrologic.fulcro.components$eval16408$wrap_base_render__16433$fn__16434@3caa065"]},
+             :fulcro$registryKey :user/Person,
+             :displayName "user/Person"},
+ :queryid "user/Person"}
+-----
+
+The `:queryid` is used for dynamic queries, but the `component` is the literal *class* (in this case `Person`) that
+supplied *that element* of the query (you can tell because the the :fulcro$registryKey is the fully-qualified name of the class)!
+
+So, normalization can do this:
+
+. Walk the tree in parallel with the EQL
+. At a join:
+** As the query for the metadata, and pull the ident function from there
+** Run the ident function on the tree's data to get the ident
+** Put the map of tree data into the normalized form (`(assoc-in result ident tree-value)`)
+. Continue...
+
+[source]
+-----
+(let [{:keys [component]} (meta (comp/get-query Person))]
+  (comp/get-ident component {:person/id 1 :person/name "Bob"}))
+=> [:person/id 1]
+-----
+
+The namespace `[com.fulcrologic.fulcro.algorithms.normalize :as fnorm]` has the core algorithm `tree->db` that does
+exactly that:
+
+[source]
+-----
+(fnorm/tree->db Root {:root/people {:person/id 1 :person/name "Bob"}} true)
+=> {:root/people [:person/id 1], :person/id {1 #:person{:id 1, :name "Bob"}}}
+-----
+
+Notice that you pass a component to this particular function, because normalization *has* to be component-centric.
+A query would not be enough, since the components themselves hold the key to normalization.
+
+Also note that while many Fulcro programs might use `db->tree` (say to pull a subtree from the database in a mutation),
+the low-level `tree->db` has a quirky interface for internal reasons, and there are better user-level functions for
+putting things *into* your client-side database.
+
+== Initial State
+
+Now that you understand how the normalization and denormalization APIs work, it is much easier to understand the
+purpose and functionality of component `:initial-state`. It is common for people to misunderstand initial state to
+be some kind of OO constructor pattern. It is not. Initial state is bourne out of the following problem:
+
+You start a brand new Fulcro app. It has a query that wants to pull data from a client database. What is *in* that
+database?
+
+The answer is, well, *nothing*!
+
+In the very early days this was a painful problem. If you wanted a real normalized database then you had to build the
+darn thing by hand! You'd write some UI, then you'd hack away on a data structure to build a normalized database
+that you'd then initialize the app with. This was *very* error prone and frustrating. Worse, when you'd go to refactor
+your application you'd have to *refactor your initial database*.
+
+After doing that about 3 times it was obvious that this needed a better solution, and it didn't take much thinking
+to realize that we already had the answer: The shape of the UI! The shape of the UI already dictates the query, and
+that same parallel magic that led to the co-location of the ident was now an obvious similar solution
+for this initial application state problem!
+
+By having you co-locate the component's query *and* state, and then *compose* the query (through joins) and initial
+state (by component reference) we could have an initial application state that could be automatically extracted, normalized, and
+would also "follow along" through refactoring!
+
+The `defsc` macro again has some convenient "magic" that can save you some typing, but the reality is this: initial state
+is just a function in component options that returns the desired initial data for that component (if it has any). That
+component, of course, also knows the immediate children and composes their queries and initial state into its own.
+
+That causes the whole shape to naturally form and maintain correctness as a simple part of UI construction.
+
+Try it out in a REPL:
+
+[source]
+-----
+(defsc Person [this props]
+  {:query         [:person/id :person/name]
+   :ident         :person/id
+   :initial-state (fn [params] {:person/id   (:id params)
+                                :person/name (:name params)})})
+
+(let [is-fn (-> Person (comp/component-options) (:initial-state))]
+  (is-fn {:id 1 :name "Bob"}))
+;; or more simply:
+(comp/get-initial-state Person {:id 1 :name "Bob"})
+=> #:person{:id 1, :name "Bob"}
+-----
+
+and then build it up a layer at a time:
+
+[source]
+-----
+(defsc Root [this props]
+  {:query         [{:root/people (comp/get-query Person)}]
+   :initial-state (fn [_] {:root/people [(comp/get-initial-state Person {:id 1 :name "Bob"})
+                                         (comp/get-initial-state Person {:id 2 :name "Judy"})]})})
+(comp/get-initial-state Root)
+=> #:root{:people [#:person{:id 1, :name "Bob"} #:person{:id 2, :name "Judy"}]}
+-----
+
+Fulcro is doing *no magic here at all*. It is simply returning *your own composition* of data that just happens
+to naturally fall into the correct shape due to your composition of the UI (assuming you follow the rule, which is
+simply: shape of query + initial state == shape of stateful UI).
+
+It is a natural composition technique that self-maintains through any amount of refactoring, is reasoned about locally
+(yes, root gets the entire application's tree of data, but it need know nothing about anything but the direct
+children, which it cannot get out of knowing because it renders them!), and which leads to all of the additional
+cool stuff you get from Fulcro:
+
+* Self-maintaining, auto-normalizing, application initialization.
+* Automatic normalization of any incoming data (subgraph).
+* Localized queries that can be used to get targeted data from servers.
+* Introspection (you can use the query to understand things about an arbitrary application)
+
+As a quick final example, the initialization of a Fulcro application is something you should now be able to write
+yourself!  You've seen all of the elements that are required. It is simply:
+
+* Get the root initial state (which is a data tree that matches the shape of your UI)
+* Get the root query (which is EQL that matches the shape of the initial state tree, and has metadata for
+pulling component ident functions for normalization)
+* Run `tree->db`
+* Reset the Fulcro state atom to the result!
+
+[source]
+-----
+(let [data-tree (comp/get-initial-state Root)
+      normalized-tree (fnorm/tree->db Root data-tree true)]
+  normalized-tree)
+-----
+
+Fulcro does a few more things related to unions during this initialization, so this isn't the entire picture, but
+it is pretty darn close.
+
+== Understanding Rendering
+
+Fulcro has a lot of internal mechanisms dedicated to rendering, but you'll possibly be surprised to learn that the
+core rendering logic is about 5 lines long.  Most of the additional logic is made up of pluggable algorithms that do various
+(optional) optimizations.
+
+The primary rendering of Fulcro is just this:
+
+[source]
+-----
+;; Sample current state is to illustrate that we just have a normalized database, which is normally held in an atom.
+(let [current-state   {:root/people [[:person/id 1] [:person/id 2]],
+                       :person/id   {1 #:person{:id 1, :name "Bob"}, 2 #:person{:id 2, :name "Judy"}}}
+      denormalized-tree (fdn/db->tree (comp/get-query Root) current-state current-state)
+      root-factory (comp/factory Root)]
+  (js/ReactDOM.render (root-factory denormalized-tree) dom-node))
+-----
+
+That's it!  The optimizations do things like re-render targeted components (instead of the root), but it is
+*critical* that you understand that the rendering is a *literal reification of your normalized database as UI*.
+
+== Evolving the Graph
+
+So, now that you've been awakened to how simple Fulcro actually is internally, you can start to shift your mental
+model to the reality of working with Fulcro. The primary task is this:
+
+Update your state database (and optionally your queries) such that the next reification of that data will
+be the deisred render frame.
+
+That's the major shift you have to make when thinking about UI in Fulcro. It's all about the data. Therefore,
+the operations you'll be doing throughout your application's lifetime are:
+
+. Mess with the graph data using `assoc-in`, etc. (Done within the confines of mutations, usually).
+. Add things to the graph in a structured manner.
+
+Trivial operations like "check that box" or "hide that dialog" are done via manual manipulation, and are quite
+common (and simple) to do in mutations. You can technically `swap!` against the actual state atom, but Fulcro
+*does not watch* the state atom, so rendering refreshes are not automatic, and that form of direct manipuation
+bypasses a lot of other useful and important features. Advanced users (or library authors) with specific needs might do
+that to add some advanced feature, but most users will never want to.
+
+Structured manipulation is where Fulcro starts to get really nice. It is *very* common for a Fulcro application to
+want to *add* something to the graph dynamically. It is most easy to do that using a tree of data and the
+built-in normalization features. You can, of course, do this within a mutation using `tree->db`, but because there
+are some common use-cases there are pre-build functions to help you with this task. The primary two are `df/load!` and
+`merge/merge-component!`.
+
+Both of these functions are just fancy versions of `tree->db`: that is to say take a tree of data and merge it into
+the database. The `load!` variant obtains the tree over the network, and the `merge-component!` one assumes you've
+got a tree of data in hand.
+
+In both cases they leverage the fact that a query has metadata that can be used for normalization. The `load!` variant,
+of course, also needs the query so it can ask a remote server for the correct tree.
+
+Again, these APIs work in a CLJ REPL (though to use either you have to have a running Fulcro app). `load!` also requires
+a CLJ implementation for a remote, so we'll just play with `merge-component!`, which does everything `load!` does except
+obtain the tree remotely.
+
+NOTE: You can still do the following code in a CLJ REPL!
+
+Let's say you set up a running application. The `:headless` keyword is just an arbitrary placeholding in CLJ. There
+is no actual UI mounted, but we have to pass something as the mount node to match function arity.
+
+[source]
+-----
+(defsc Person [this props]
+  {:query         [:person/id :person/name]
+   :ident         :person/id
+   :initial-state (fn [params] {:person/id   (:id params)
+                                :person/name (:name params)})})
+
+(defsc Root [this props]
+  {:query         [{:root/people (comp/get-query Person)}]
+   :initial-state (fn [_] {:root/people [(comp/get-initial-state Person {:id 1 :name "Bob"})
+                                         (comp/get-initial-state Person {:id 2 :name "Judy"})]})})
+
+(def app (app/fulcro-app))
+
+(app/mount! app Root :headless)
+
+(app/current-state app)
+=>
+{:fulcro.inspect.core/app-id "user/Root",
+ :root/people [[:person/id 1] [:person/id 2]],
+ :person/id {1 #:person{:id 1, :name "Bob"}, 2 #:person{:id 2, :name "Judy"}}}
+-----
+
+Notice that we can start up the Fulcro app just like we could on the client, and that when we ask for the current
+state it is exactly what we expect (plus an app ID that Inspect adds).
+
+Let's say we want to add another person to this database. This usually involves *2* operations:
+
+. Putting the new data into a normalized table
+. Fixing the "edges" of the graph so that it will show up in the right place.
+
+We could use a mutation an do those steps manually, but it gets really tedious if there are complete subgraphs to
+normalize. Instead, we use `merge/merge-component!` from `[com.fulcrologic.fulcro.algorithms.merge :as merge]`:
+
+[souce]
+-----
+(merge/merge-component! app Person {:person/id 3 :person/name "Sally"})
+(app/current-state app)
+=>
+{:fulcro.inspect.core/app-id "user/Root",
+ :root/people [[:person/id 1] [:person/id 2]],
+ :person/id {1 #:person{:id 1, :name "Bob"}, 2 #:person{:id 2, :name "Judy"}, 3 #:person{:id 3, :name "Sally"}}}
+-----
+
+Notice that this put the new map of data in the correct (normalized) place. If there were sub-children of a person
+(e.g. `:person/address`) this this would have normalized (and joined) those parts as well.
+
+Modify the two components in the REPL as follows and you'll see:
+
+[source]
+-----
+(defsc Address [this props]
+  {:query [:address/id :address/street]
+   :ident :address/id})
+
+(defsc Person [this props]
+  {:query         [:person/id :person/name {:person/address (comp/get-query Address)}]
+   :ident         :person/id
+   :initial-state (fn [params] {:person/id   (:id params)
+                                :person/name (:name params)})})
+
+(merge/merge-component! app Person {:person/id 3 :person/name "Sally" :person/address {:address/id 33 :address/street "111 Main St"}})
+(app/current-state app)
+=>
+{:fulcro.inspect.core/app-id "user/Root",
+ :root/people [[:person/id 1] [:person/id 2]],
+ :person/id {1 #:person{:id 1, :name "Bob"},
+             2 #:person{:id 2, :name "Judy"},
+             3 #:person{:id 3, :name "Sally", :address [:address/id 33]}},
+ :address/id {33 #:address{:id 33, :street "111 Main St"}}}
+-----
+
+The main problem is that the new person is *not* yet in the `:root/people` list! If the UI for Root was rendering all
+of the people, then this new person isn't going to show up! Remember that the UI is just a reification of the data graph,
+and the data graph is missing an edge from `:root/people` to `[:person/id 3]`.
+
+We could, of course, manually fix that with a mutation, but `merge-component!` (and `load!`) understand that this is a very
+very common need. So, the merge variant allows any number of optional targets (and `load!` supports a `:target` parameter).
+
+The name "target" comes from the idea that the thing you're merging often needs to be added to the graph: a desired
+target location. It is specified as a vector-path (ala `assoc-in`), and can also be augmented with metadata to tell it
+how to behave with respect to to-many edges.
+
+For example, say you wanted to target the new person to be available from the root as a new `:root/edge`:
+
+[source]
+-----
+(merge/merge-component! app Person {:person/id 3 :person/name "Sally" :person/address {:address/id 33 :address/street "111 Main St"}}
+  :replace [:root/edge])
+(app/current-state app)
+=>
+{:fulcro.inspect.core/app-id "user/Root",
+ :root/people [[:person/id 1] [:person/id 2]],
+ :person/id {1 #:person{:id 1, :name "Bob"},
+             2 #:person{:id 2, :name "Judy"},
+             3 #:person{:id 3, :name "Sally", :address [:address/id 33]}},
+ :address/id {33 #:address{:id 33, :street "111 Main St"}},
+ :root/edge [:person/id 3]}
+-----
+
+or this new person was the spouse of Bob:
+
+[source]
+-----
+(merge/merge-component! app Person {:person/id 3 :person/name "Sally" :person/address {:address/id 33 :address/street "111 Main St"}}
+  :replace [:person/id 1 :person/spouse])
+(app/current-state app)
+=>
+{:fulcro.inspect.core/app-id "user/Root",
+ :root/people [[:person/id 1] [:person/id 2]],
+ :person/id {1 #:person{:id 1, :name "Bob", :spouse [:person/id 3]},
+             2 #:person{:id 2, :name "Judy"},
+             3 #:person{:id 3, :name "Sally", :address [:address/id 33]}},
+ :address/id {33 #:address{:id 33, :street "111 Main St"}}}
+-----
+
+or this new person should be shown at the beginning of the `:root/people` list:`
+
+[source]
+-----
+(merge/merge-component! app Person {:person/id 3 :person/name "Sally" :person/address {:address/id 33 :address/street "111 Main St"}}
+  :prepend [:root/people])
+(app/current-state app)
+=>
+{:fulcro.inspect.core/app-id "user/Root",
+ :root/people [[:person/id 3] [:person/id 1] [:person/id 2]],
+ :person/id {1 #:person{:id 1, :name "Bob"},
+             2 #:person{:id 2, :name "Judy"},
+             3 #:person{:id 3, :name "Sally", :address [:address/id 33]}},
+ :address/id {33 #:address{:id 33, :street "111 Main St"}}}
+-----
+
+The same thing applies when you're writing mutations. The `returning` helper for mutations is just a way of sending
+a query on the *return value* of a mutation that is then merged into your database. It's all the same stuff!
+
+[source]
+-----
+(defmutation update-person [new-name]
+  (remote [env]
+    (-> env
+      (m/returning Person))))
+-----
+
+is a mutation that will (only) do remote operations on person, but will also return the updated person. When it does
+so the server should use the query (of Person) to return *only* the items the UI cares about, and Fulcro will merge the resulting
+data using `merge-component!` via `Person`.
+
+Of course, that would only update the person in-place, and would not change any graph edges. Making new edges is also
+possible on mutation return values. Say you use Person to represent your system users. When you application first loads
+you might want a mutation to run that looks something like this:
+
+[source]
+-----
+(defmutation resume-session [new-name]
+  (remote [env]
+    (-> env
+      (m/with-target [:current-user])
+      (m/returning Person))))
+-----
+
+where the server-side implementation of `resume-session` looks to see if there is a cookie that represents a known
+user. If so, it returns the identity according to the `Person` query, and when the application receives the result
+it joins that person to the graph at the root "edge" `:current-user`.  The UI could then integrate that in
+for display in the header to indicate who is logged in:
+
+[source]
+-----
+(defsc Root [this props]
+  {:query         [{:current-user (comp/get-query Person)}
+                   {:root/people (comp/get-query Person)}]
+   :initial-state (fn [_] {:current-user {:person/id :unknown :person/name "Unknown"}
+                           :root/people  [(comp/get-initial-state Person {:id 1 :name "Bob"})
+                                          (comp/get-initial-state Person {:id 2 :name "Judy"})]})})
+-----
+
+Now that you have the general idea of the core APIs of Fulcro, the remaining chapters should be considerably
+easier to digest.  Every other feature of Fulcro is kind of a "side detail" or "gravy on top".
+
+The React-centric APIs (i.e. DOM factories) have to do with writing web applications. The transaction and mutation
+system are central to the overall operation of a Fulcro application and provide a number of services that make
+writing applications more sane. The routing APIs are really just two ways of how you might go about doing UI routing
+in Fulcro. The state machine API is a kind of "mega mutation" system for writing coordinated bits of logic with
+your UI.
+
+Ulitmately there is a lot of "support" in the Fulcro ecosystem of libraries, but at the core is this simple
+mechanism: The shape of your UI mirrors the shape of the query which in turn mirrors the resulting shape of the data. That
+symmetry of shape leads to the ability to easily transform the data between normalized and denormalized forms, which in
+turn leads to the ability to easily evolve your graph of data, and thus your UI.
+
+Debugging becomes largely a task of "Does my data have the right shape, and if not, why?"
+
 = Components and Rendering
 
 == HTML5 Element Factories
