@@ -1032,7 +1032,7 @@ Create a `deps.edn` file with this content:
 ```
 {:paths   ["src/main" "resources"]
  :deps    {org.clojure/clojure    {:mvn/version "1.10.1"}
-           com.fulcrologic/fulcro {:mvn/version "3.0.10"}}
+           com.fulcrologic/fulcro {:mvn/version "3.4.14"}}
 
  :aliases {:dev {:extra-paths ["src/dev"]
                  :extra-deps  {org.clojure/clojurescript   {:mvn/version "1.10.742"}
