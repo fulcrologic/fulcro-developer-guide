@@ -4952,6 +4952,62 @@ when writing an override:
                                                        :cause nil}))} "Dev Mode: Retry rendering")))))
 -----
 
+== Integrating with Reagent
+
+_(this section and example kindly provided by https://github.com/dvingo[Daniel Vingo])_
+
+Using the `:render-middleware` and `:render-root!` properties of a Fulcro application we can easily
+render our Fulcro components using other ClojureScript libraries.
+
+For example we can add https://reagent-project.github.io[Reagent] rendering support to a Fulcro application like so:
+
+[source]
+-----
+(:require
+  [reagent.core]
+  [reagent.dom])
+
+(app/fulcro-app
+  {:render-middleware (fn [_ render] (reagent.core/as-element (render))
+   :render-root! reagent.dom/render})
+-----
+
+The invocation to `(render)` returns whatever value is returned by a Fulcro component within this application.
+That output is then passed to Reagent's `as-element` function to return a React element.
+
+Because Reagent will render any React element in addition to Hiccup data structures, we can mix Fulcro created
+React elements inside Reagent processed Hiccup - or any React elements no matter how they were created.
+
+[source]
+-----
+(defsc Page [this props]
+  {} 
+  [:div.ui.container
+   [:div
+    (dom/p "A paragraph")]])
+-----
+
+Any Fulcro component that returns a React element will also be passed through by Reagent:
+
+[source]
+-----
+(defsc Page [this props]
+  {}
+  (dom/div "Another component"))
+-----
+
+Thus you can mix and match both React element creation styles in one Fulcro application.
+
+Note that if you want to render a Reagent data structure within Fulcro created React elements you will 
+need to invoke `reagent.core/as-element` to convert that data structure to a React element.
+
+[source]
+-----
+(defsc Page [this props]
+  {}
+  (dom/div :.ui.container
+    (reagent.core/as-element [:h1 "A nested reagent component"])))
+-----
 
 = EQL -- The Query and Mutation Language
 
