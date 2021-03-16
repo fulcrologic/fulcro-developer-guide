@@ -1877,7 +1877,7 @@ It can have a docstring, and the argument list will always receive a single argu
 
 The body looks a bit like a `letfn`, but some of the names we use for the items are pre-established.
 The one we're interested in at the moment is `action`, which is what to do *locally*.
-The `action` method will be passed the application database's app-state atom, and it should change the data in that atom to reflect the new "state of the world" indicated by the mutation.
+The `action` method will be passed to the application database's app-state atom, and it should change the data in that atom to reflect the new "state of the world" indicated by the mutation.
 
 For example, `delete-person` must find the list of people on the list in question, and filter out the one that we're deleting:
 
