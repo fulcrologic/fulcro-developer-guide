@@ -68,7 +68,7 @@ endif::[]
 = About This Book
 
 This is a stand-alone developer's guide for version 3 of Fulcro.
-It is intended to be be used by beginners and experienced developers and covers most of the library in detail.
+It is intended to be used by beginners and experienced developers and covers most of the library in detail.
 Fulcro has a pretty extensive set of resources on the web tailored to fit your learning style.
 
 There is this book, the https://cljdoc.org/d/com.fulcrologic/fulcro/3.0.0/doc/readme[docstrings/clojure docs], and even a series of https://www.youtube.com/playlist?list=PLVi9lDx-4C_T7jkihlQflyqGqU4xVtsfi[YouTube videos],
