@@ -2060,7 +2060,7 @@ The program will now look like this:
       (dom/ul
         (map #(ui-person (comp/computed % {:onDelete delete-person})) people)))))
 
-(def ui-person-list (comp/factory PersonList {:keyfn :list/id}))
+(def ui-person-list (comp/factory PersonList))
 
 (defsc Root [this {:keys [friends enemies]}]
   {:query         [{:friends (comp/get-query PersonList)}
