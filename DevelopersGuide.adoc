@@ -13672,6 +13672,7 @@ The simplest integration is to simply use Pathom's GraphQL remote:
 The more powerful and extensible method allows you to combine GraphQL access with Pathom Connect.
 This gives you very powerful features, including many useful ones that GraphQL doesn't support natively!
 
+include::AppendixFulcroErrorsAndWarnings.adoc[]
 
 ++++
 <style>
