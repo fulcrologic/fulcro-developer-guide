@@ -3614,12 +3614,12 @@ These are in the
 ...
 
 (dom/div :.some-class
-  (dom/ul {:style {:color :red}}
+  (dom/ul {:style {:color "red"}}
     (dom/li ...)))
 ```
 
 IMPORTANT: If you're writing your UI in CLJC files then you need to make sure you use a conditional reader to pull in the proper server DOM functions for Clojure:
-`(ns app.ui (:require #?(:clj [com.fulcrologic.fulcro.dom-server :as dom] :cljs [fulcro.client.dom :as dom]))`
+`(ns app.ui (:require #?(:clj [com.fulcrologic.fulcro.dom-server :as dom] :cljs [com.fulcrologic.fulcro.dom :as dom]))`
 
 The notation allowed is as follows:
 
@@ -3777,7 +3777,7 @@ The above options are great for the common cases, but they don't work if you hav
 They also do not support embedded code.
 Therefore, if you want a more advanced ident you'll need to spell out the code.
 
-`defsc` causes an ident lamda to "close over" the `defsc` argument list, which at least eliminates some of the boilerplate:
+`defsc` causes an ident lambda to "close over" the `defsc` argument list, which at least eliminates some of the boilerplate:
 
 ```
 (defsc UnionComponent [this {:keys [db/id component/type]}]
@@ -5343,7 +5343,7 @@ In fact this is how Fulcro's <<RenderingOptimizations,ident-based rendering opti
 There are times when you want to start "back at the root" node.
 This is useful for pulling data that has a singleton representation in the root node itself.
 For example, the current UI locale or currently logged-in user.
-There is a special notation for this the looks like an ident without an ID:
+There is a special notation for this that looks like an ident without an ID:
 
 ```
 [ [:ui/locale '_] ]
@@ -9752,7 +9752,7 @@ This allows you to have instances of a class that can have different queries:
   ...)
 ```
 
-In the above example one can now set the query for `Thing`, or "`Thing` with qualifier `:a`".
+In the above example one can now set the query for `Thing`, or "```Thing`` with qualifier `:a``".
 
 The following live demo shows dynamic queries in action:
 
@@ -9774,7 +9774,7 @@ include::src/book/book/queries/dynamic_queries.cljs[]
 
 The whole point of a dynamic query is being able to set the query to something new on a component.
 This has one critical component that you must be very careful with: normalization.
-A component's query is augmented with metadata the marks which component is used to normalize (via idents) the entity found for the given portion of the query that it handles.
+A component's query is augmented with metadata that marks which component is used to normalize (via idents) the entity found for the given portion of the query that it handles.
 Therefore, you must still use `get-query` to pull the query for portions of your subquery that you wish to include when setting a new query.
 If done incorrectly then normalization will not work correctly on these components.
 
@@ -9838,7 +9838,7 @@ has to be tracked, or you could then not reliably set a query on a child).
 
 Needless to say, reloading the app is not a great dev experience.
 
-We note an important (and easy to leverage) fact to fix this
+We note an important (and easy to leverage) fact to fix this.
 We only care to keep the query for components that have their query dynamically set. This children are closed over
 as a matter of necessity. We can safely refresh those (static query) children without hurting our actual application
 operation.
@@ -9880,7 +9880,7 @@ Code Splitting:: A complete routing system for SPAs should make it easy to do co
 DRY:: It should not be necessary to repeat the "route path" as an external data structure when it matches the UI structure.
 The UI composition itself can easily act as a "default" routing path structure.
 
-URI <-> UI Routes should be flexible and able to "alias"::  Reshaping the URI can be done by optional functions that sit in-between browser URI and code.
+URI \<\-> UI Routes should be flexible and able to "alias"::  Reshaping the URI can be done by optional functions that sit in-between browser URI and code.
 
 Navigable Code:: During development it should be easy to see (as local concerns) what happens along a given UI route.
 Code navigation (jumping from root through subcomponents) should make it trivial to understand all routing concerns.
@@ -12599,7 +12599,7 @@ and the fact that you're writing in one language actually make server-side rende
 that require data from a server-side store!
 
 After all, all of the functions and UI component queries needed to normalize the tree that you already know how to
-`generate on your server can be in CLJC files and can be used without writing anything new!
+generate on your server can be in CLJC files and can be used without writing anything new!
 
 If you're writing your UI in CLJC files to support server-side rendering then you need to make sure you use a
 conditional reader to pull in the proper server DOM functions for Clojure:
@@ -12638,7 +12638,7 @@ for rendering. This is currently *not* the recommended approach since the featur
 few hooks that would make it more approachable. Contributions desired.
 State Building:: You can grab the initial state using `build-initial-state`, and then run a series of mutation helpers
 (functions from state db -> state db) to evolve the state into the one desired, and then use that db to generate props,
-render the first frame, and send that state for use on the client. This the preferred approach, since it is free from
+render the first frame, and send that state for use on the client. This is the preferred approach, since it is free from
 timing issues.
 
 The `com.fulcrologic.fulcro.algorithms.server-render` namespace has a function called `build-initial-state` that takes the root component and an initial state tree.
@@ -12787,7 +12787,7 @@ to understand what you're getting into when you attempt such a modification.
 
 == The Transaction Processing System
 
-Most things things that happen in a Fulcro app go through the transaction processing system.
+Most things that happen in a Fulcro app go through the transaction processing system.
 Even loads (e.g. `df/load!`) issue a special transaction that is only interested in the server's response. UISM adds
 functions in front of `transact!`, but they still go through there.
 
@@ -12897,7 +12897,7 @@ Here is what the starting map looks like (from `application.cljc`):
 Many of the names are somewhat revealing, but we'll expand on some important ones below. We're assuming we're in the
 `com.fulcrologic.fulcro.application` namespace when we use `::`:
 
-`::state-atom`:: This is where your apps' Fulcro DB is store. You are allowed to directly view this atom, or even
+`::state-atom`:: This is where your app's Fulcro DB is stored. You are allowed to directly view this atom, or even
 `swap!` or `reset!` it. Remember that Fulcro does *not* watch this atom for rendering. So do not expect refresh to
 recognize your changes.  You can, however, call `schedule-render!` to notify Fulcro that state has changed. While you *can*
 read atom in your UI (i.e. `(app/current-state this)`) *do not expect* UI refreshes to understand that you did. Refresh
@@ -12997,14 +12997,14 @@ the limitations:
 unmount/mount.
 . If you serialize/deserialize the state map, then that process *must* preseve all data that you care about.
 . Full-stack operation is a distributed system. Time travel in such a setting implies server interaction, the ability to
-"undo" operations in a shared environemtn, etc. True time travel is a very hard problem. We are only speaking about
+"undo" operations in a shared environment, etc. True time travel is a very hard problem. We are only speaking about
 time travel with respect to the UI views of optimistic state, not time travel in a real full-stack application sense.
 
 Time travel is therefore most useful for debugging and diagnosis of problems via an audit trail from a client.
 
 === Implementing a Support Viewer
 
-A support viewer is mostly just an fully-functional Fulcro app that provides a UI to *control* a "dumbed down"
+A support viewer is mostly just a fully-functional Fulcro app that provides a UI to *control* a "dumbed down"
 version of your production app. One way to approach this is:
 
 * Create an HTML page that has two mount point divs. Use CSS to lay it out so support view can be in one of those divs
