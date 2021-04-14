@@ -1,0 +1,480 @@
+= Appendix: Fulcro Errors and Warnings, Explained
+
+== Fulcro warning and error logs
+
+Explanations of the Fulcro warnings errors that you might see in the browser Console.
+
+=== Errors
+
+==== api_middleware
+
+[[err-parser-errored-on-query]]Parser threw an exception on `query`::
+-
+
+==== application
+
+[[err-cannot-compute-shared]] Cannot compute shared::
+-
+
+[[err-render-listener-failed]] Render listener failed.::
+-
+
+[[err-mount-cannot-find-node]]Mount cannot find DOM node `node` to mount `(comp/class->registry-key root)`::
+Could not find a DOM element with the given ID to mount to. Perhaps your HTML is wrong?
+
+==== browser_edn_store
+
+[[err-edn-store-denied]] Local storage denied. `edn`::
+-
+
+[[err-edn-store-list-failed]] Cannot list items in storage.::
+-
+
+[[err-edn-store-load-failed]] Load failed.::
+-
+
+[[err-edn-store-delete-failed]] Delete failed.::
+-
+
+[[err-edn-store-update-failed]] Cannot update edn.::
+-
+
+==== components
+
+[[err-comp-app-not-bound]]Cannot create proper fulcro component, as *app* isn't bound. This happens when something renders a Fulcro component outside of Fulcro's render context. See `with-parent-context`.::
+This can happen for example when you want a third-party component to render a Fulcro component. Wrap it with `with-parent-context` to preserve the important data.
+
+[[err-comp-query-id-no-class]]Query ID received no class (if you see this warning, it probably means metadata was lost on your query)::
+-
+
+[[err-comp-rendered-outside-parent-ctx]]A Fulcro component was rendered outside of a parent context. This probably means you are using a library that has you pass rendering code to it as a lambda. Use `with-parent-context` to fix this.::
+-
+
+[[err-comp-props-middleware-corrupts]]Props middleware seems to have corrupted props for `(component-name class)`::
+Check what the props produced by the middleware are. They must not be nil.
+
+[[err-comp-props-not-a-map]]Props passed to `(component-name class)` are of the type `<type>` instead of a map. Perhaps you meant to `map` the component over the props?::
+Props must be a map but isn't. Look at the code in the parent component and its props. Perhaps the value is actually a vector of maps (such as "people") and you should map this component over it? Or it is just the ident of the component, which happens sometimes when the data graph is not connected properly. Tip: Log the value of the props in the body of the target component to see what it is actually getting.
+
+[[err-comp-q-norm-failed]] Query normalization failed. Perhaps you tried to set a query with a syntax error?::
+-
+
+[[err-comp-set-q-failed]]Set query failed. There was no query ID. Use a class or factory for the second argument.::
+-
+
+[[err-comp-unable-set-q]]Unable to set query. Invalid arguments.::
+-
+
+[[err-comp-cannot-rerender-non-comp]]Cannot re-render a non-component::
+The argument passed to `refresh-component!` should be a Fulcro component but is not.
+
+==== config
+
+[[err-config-file-read-err]]Unable to read configuration file  `file-path`::
+-
+
+==== data_targeting
+
+[[err-targ-repl-path-not-vec]]Replacement path must be a vector. You passed:  `data-path`::
+The `target` passed to `replace-at` must be a vector (path) in the normalized database of the to-many list of idents.
+
+[[err-targ-multi-repl-must-be-vec]]Path for replacement must be a vector::
+When using `replace-at` to target a to-many prop then the value of this prop should be a vector but it is not. Example: `[:person/id "123" :person/kids 0]` to replace the 0th element in the vector under `:person/kids`.
+
+[[err-targ-multi-repl-must-end-with-idx]]Path for replacement must end in a vector index::
+When using `replace-at` to target a to-many prop (which is a vector), then the last element of the path should be a number index into the vector. Example: `[:person/id "123" :person/kids 0]`.
+
+[[err-targ-multi-repl-no-such-idx]]Target vector for replacement does not have an item at index  `index`::
+You have used `replace-at` to target an element under a to-many prop (which is a vector) but there is no such element. Perhaps the target vector is shorter than you expected. Check your data.
+
+==== durable_mutations
+
+[[err-dm-save-failed]]Save failed. Running transaction now, non-durably.::
+-
+
+[[err-dm-missing-store-id]]The transaction that submitted this mutation did not assign it a persistent store ID. This probably means you did not submit it as a durable mutation.::
+-
+
+[[err-dm-int-txn-id-missing]]INTERNAL ERROR: TXN ID MISSING!::
+-
+
+[[err-dm-update-failed]]Failed to update durable mutation!::
+-
+
+==== dynamic_routing
+
+[[err-dr-comp-needs-ident]]Component must have an ident for routing to work properly: `(comp/component-name class)`::
+If you want to use a component as a router target, it needs to have an ident.
+
+[[err-dr-cant-eval-route-chng]]Cannot evalutate route change. Assuming ok. Exception message:  `(ex-message e)`::
+-
+
+[[err-dr-ident-mismatch]]<route-immediate|deferred> was invoked with the ident `ident` which doesn't seem to match the ident of the wrapping component (class  `*target-class*`  , ident ...)::
+The ident that you pass to `route-immediate` or `route-deferred` must match the ident of the wrapping component, where the `:will-enter` is defined. Check your code.
+
+[[err-dr-apply-route-lacks-router]]apply-route* was called without a proper :router argument.::
+-
+
+[[err-dr-apply-route-no-component]]apply-route* for router `router-class` was given a target that did not have a component. Did you remember to call route-deferred or route-immediate?::
+The `target` passed to the `apply-route` mutation needs to metadata containing the key `:component`, containing the class of the target.
+
+[[err-dr-router-missing-id]]There is a router in state that is missing an ID. This indicates that you forgot to compose it into your initial state! It will fail to operate properly.::
+Routers require that their initial state is composed to the parent component (i.e. it defines `:initial-state` in lambda form with `(comp/get-initial-state <the router>)` or in the template form) and so on all the way up to the root. If the parent of the router is loaded dynamically (i.e. it is not in the client DB during the initial render) then you must make sure to include the router's data in it manually, typically with ``:pre-merge`. See <<_initial_state_3,(Router) Initial State>>.
+
+[[err-dr-target-ready-missing-data]]`target-ready` should route to `target` but there is no data in the DB for the ident. Perhaps you supplied a wrong ident?::
+Target components are expected to have non-nil state in the client DB. Check whether the ident you provided is correct and use Fulcro Inspect to see what data is in the DB for the ident.
+
+[[err-dr-target-ready-no-router-waiting]]`target-ready!` was called but there was no router waiting for the target listed: `target` This could mean you sent one ident, and indicated ready on another.::
+Make sure that the ident you provided to `route-deferred` matches exactly the one provided to `target-ready[!]`. You can also check the routers in the DB and see their pending routes under `::dr/id ::dr/pending-route :target`.
+
+[[err-dr-will-enter-invalid-ident]]will-enter for router target `(comp/component-name target)` did not return a valid ident. Instead it returned: `target-ident`::
+The ident provided to `route-immediate` / `route-deferred` is not a valid ident, i.e. a vector of two elements where the first one is a keyword and the second one is not nil.
+
+[[err-dr-will-enter-missing-metadata]]will-enter for router target `(comp/component-name target)` did not wrap the ident in route-immediate or route-deferred.::
+`:will-enter` must return either `(route-immediate ...)` or `(route-deferred ...)` and not just an ident.
+
+[[err-dr-new-route-target-not-found]]Could not find route targets for new-route `new-route`::
+The `new-route` provided to `change-route-relative!` does not point to router target(s) relative to the given starting class. Look at your tree of components starting at that class and look at the route segments of the targets under it. 
+
+[[err-dr-router-state-missing]]You are routing to a router `router-id` whose state was not composed into the app from root. Please check your :initial-state.::
+Routers require that their initial state is composed to the parent component (i.e. it defines `:initial-state` in lambda form with `(comp/get-initial-state <the router>)` or in the template form) and so on all the way up to the root. If the parent of the router is loaded dynamically (i.e. it is not in the client DB during the initial render) then you must make sure to include the router's data in it manually, typically with ``:pre-merge`. See <<_initial_state_3,(Router) Initial State>>. Also make sure that the application has been initialized before you tried to route - see <<_setting_the_route_early,Setting the Route Early>>.
+
+[[err-dr-target-lacks-r-segment]]Route target `(comp/component-name t)` of router `(comp/component-name router-instance)` does not declare a valid :route-segment. Route segments must be non-empty vector that contain only strings and keywords::
+Check the `:route-segment` of the component and see <<_routing_targets>>.
+
+==== file_upload
+
+[[err-fu-cant-assoc-file]]Unable to associate a file with a mutation `file`::
+-
+
+[[err-fu-cant-attach-uploads]] Unable to attach uploads to the transaction.::
+-
+
+[[err-fu-tx-has-no-files]]Incoming transaction with uploads had no files attached.::
+-
+
+[[err-fu-mut-convert-exc]] Exception while converting mutation with file uploads.::
+-
+
+==== form_state
+
+[[err-fs-form-not-normalized]]FORM NOT NORMALIZED: `entity-ident`::
+The value of client DB -> `<entity-ident>` -> `::fs/config` should be an ident. If it is not then you have done something wrong. See the sections under <<_form_configuration,Form Configuration>>. You should likely have used `fs/add-form-config[*]`.
+
+==== http_remote
+
+[[err-httpr-multiple-items]]Attempt to request alternate response from HTTP remote from multiple items in a single transaction. This could mean more than one transaction got combined into a single request.::
+-
+
+[[err-httpr-response-extract-fail]]Unable to extract response from XhrIO Object `e`::
+-
+
+[[err-httpr-resp-middleware-exc]]Client response middleware threw an exception. `e` . Defaulting to raw response.::
+-
+
+[[err-httpr-middleware-exc]]Client middleware threw an exception `middleware-exception`::
+-
+
+[[err-httpr-result-handler-exc]]Result handler for remote `url` failed with an exception.::
+-
+
+[[err-httpr-update-handler-exc]]Update handler for remote `url` failed with an exception.::
+-
+
+[[err-httpr-remote-err]]`Remote Error::
+-
+
+[[err-httpr-err-handler-exc]] Error handler for remote `url` failed with an exception.::
+-
+
+[[err-httpr-send-abort]] Send aborted due to middleware failure::
+-
+
+==== icons
+
+[[err-icons-unknown-name]]ui-icon was given an icon name that cannot be found: `icon`::
+-
+
+==== ident_optimized_render
+
+[[err-id-opt-render-empty-query]]Query was empty. Refresh failed for `(type c)`::
+-
+
+==== indexing
+
+[[err-idx-invalid-ident]]Component `(comp/component-name this)` supplied an invalid ident `ident` using props `props`::
+-
+
+[[err-idx-missing-app]]Unable to re-index root. App was not set in the mutation env.::
+-
+
+==== inspect_client
+
+[[err-inspect-ch-closed]]Cannot send to inspect. Channel closed.::
+-
+
+[[err-inspect-invalid-app-uuid]]Transact on invalid uuid `app-uuid`::
+-
+
+[[err-inspect-elm-picker-missing]]Element picker not installed in app. You must add it to you preloads.::
+Add `com.fulcrologic.fulcro.inspect.dom-picker-preload` to the `:devtools - :preloads` in your `shadow-cljs.edn` and restart shadow-cljs.
+
+[[err-inspect-cant-find-app]]Unable to find app/state for preview.::
+-
+
+==== legacy_ui_routers
+
+[[err-lur-missing-instructions]]Routing tree does not contain a vector of routing-instructions for handler  `handler`::
+-
+
+[[err-lur-route-retried]]Route load failed for `route-to-load`. Attempting retry.::
+-
+
+[[err-lur-route-still-loading]]Attempt to trigger a route that was pending, but that wasn't done loading (or failed to load).::
+-
+
+[[err-lur-routing-failed]]Routing failed!::
+-
+
+==== load_cache
+
+[[err-cache-load-failed]]Load failed. Using cached value.::
+-
+
+[[err-cache-not-installed]]LOAD CACHE NOT INSTALLED! Did you remember to use `with-load-cache` on your app?::
+-
+
+==== merge
+
+[[err-merge-unable2mark]] Unable to mark missing on result. Returning unmarked result::
+-
+
+[[err-merge-comp-missing-ident]]Cannot merge component `component`  because it does not have an ident!::
+`merge-component` requires that the component passed to it has an ident. Perhaps you wanted to use `merge!`?
+
+[[err-merge-comp-missing-ident2]]merge-component!: component must implement Ident. Merge skipped.::
+`merge-component!`, just like `merge-component`, requires that the component passed to it has an ident. Perhaps you wanted to use `merge!`?
+
+==== mock_server_remote
+
+[[err-msr-res-handler-exc]] Result handler failed with an exception.::
+-
+
+[[err-msr-err-handler-exc]] Error handler failed with an exception.::
+-
+
+==== multiple_roots_renderer
+
+[[err-mrr-reg-root-no-app]]Register-root cannot find app. Pass your Fulcro app via options.::
+-
+
+[[err-mrr-dereg-root-no-app]]Deregister-root cannot find app. Pass your Fulcro app via options.::
+-
+
+==== mutations
+
+[[err-mut-set-props-missing-ident]]set-props requires component to have an ident.::
+The mutation needs to be transacted from a component that has an ident (so that we know where to change the data).
+
+[[err-mut-toggle-missing-ident]]toggle requires component to have an ident.::
+The mutation needs to be transacted from a component that has an ident (so that we know where to change the data).
+
+[[err-mut-unknown-mutation]]Unknown app state mutation. Have you required the file with your mutations? `(:key ast)`::
+We could not find the `defmethod mutate` (normally generated by `defmutation`) for the given mutation name. That means that either you provided the wrong name or that the file containing defining it has not been loaded. Make sure that you require the mutation's namespace, f.ex. in the namespace that uses it or e.g. in the namespace where you create `fulcro-app`. See <<MutationMultimethod,Mutations - Using the Multimethod Directly>> for details about the internals.
+
+==== react_interop
+
+[[err-interop-1st-arg-not-parent]]The first argument to an HOC factory MUST be the parent component instance.::
+-
+
+[[err-interop-not-fulcro-class]]hoc-factory MUST be used with a Fulcro Class::
+-
+
+==== synchronous_tx_processing
+
+[[err-stp-postproc-failed]] Post processing step failed.::
+-
+
+[[err-stp-res-action-exc]] The result-action mutation handler for mutation `(:dispatch-key original-ast-node)` threw an exception.::
+-
+
+[[err-stp-res-lacks-valid-node]]Network result for `remote` does not have a valid node on the active queue!::
+-
+
+[[err-stp-old-queue-chng]]Old queue changed!::
+-
+
+[[err-stp-err-processing-tx-q]] Error processing tx queue!::
+-
+
+==== tx_processing
+
+[[err-txp-send-exc]] Send threw an exception for tx: `<query>`::
+-
+
+[[err-txp-remote-lacks-transmit]]Transmit was not defined on remote `remote-name`::
+The map defining the remote MUST contain a `:transmit!` key whose value is a `(fn [send-node] )`. See <<_writing_your_own_remote_implementation,Writing Your Own Remote Implementation>>.
+
+[[err-txp-mut-dispatch-exc]] Dispatch for mutation `<query>` failed with an exception. No dispatch generated.::
+-
+
+[[err-txp-mut-action-exc]] The `action` section of mutation `mutation-symbol` threw an exception.::
+-
+
+[[err-txp-mut-action-exc2]] The `action` section threw an exception for mutation:  `<mutation>`::
+-
+
+[[err-txp-res-lacks-valid-node]]Network result for `remote` does not have a valid node on the active queue!::
+-
+
+[[err-txp-remote-dispatch-invalid-res]]Remote dispatch for `remote` returned an invalid value. `remote-desire`::
+-
+
+[[err-txp-mut-res-action-exc]] The result-action mutation handler for mutation `<mutation>` threw an exception.::
+-
+
+[[err-txp-progress-action-exc]] Progress action threw an exception in mutation `<mutation>`::
+-
+
+[[err-txp-cant-abort]]Cannot abort network requests. The remote has no abort support!::
+See <<Abort>>.
+
+[[err-txp-abort-failed]] Failed to abort send node::
+-
+
+==== ui_state_machines
+
+[[err-uism-invalid-eventid]]Invalid (nil) event ID::
+The `:event-id` provided to `trigger-state-machine-event` must not be `nil`.
+
+[[err-uism-activate-invalid-state]]Activate called for invalid state: `state-id` on `(asm-id env)`::
+Check the UISM definition for the IDs of valid states (plus ::exit, ::started).
+
+[[err-uism-unknown-alias]]Unable to find alias in state machine: `alias`::
+See <<_aliases,UISM - Aliases>>.
+
+[[err-uism-load-cant-find-fulcro-class]]Cannot run load. Could not derive Fulcro class (and none was configured) for  `actor-name`::
+Make sure that the `component-class-or-actor-name` argument to `load` as actually a Fulcro component class or that it is the name of an actor that has a class associated with it - see <<_the_actor_map,UISM - The Actor Map>> for details. If you use a raw ident in the actor map, make sure to wrap it with `with-actor-class`.
+
+[[err-uism-load-nil-query-key]]Cannot run load. query-key cannot be nil.::
+The query-key should be a Fulcro component class. Check what `key-or-ident` you have supplied to the `load`.
+
+[[err-uism-cancel-pred-nil]]INTERNAL ERROR: Cancel predicate was nil for timer  `timer-id`::
+-
+
+[[err-uism-trigger-not-started-machine]]Attempted to trigger event `event-id` on state machine `asm-id`, but that state machine has not been started (call begin! first).::
+Perhaps you expected the UISM to be started automatically by something but it has not happend and you need to start it manually. See <<_starting_an_instance,UISM - Starting An Instance>>.
+
+[[err-uism-evt-handler-exc]] Handler for event `event-id` threw an exception for ASM ID `asm-id`::
+-
+
+[[err-uism-actor-invalid-ident]]The value given for actor `actor-id` had (or was) an invalid ident: `v`::
+See <<_the_actor_map,UISM - The Actor Map>>.
+
+=== Warnings
+
+==== application
+
+[[warn-cannot-unmount-application]]Cannot umount application because either the umount function is missing or the node was not recorded. Perhaps it wasn't mounted?::
+-
+
+==== components
+
+[[warn-get-ident-with-nil-props]]get-ident was invoked on `(component-name x)` with nil props (this could mean it wasn't yet mounted): `x`::
+It could also mean that the component is missing data in the Fulcro client DB (for example beacuse you have routed to a component without having loaded data for it) or that there is a missing "edge" somewhere between the root and this component. Use the DB Explorer in Fulcro Inspect and see whether you can navigate (click-through) from the top down to the component. See also <<_a_warning_about_ident_and_link_queries,A Warning About Ident and Link Queries>>.
+
+[[warn-get-ident-invalid-ident]]get-ident returned an invalid ident: `id` `<component display name>`::
+An ident must be a vector of two elements, where the first one is a keyword. You can define it either via a keyword, a template, or a lambda - see <<_ident_generation,Ident Generation>>.
+
+[[warn-get-ident-invalid-class]]get-ident called with something that is either not a class or does not implement ident: `<class>`::
+
+[[warn-react-key-not-simple-scalar]]React key for `(component-name class)` is not a simple scalar value. This could cause spurious component remounts.::
+The value returned by the `:keyfn` you have defined for the component's factory should be a simple scalar such as a string or a number. React does need something that can be checked using _javascript_ equality. 
+
+[[warn-string-ref-not-function]]String ref on `(component-name class)` should be a function.::
+I.e. the props should include something like `:ref (fn [r] (gobj/set this "svg" r))`, not simply `"svg"`. See the <<D3,D3 example>>.
+
+[[warn-constant-ident-no-initial-state]]Component `(component-name c)` has a constant ident (id in the ident is not nil for empty props), but it has no initial state. This could cause this component's props to appear as nil unless you have a mutation or load that connects it to the graph after application startup.::
+The client DB must contain non-nil (but possibly empty) data for this component (i.e. you need to run at least `(assoc-in your-client-db <the ident>) {}`).
+Or set its `:initial-state` to at least `{}`.
+
+[[warn-initial-state-incomplete]]Component `(component-name c)` does not INCLUDE initial state for `(component-name target)` at join key `k` ; however,  `(component-name target)` HAS initial state. This probably means your initial state graph is incomplete and props on `(component-name target)` will be nil.::
+You need to make sure that initial state is composed up all the way to the root component, otherwise Fulcro will not "see" it. I.e. you should likely <<_initial_state_2,define
+`:initial-state`>> on this component using either the template (`{<the join key> {}}`) or lambda (`(fn [params] {<the join key> (comp/get-initial-state <target component> {}))`) form.
+
+==== data_fetch
+
+[[warn-union-needs-more-children]]Unions are not designed to be used with fewer than two children. Check your calls to Fulcro load functions where the :without set contains `(pr-str union-key)`::
+-
+
+[[warn-boolean-marker-not-supported]]Boolean load marker no longer supported.::
+Load marker should be a keyword unique to what you are loading, not `true`. See <<_working_with_normalized_load_markers>>.
+
+[[warn-data-load-targets-table]]Data load targets of two elements imply that you are targeting a table entry. That is probably incorrect. Normalization targets tables. Targeting is for creating missing edges, which are usually 3-tuples.::
+Targeting via `targeting/append-to` etc. is intended to add a connection from one entity to another so you should provide it with the triplet `<component id prop> - <id value> - prop-name` such as `[:person/id "123" :person/spouse]`. If you want to get the data inserted at the given path instead of the default one then use `:target` directly with the 2-element vector instead of using the targeting namespace. Ex.: `:target [:component/id :user-session]`.
+
+[[warn-dont-use-query-transform-default]]Query-transform-default is a dangerous option that can break general merge behaviors. Do not use it.::
+Use fulcro-app's `:global-eql-transform` instead.
+
+==== data_targeting
+
+[[warn-target-unsuported-case]]Target processing found an unsupported case.::
+Perhaps you have not defined it using `targeting/append-to` or similar?
+
+==== denormalize
+
+[[warn-denormalize-loop-detected]]Loop detected in data graph at  `entity` . Recursive query stopped.::
+The recursive query has hit an ident that it already has included before, which indicates a loop. If the loop is desired, use a recursive query with an explicit limit instead of just `...`. See <<_recursive_queries,Recursive Queries>> for details.
+
+==== dom
+
+[[warn-dom-type-mismatch]]There is a mismatch for the data type of the value on an input with value `element-value`. This will cause the input to miss refreshes. In general you should force the :value of an input to be a string since that is how values are stored on most real DOM elements.::
+-
+
+==== durable_mutations
+
+[[warn-multiple-mutations-rewritten]]Write-through transactions with multiple mutations will be rewritten to submit one per mutation.::
+-
+
+==== dynamic_routing
+
+[[warn-routing-will-leave-deprecated]]DEPRECATED USE OF `:will-leave` to check for allowable routing. You should add :allow-route-change? to: `(comp/component-name this)`::
+-
+
+[[warn-routing-multiple-target-matches]]More than one route target matches `path`::
+Check the `:route-segment` of your target components.
+
+==== http_remote
+
+[[warn-transit-decode-failed]]Transit decode failed!::
+The body was either not transit or you have not installed the correct transit read/write handlers. See `com.fulcrologic.fulcro.algorithms.transit/install-type-handler!` and how it is used to handle tempids.
+
+==== tenacious_remote
+
+[[warn-remote-retry-limit-exceeded]]Tenacious remote exceeded retry limit `max-attempts`::
+-
+
+==== inspect.transit
+
+[[warn-transit-encode-failed]]Transit was unable to encode a value.::
+Make sure that you have installed transit write handlers for any data types not supported by default. See `com.fulcrologic.fulcro.algorithms.transit/install-type-handler!`.
+
+==== tx_processing
+
+[[warn-tx-missing-ident]]Synchronous transaction was submitted on the app or a component without an ident. No UI refresh will happen.::
+Synchronous transactions will not cause a full UI refresh. It will only target refreses to the component passed as an argument, which must have an ident. If it does not, no UI will be refreshed, which likely is not what you wanted. Perhaps try to use the normal, asynchronous transaction (e.g. `transact!` instead of `transact!!` or transact! with `:synchronously? true`). See <<Inputs32,Fulcro 3.2 Inputs>>.
+
+[[warn-tx-remote-abort-not-supported]]Remote does not support abort. Clearing the queue, but a spurious result may still appear.::
+-
+
+==== ui_state_machines
+
+[[warn-uism-sm-not-in-state]]Attempt to get an ASM path `ks` for a state machine that is not in Fulcro state. ASM ID: `asm-id`::
+This can happen e.g. if you are rendering routers before you’ve started their associated UISMs (and is mostly harmless) - you can use `app/set-root!` with initialize state, then `dr/initialize!` or `dr/change-route!`, then `app/mount!` with NO initialize state to get rid of most or all of those. Basically: Make sure you’ve explicitly routed to a leaf (target) before mounting. In other cases - make sure the UISM has been started before you try to use it.
+
+[[warn-uism-fallback-missing-event]]A fallback occurred, but no event was defined by the client. Sending generic ::uism/load-error event.::
+-
+
+[[warn-uism-unexpected-event]]UNEXPECTED EVENT: Did not find a way to handle event `event-id` in the current active state: `current-state`::
+An event the UISM did not expect and cannot handle has been received. Whether that is a problem or not depends on your app. A common example is this warning from Dynamic Routing: "UNEXPECTED EVENT: Did not find a way to handle event `:timeout!` in the current active state: `:failed`" - which is no problem.
+
