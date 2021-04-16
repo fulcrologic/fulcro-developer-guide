@@ -842,7 +842,7 @@ properties might look like this:
                   +--->[:person/id 2]          |  |
                   |    +-----------------+     |  |
                   |    | id 2            |     |  |
-                  |    | name "Julie     |     |  |
+                  |    | name "Julie"    |     |  |
                   |    | spouse ---------------+  |
                   |    +------------------        |
                   |                               |
@@ -5638,7 +5638,7 @@ Remember that a to-one relation from a union could be to any number of alternate
 Take this union query: `{:person (comp/get-query Person) :place (comp/get-query Place)}`
 
 It means "if you find an ident in the graph pointing to a `:person`, then query for the person.
-If you find one for `:place`, then query for a place.
+If you find one for `:place`, then query for a place."
 The problem is: if it is a to-one relation then only *one* can be in the initial state tree at startup!
 
 ```
@@ -7300,7 +7300,7 @@ app state.
 
 *IMPORTANT*:
 The biggest challenge with using this function is that it requires the data and query to be structured from the ROOT of the database!
-That is sometimes perfectly fine, but our next section talks about a helper that might be easier to use.")
+That is sometimes perfectly fine, but our next section talks about a helper that might be easier to use.
 
 === Using `merge/merge-component!`
 
@@ -10095,22 +10095,28 @@ just by looking at the current state of your top-most router's state machine.
       (ui-router router))))
 -----
 
-== Initial State
+== [[_initial_state_3]]Composing the Router's State into the Parent
 
 It is essential for correct first-frame rendering that the router's (initial) state is composed into its parent's (initial) state.
+Then there also always needs to be an "edge" from the parent's data to the child router.
 
-If the parent's data is loaded dynamically, you must make sure to include the router in it manually. Typically with `:pre-merge`, like here:
+If the parent's data is loaded dynamically, you must make sure to create this edge manually. Typically with `:pre-merge`, like here:
 
 [source]
 -----
 (defsc Settings [this {:settings/keys [panes-router]}]
   {:query         [{:settings/panes-router (comp/get-query SettingPanesRouter)} ...]
-   :initial-state {:settings/panes-router {}} ;; include in init. state
-   :pre-merge (fn [{:keys [data-tree]}]
-                (merge (comp/get-initial-state Settings) ;; include in dynamically-loaded state
+   :initial-state {:settings/panes-router {}} ; <1>
+   ;; ...
+   :pre-merge (fn [{:keys [data-tree state-map]}]
+                (merge (comp/get-initial-state Settings) ; <2>
+                       {:settings/panes-router (get-in state-map (comp/get-ident SettingPanesRouter {}))} ; <3>
                        data-tree)) ...}
     (ui-settings-panes-router panes-router))
 -----
+<1> Include the router's initial state in the parent's initial state
+<2> Include the router's initial state in the dynamically-loaded state to ensure an edge between the two
+<3> Make sure to preserve any state the router might already have
 
 == Controlling the Route Rendering
 
