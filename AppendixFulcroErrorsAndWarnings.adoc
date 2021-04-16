@@ -106,7 +106,7 @@ You have used `replace-at` to target an element under a to-many prop (which is a
 [[err-dr-comp-needs-ident]]Component must have an ident for routing to work properly: `(comp/component-name class)`::
 If you want to use a component as a router target, it needs to have an ident.
 
-[[err-dr-cant-eval-route-chng]]Cannot evalutate route change. Assuming ok. Exception message:  `(ex-message e)`::
+[[err-dr-cant-eval-route-chng]]Cannot evaluate route change. Assuming ok. Exception message:  `(ex-message e)`::
 -
 
 [[err-dr-ident-mismatch]]<route-immediate|deferred> was invoked with the ident `ident` which doesn't seem to match the ident of the wrapping component (class  `*target-class*`  , ident ...)::
