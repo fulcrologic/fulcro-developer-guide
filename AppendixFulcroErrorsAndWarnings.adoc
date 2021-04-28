@@ -44,6 +44,8 @@ Could not find a DOM element with the given ID to mount to. Perhaps your HTML is
 [[err-comp-app-not-bound]]Cannot create proper fulcro component, as *app* isn't bound. This happens when something renders a Fulcro component outside of Fulcro's render context. See `with-parent-context`.::
 This can happen for example when you want a third-party component to render a Fulcro component. Wrap it with `with-parent-context` to preserve the important data.
 
+It also happens more rarely that this error appears in production code when you try to render a lazy-seq and then replace it with another one. See: https://github.com/fulcrologic/fulcro/discussions/477
+
 [[err-comp-query-id-no-class]]Query ID received no class (if you see this warning, it probably means metadata was lost on your query)::
 -
 
