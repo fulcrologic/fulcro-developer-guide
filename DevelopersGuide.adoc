@@ -6752,7 +6752,7 @@ The mutation needs to define a result action and modify the remote return type, 
 -----
 
 The `file-url` namespace includes a few utilities for creating a data URL out of such a network result, triggering
-a browser save, etc. Please see the documutation in that ns for more details.
+a browser save, etc. Please see the documentation in that ns for more details.
 
 ==== Progress
 
