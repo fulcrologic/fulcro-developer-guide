@@ -3367,7 +3367,7 @@ So, now that you've been awakened to how simple Fulcro actually is internally, y
 model to the reality of working with Fulcro. The primary task is this:
 
 Update your state database (and optionally your queries) such that the next reification of that data will
-be the deisred render frame.
+be the desired render frame.
 
 That's the major shift you have to make when thinking about UI in Fulcro. It's all about the data. Therefore,
 the operations you'll be doing throughout your application's lifetime are:
