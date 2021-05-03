@@ -7093,7 +7093,7 @@ This makes it possible to track component classes in app state (since the name i
 
 The syntax of `defmutation` and `declare-mutation` are both intentionally "shaped" like `defn` and `def` so that you can tell your IDE how to resolve them.
 In IntelliJ, you can do this by clicking on the macro name (e.g. `defmutation`) and waiting for the light bulb.
-Then select "Resolve as" and then `defn` for `defmutation` and `def` for `delcare-mutation`.
+Then select "Resolve as" and then `defn` for `defmutation` and `def` for `declare-mutation`.
 
 You may not need to do this for `defmutation`, as IntelliJ does have some predefined resolutions for Fulcro built-in.
 
