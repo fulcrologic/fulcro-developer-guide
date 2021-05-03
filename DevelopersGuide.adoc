@@ -157,7 +157,7 @@ to organize groups of operations around components in order to reason over them.
 extensibility/flexibility to your application, and the overall design and internals might help you understand more advanced usage of
 Fulcro itself.
 * Keep your query light! You can do this by adopting either the legacy union router (fast, low-feature, bit harder to
-understand) or the dynamic router (preferred, composeable, more moving internal parts). When used
+understand) or the dynamic router (preferred, composable, more moving internal parts). When used
 at the top level of your app these will lead to better performance by making sure only the data needed for the active view
 is pulled from the database.
 
@@ -304,7 +304,7 @@ This leads to the following useful results:
 * Everything is de-duped for you.
 No need to worry that composing in some "alternate view" of pre-existing data will cause two out of sync copies to exist.
 * Caching is a centralized concern.
-Your normalized client database is the only possible place for the data, and each node of the graph has exactly *one place* to live (even if a query has two views of of the same thing on different branches of some complex graph query result, which is common when composing related components onto a UI).
+Your normalized client database is the only possible place for the data, and each node of the graph has exactly *one place* to live (even if a query has two views of the same thing on different branches of some complex graph query result, which is common when composing related components onto a UI).
 * Subgraph reasoning is trivial:
 You can (re)load *any portion* of the graph at *any time*.
 ** A UI query, server load, or transfer of some portion of the graph can be started from any node.
@@ -399,7 +399,7 @@ Loading a particular person from the server might look like this:
 ==== Nested Things
 
 Of course components are typically nested, and all of this composes with elegance.
-Say your person had some addresses that you modelled on a sub-component.
+Say your person had some addresses that you modeled on a sub-component.
 If you compose those together everything else just falls into place:
 
 ```
@@ -579,7 +579,7 @@ derive `q` (the other thread can't modify it either).
 
 In order to derive these benefits you need to either write objects that enforce
 this behavior (which is highly inconvenient and hard to make efficient
-in imperative langauges), or use a programming language that supplies the ability
+in imperative languages), or use a programming language that supplies the ability
 to do so as a first-class feature.
 
 Another benefit is that persistent data structures can do *structural sharing*. Basically
@@ -756,7 +756,7 @@ transmit it 'as data' over the wire for server processing!
 The client-side of Fulcro keeps all relevant data in a simple graph database, which
 is referenced by a single top-level atom. The database itself is a persistent map.
 
-The database should be thought of as a root-level node (the top-level map itsef),
+The database should be thought of as a root-level node (the top-level map itself),
 and tables that can hold data relevant to any
 particular component or entity in your program (component or entity nodes).
 
@@ -1020,7 +1020,7 @@ $ npm init
 $ npm install shadow-cljs react react-dom --save
 ----
 
-WARNING: Note the verion of shadow-cljs that gets installed. It is possible that it differs from what is shown in the next section.
+WARNING: Note the version of shadow-cljs that gets installed. It is possible that it differs from what is shown in the next section.
 Make sure *both versions match*, and that you are using the latest version of Clojurescript. Using an older version of Clojuresript
 and a brand-new version of shadow-cljs can lead to confusing build errors.
 
@@ -1237,7 +1237,7 @@ The following are all equivalent:
 (dom/div :.x#id {:classes ["y" "z"] :style {:color "red"}} ...)
 ```
 
-NOTE: The keyword notation requires each class to be preceeded by a `.`, and will give a compile error if you forget to do that.
+NOTE: The keyword notation requires each class to be preceded by a `.`, and will give a compile error if you forget to do that.
 
 Children simply placed after the props as nested children.
 
@@ -3213,7 +3213,7 @@ in Fulcro *adds metadata* to the query!
 -----
 
 The `:queryid` is used for dynamic queries, but the `component` is the literal *class* (in this case `Person`) that
-supplied *that element* of the query (you can tell because the the :fulcro$registryKey is the fully-qualified name of the class)!
+supplied *that element* of the query (you can tell because the :fulcro$registryKey is the fully-qualified name of the class)!
 
 So, normalization can do this:
 
@@ -3367,7 +3367,7 @@ So, now that you've been awakened to how simple Fulcro actually is internally, y
 model to the reality of working with Fulcro. The primary task is this:
 
 Update your state database (and optionally your queries) such that the next reification of that data will
-be the deisred render frame.
+be the desired render frame.
 
 That's the major shift you have to make when thinking about UI in Fulcro. It's all about the data. Therefore,
 the operations you'll be doing throughout your application's lifetime are:
@@ -3377,7 +3377,7 @@ the operations you'll be doing throughout your application's lifetime are:
 
 Trivial operations like "check that box" or "hide that dialog" are done via manual manipulation, and are quite
 common (and simple) to do in mutations. You can technically `swap!` against the actual state atom, but Fulcro
-*does not watch* the state atom, so rendering refreshes are not automatic, and that form of direct manipuation
+*does not watch* the state atom, so rendering refreshes are not automatic, and that form of direct manipulation
 bypasses a lot of other useful and important features. Advanced users (or library authors) with specific needs might do
 that to add some advanced feature, but most users will never want to.
 
@@ -3588,7 +3588,7 @@ writing applications more sane. The routing APIs are really just two ways of how
 in Fulcro. The state machine API is a kind of "mega mutation" system for writing coordinated bits of logic with
 your UI.
 
-Ulitmately there is a lot of "support" in the Fulcro ecosystem of libraries, but at the core is this simple
+Ultimately there is a lot of "support" in the Fulcro ecosystem of libraries, but at the core is this simple
 mechanism: The shape of your UI mirrors the shape of the query which in turn mirrors the resulting shape of the data. That
 symmetry of shape leads to the ability to easily transform the data between normalized and denormalized forms, which in
 turn leads to the ability to easily evolve your graph of data, and thus your UI.
@@ -4318,7 +4318,7 @@ Fulcro actually has a wrapper around inputs to deal with these complications for
 are ugly bits of code that do all sorts of magic to work around the problem.
 
 If you use any kind of library that provides input-like controls you may experience similar kinds of issues.
-You have three options to make them behave correctly. The ideal one is to use use Fulcro 3.2 or better. The other
+You have three options to make them behave correctly. The ideal one is to use Fulcro 3.2 or better. The other
 older options are to use component-local state with them, or similarly wrap them using Fulcro's pre-built wrapper code.
 There is a function in the `dom` namespace called `wrap-form-element` that can be used to create a factory for input-like controls that misbehave.
 
@@ -4364,7 +4364,7 @@ You can technically improve the performance of this (very slightly) by telling F
 The `mutations` namespace now also includes `set-string!!`, `set-integer!!`, etc. These are identical to their
 single `!` counterparts, except they use synchronous `transact!!`.
 
-One final note: Synchronous transactions will *not* cause a full UI refresh. It will only target refreses to the
+One final note: Synchronous transactions will *not* cause a full UI refresh. It will only target refreshes to the
 component passed as an argument (which *must* have an ident). This ensure speedy performance, but if the parent
 component uses the props of children to derive values (e.g. the number of items checked), then the parent will
 not refresh. The most general way to solve that is to schedule your own UI refresh via `app/schedule-render!`
@@ -5428,7 +5428,7 @@ Now *any* component can access these as follows:
 ```
 (defsc C [this props]
   (let [{:keys [pi current-user]} (comp/shared this)]
-    ; current-user will be DEnormalized...it comes from the root props (Root must query for it still)
+    ; current-user will be denormalized...it comes from the root props (Root must query for it still)
     ...))
 ```
 
@@ -5469,7 +5469,7 @@ It is perfectly legal to include recursion in your graph, and it is equally fine
 The query engine will automatically stop if a loop is detected.
 
 However, this is not the whole story.
-You see, components can be updated in a relative fasion when all optimizations are enabled.
+You see, components can be updated in a relative fashion when all optimizations are enabled.
 This means that a refresh could happen anywhere in the (recursive) UI, and the query would run until it detects the loop again.
 This can lead to funny-looking results.
 
@@ -5523,7 +5523,7 @@ Of course it is perfectly fine for there to be multiple edges in your graph that
 Below is a recursive bullet list example.
 We've intentionally nested item `B.1` under B and D so you can see that it all works itself out.
 
-Normalization of initial state (which must be a tree) is perfectly happy to see duplcate entries.
+Normalization of initial state (which must be a tree) is perfectly happy to see duplicate entries.
 It simply merges the multiple copies into the same normalized entry in the table.
 
 Since the two entries merge to the same entry, it also means the modifications will be shared among them.
@@ -6718,7 +6718,7 @@ left this as an exercise to the reader, but it became evident that the existing 
 to extend. As such, the built-in HTTP remote has
 been extended to allow you to indicate that you expect the server to return a non-EDN value, and that you'd like to
 receive it in some alternate format.  This is particularly useful if you have a mutation that does something like
-generateration of a PDF, where you want to be able to use that result immediately in the client code in your
+generation of a PDF, where you want to be able to use that result immediately in the client code in your
 mutation's `result-action`.
 
 ==== Client Side Setup
@@ -6752,7 +6752,7 @@ The mutation needs to define a result action and modify the remote return type, 
 -----
 
 The `file-url` namespace includes a few utilities for creating a data URL out of such a network result, triggering
-a browser save, etc. Please see the documutation in that ns for more details.
+a browser save, etc. Please see the documentation in that ns for more details.
 
 ==== Progress
 
@@ -6887,7 +6887,7 @@ Setting up the client requires that you add additional middleware to an http rem
 -----
 
 This middleware watches for special mutation parameters that indicate file upload. You use helper
-function from the `fule-upload` namespace to create such mutations.
+function from the `file-upload` namespace to create such mutations.
 
 You can upload raw binary simply by using `js/ArrayBuffer` or `js/Blob`; however, most people will just want to submit
 from a normal form input for files. Here is an example of how to do that:
@@ -7043,7 +7043,7 @@ or you can build the list manually and use literal quote:
 ==== Declare Your Mutations Elsewhere
 
 The `defmutation` macro creates a version of itself that is actually a mutation declaration.
-You can use that same feature to put *delcarations* of your mutations in a namespace *different from* the mutation itself.
+You can use that same feature to put *declarations* of your mutations in a namespace *different from* the mutation itself.
 Thus, you can code up a mutation "interface" namespace that won't generate circular references with the UI:
 
 ```
@@ -7093,7 +7093,7 @@ This makes it possible to track component classes in app state (since the name i
 
 The syntax of `defmutation` and `declare-mutation` are both intentionally "shaped" like `defn` and `def` so that you can tell your IDE how to resolve them.
 In IntelliJ, you can do this by clicking on the macro name (e.g. `defmutation`) and waiting for the light bulb.
-Then select "Resolve as" and then `defn` for `defmutation` and `def` for `delcare-mutation`.
+Then select "Resolve as" and then `defn` for `defmutation` and `def` for `declare-mutation`.
 
 You may not need to do this for `defmutation`, as IntelliJ does have some predefined resolutions for Fulcro built-in.
 
@@ -8818,7 +8818,7 @@ Loads may also choose to specify a lambda
 === Server Error Demo
 
 We recommend using Pathom for the server, and one of the recommended plugins for Pathom will convert exceptions into data errors on the response.
-This allows pathom to give partial responses where it can partially fulfil a request for data.
+This allows pathom to give partial responses where it can partially fulfill a request for data.
 
 Fulcro does not default to considering these particular kinds of errors as "hard errors", and leaves them up to your interpretation; however, it is simply enough to redefine what Fulcro things of as hard errors by setting the `:remote-error?` option on your application.
 
@@ -9021,7 +9021,7 @@ and passing transit options down through trees of calls just isn't a very "black
 features of the library are "hard to reach" this way.
 
 Starting in version 3.3.5 we added support for a central type registry, and evolved all of the dependent libraries and
-functions to use it. You can still pass the custom handers as options to everything that used to accept them, but now
+functions to use it. You can still pass the custom handlers as options to everything that used to accept them, but now
 those will be merged with whatever is in the global Fulcro registry.
 
 The `com.fulcrologic.fulcro.algorithms.transit` namespace (referred to here as `transit`) contains both the registry
@@ -9495,7 +9495,7 @@ If you know the class you can use it.
 Use `(actor-class actor-name)` to get the correct class for an arbitrary actor, or
 `(comp/registry-key->class component-fully-qualified-symbol)` to look a class up (for avoiding circular `require`s in Clojure).
 `::targeting/target explicit-target` ::
-Option for targeting retuned result using data-targeting.
+Option for targeting returned result using data-targeting.
 Should be used with `::m/returning`.
 `::uism/target-actor actor` ::
 Helper that can translate an actor name to a target, if returning a result.
@@ -10067,7 +10067,7 @@ You can do this as follows:
 
 (defn start []
   (app/set-root! app ui/Root {:initialize-state? true})
-  (dr/change-route! SPA ["langing-page"])
+  (dr/change-route! SPA ["landing-page"])
   (app/mount! app ui/Root "app" {:initialize-state? false}))
 -----
 
@@ -10739,7 +10739,7 @@ include::src/book/book/simple_router_2.cljs[]
 ----
 ====
 
-This allows you to build up a tree of routers that keeps your query minimal, and allows for very nice dynamic structuring of the applicataion at runtime.
+This allows you to build up a tree of routers that keeps your query minimal, and allows for very nice dynamic structuring of the application at runtime.
 
 If you have screens that could have different instances (for example, different reports), then each report could have an ID, and routing would involve selecting the screen's table, as well as a distinct ID.
 
@@ -10916,7 +10916,7 @@ This is common when you're trying to switch to a screen whose data might not yet
 ```
 
 here we're assuming that `ensure-report-loaded` is a mutation that ensures that there is at least placeholder data in place (or the UI rendering might look a bit odd or otherwise fail from lack of data).
-It may also do things like trigger background loads that will fufill the graph's needs, something like this:
+It may also do things like trigger background loads that will fulfill the graph's needs, something like this:
 
 ```
 (defmutation ensure-report-loaded [{:keys [report-id]}]
@@ -12365,13 +12365,13 @@ will queue up refresh of components that query for `:some/prop`.
 
 In either case *no data diff calculations* occur, and the renderer will *skip rendering from root* and will instead
 directly refresh just the components requested.  This allows you fine-grained control refresh and can easily achieve
-the performance leves of component-local state while still using the central database!
+the performance levels of component-local state while still using the central database!
 
 ==== Ident-optimized render
 
 NOTE: This was the default renderer, but we now recommend using keyframe-render2 for most applications. This is
 still the default to prevent legacy application regressions, but keyframe render 2 is much easier to use,
-and can be easily hand-optimized to be as fast as component-local state in most situaltions.
+and can be easily hand-optimized to be as fast as component-local state in most situations.
 
 The ident-optimized render is the most complex of the options. It is described below mainly
 to inform you of the kind of things an optimized renderer can do, in case you want to roll your own. The description
@@ -13000,7 +13000,7 @@ the limitations:
 
 . Everything you want to track *must* be in the Fulcro db. Component-local state is not tracked, and is lost on component
 unmount/mount.
-. If you serialize/deserialize the state map, then that process *must* preseve all data that you care about.
+. If you serialize/deserialize the state map, then that process *must* preserve all data that you care about.
 . Full-stack operation is a distributed system. Time travel in such a setting implies server interaction, the ability to
 "undo" operations in a shared environment, etc. True time travel is a very hard problem. We are only speaking about
 time travel with respect to the UI views of optimistic state, not time travel in a real full-stack application sense.
@@ -13315,7 +13315,7 @@ This demo is showing a (dynamically generated) list of items.
 The server can generate any number of them, so you can page ahead as many times as you like.
 Each page is dynamically loaded if and only if the browser does not already have it.
 The demo also ensures you cannot run out of browser memory by removing items and pages that are more than 4 steps away from your current position.
-You can demostrate this by moving ahead by more than 4 pages, then page back 5.
+You can demonstrate this by moving ahead by more than 4 pages, then page back 5.
 You should see a reload of that early page when you go back to it.
 
 The UI of this example is a great example of how a complex application behavior remains very simple at the UI layer with Fulcro.
@@ -13470,7 +13470,7 @@ There are two development-time tasks that typically evolve as a result of this c
 
 === Finding Accidental Inclusions
 
-If you're using shadow-cljs the web interface has a tool that will tell you exactly where a particluar artifact came
+If you're using shadow-cljs the web interface has a tool that will tell you exactly where a particular artifact came
 from. Go to the web interface, and click on the menu item `Builds -> name-of-your-build` (not the checkbox). This will
 take you to a detail screen for that build.  Scroll down to the bottom and find this control:
 
