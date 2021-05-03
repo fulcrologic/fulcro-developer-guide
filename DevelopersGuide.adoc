@@ -6718,7 +6718,7 @@ left this as an exercise to the reader, but it became evident that the existing 
 to extend. As such, the built-in HTTP remote has
 been extended to allow you to indicate that you expect the server to return a non-EDN value, and that you'd like to
 receive it in some alternate format.  This is particularly useful if you have a mutation that does something like
-generateration of a PDF, where you want to be able to use that result immediately in the client code in your
+generation of a PDF, where you want to be able to use that result immediately in the client code in your
 mutation's `result-action`.
 
 ==== Client Side Setup
