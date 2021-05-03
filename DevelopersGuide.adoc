@@ -10739,7 +10739,7 @@ include::src/book/book/simple_router_2.cljs[]
 ----
 ====
 
-This allows you to build up a tree of routers that keeps your query minimal, and allows for very nice dynamic structuring of the applicataion at runtime.
+This allows you to build up a tree of routers that keeps your query minimal, and allows for very nice dynamic structuring of the application at runtime.
 
 If you have screens that could have different instances (for example, different reports), then each report could have an ID, and routing would involve selecting the screen's table, as well as a distinct ID.
 
