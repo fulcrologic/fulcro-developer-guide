@@ -5523,7 +5523,7 @@ Of course it is perfectly fine for there to be multiple edges in your graph that
 Below is a recursive bullet list example.
 We've intentionally nested item `B.1` under B and D so you can see that it all works itself out.
 
-Normalization of initial state (which must be a tree) is perfectly happy to see duplcate entries.
+Normalization of initial state (which must be a tree) is perfectly happy to see duplicate entries.
 It simply merges the multiple copies into the same normalized entry in the table.
 
 Since the two entries merge to the same entry, it also means the modifications will be shared among them.
