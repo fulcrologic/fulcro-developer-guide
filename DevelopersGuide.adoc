@@ -304,7 +304,7 @@ This leads to the following useful results:
 * Everything is de-duped for you.
 No need to worry that composing in some "alternate view" of pre-existing data will cause two out of sync copies to exist.
 * Caching is a centralized concern.
-Your normalized client database is the only possible place for the data, and each node of the graph has exactly *one place* to live (even if a query has two views of of the same thing on different branches of some complex graph query result, which is common when composing related components onto a UI).
+Your normalized client database is the only possible place for the data, and each node of the graph has exactly *one place* to live (even if a query has two views of the same thing on different branches of some complex graph query result, which is common when composing related components onto a UI).
 * Subgraph reasoning is trivial:
 You can (re)load *any portion* of the graph at *any time*.
 ** A UI query, server load, or transfer of some portion of the graph can be started from any node.
