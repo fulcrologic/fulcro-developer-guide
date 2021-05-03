@@ -3377,7 +3377,7 @@ the operations you'll be doing throughout your application's lifetime are:
 
 Trivial operations like "check that box" or "hide that dialog" are done via manual manipulation, and are quite
 common (and simple) to do in mutations. You can technically `swap!` against the actual state atom, but Fulcro
-*does not watch* the state atom, so rendering refreshes are not automatic, and that form of direct manipuation
+*does not watch* the state atom, so rendering refreshes are not automatic, and that form of direct manipulation
 bypasses a lot of other useful and important features. Advanced users (or library authors) with specific needs might do
 that to add some advanced feature, but most users will never want to.
 
