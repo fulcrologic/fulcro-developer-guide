@@ -6887,7 +6887,7 @@ Setting up the client requires that you add additional middleware to an http rem
 -----
 
 This middleware watches for special mutation parameters that indicate file upload. You use helper
-function from the `fule-upload` namespace to create such mutations.
+function from the `file-upload` namespace to create such mutations.
 
 You can upload raw binary simply by using `js/ArrayBuffer` or `js/Blob`; however, most people will just want to submit
 from a normal form input for files. Here is an example of how to do that:
