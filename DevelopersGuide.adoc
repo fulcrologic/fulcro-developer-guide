@@ -7043,7 +7043,7 @@ or you can build the list manually and use literal quote:
 ==== Declare Your Mutations Elsewhere
 
 The `defmutation` macro creates a version of itself that is actually a mutation declaration.
-You can use that same feature to put *delcarations* of your mutations in a namespace *different from* the mutation itself.
+You can use that same feature to put *declarations* of your mutations in a namespace *different from* the mutation itself.
 Thus, you can code up a mutation "interface" namespace that won't generate circular references with the UI:
 
 ```
