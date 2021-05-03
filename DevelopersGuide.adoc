@@ -579,7 +579,7 @@ derive `q` (the other thread can't modify it either).
 
 In order to derive these benefits you need to either write objects that enforce
 this behavior (which is highly inconvenient and hard to make efficient
-in imperative langauges), or use a programming language that supplies the ability
+in imperative languages), or use a programming language that supplies the ability
 to do so as a first-class feature.
 
 Another benefit is that persistent data structures can do *structural sharing*. Basically
