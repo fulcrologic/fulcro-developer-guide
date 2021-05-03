@@ -5428,7 +5428,7 @@ Now *any* component can access these as follows:
 ```
 (defsc C [this props]
   (let [{:keys [pi current-user]} (comp/shared this)]
-    ; current-user will be DEnormalized...it comes from the root props (Root must query for it still)
+    ; current-user will be denormalized...it comes from the root props (Root must query for it still)
     ...))
 ```
 
