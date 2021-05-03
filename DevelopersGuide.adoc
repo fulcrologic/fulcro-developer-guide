@@ -5469,7 +5469,7 @@ It is perfectly legal to include recursion in your graph, and it is equally fine
 The query engine will automatically stop if a loop is detected.
 
 However, this is not the whole story.
-You see, components can be updated in a relative fasion when all optimizations are enabled.
+You see, components can be updated in a relative fashion when all optimizations are enabled.
 This means that a refresh could happen anywhere in the (recursive) UI, and the query would run until it detects the loop again.
 This can lead to funny-looking results.
 
