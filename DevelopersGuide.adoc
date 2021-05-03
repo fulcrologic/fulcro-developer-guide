@@ -8818,7 +8818,7 @@ Loads may also choose to specify a lambda
 === Server Error Demo
 
 We recommend using Pathom for the server, and one of the recommended plugins for Pathom will convert exceptions into data errors on the response.
-This allows pathom to give partial responses where it can partially fulfil a request for data.
+This allows pathom to give partial responses where it can partially fulfill a request for data.
 
 Fulcro does not default to considering these particular kinds of errors as "hard errors", and leaves them up to your interpretation; however, it is simply enough to redefine what Fulcro things of as hard errors by setting the `:remote-error?` option on your application.
 
