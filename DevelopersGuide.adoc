@@ -9021,7 +9021,7 @@ and passing transit options down through trees of calls just isn't a very "black
 features of the library are "hard to reach" this way.
 
 Starting in version 3.3.5 we added support for a central type registry, and evolved all of the dependent libraries and
-functions to use it. You can still pass the custom handers as options to everything that used to accept them, but now
+functions to use it. You can still pass the custom handlers as options to everything that used to accept them, but now
 those will be merged with whatever is in the global Fulcro registry.
 
 The `com.fulcrologic.fulcro.algorithms.transit` namespace (referred to here as `transit`) contains both the registry
