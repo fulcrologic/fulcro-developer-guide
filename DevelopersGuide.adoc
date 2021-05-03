@@ -3588,7 +3588,7 @@ writing applications more sane. The routing APIs are really just two ways of how
 in Fulcro. The state machine API is a kind of "mega mutation" system for writing coordinated bits of logic with
 your UI.
 
-Ulitmately there is a lot of "support" in the Fulcro ecosystem of libraries, but at the core is this simple
+Ultimately there is a lot of "support" in the Fulcro ecosystem of libraries, but at the core is this simple
 mechanism: The shape of your UI mirrors the shape of the query which in turn mirrors the resulting shape of the data. That
 symmetry of shape leads to the ability to easily transform the data between normalized and denormalized forms, which in
 turn leads to the ability to easily evolve your graph of data, and thus your UI.
