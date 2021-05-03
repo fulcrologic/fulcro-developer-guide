@@ -756,7 +756,7 @@ transmit it 'as data' over the wire for server processing!
 The client-side of Fulcro keeps all relevant data in a simple graph database, which
 is referenced by a single top-level atom. The database itself is a persistent map.
 
-The database should be thought of as a root-level node (the top-level map itsef),
+The database should be thought of as a root-level node (the top-level map itself),
 and tables that can hold data relevant to any
 particular component or entity in your program (component or entity nodes).
 
