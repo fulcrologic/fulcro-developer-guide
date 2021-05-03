@@ -13000,7 +13000,7 @@ the limitations:
 
 . Everything you want to track *must* be in the Fulcro db. Component-local state is not tracked, and is lost on component
 unmount/mount.
-. If you serialize/deserialize the state map, then that process *must* preseve all data that you care about.
+. If you serialize/deserialize the state map, then that process *must* preserve all data that you care about.
 . Full-stack operation is a distributed system. Time travel in such a setting implies server interaction, the ability to
 "undo" operations in a shared environment, etc. True time travel is a very hard problem. We are only speaking about
 time travel with respect to the UI views of optimistic state, not time travel in a real full-stack application sense.
