@@ -13470,7 +13470,7 @@ There are two development-time tasks that typically evolve as a result of this c
 
 === Finding Accidental Inclusions
 
-If you're using shadow-cljs the web interface has a tool that will tell you exactly where a particluar artifact came
+If you're using shadow-cljs the web interface has a tool that will tell you exactly where a particular artifact came
 from. Go to the web interface, and click on the menu item `Builds -> name-of-your-build` (not the checkbox). This will
 take you to a detail screen for that build.  Scroll down to the bottom and find this control:
 
