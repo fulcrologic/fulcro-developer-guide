@@ -399,7 +399,7 @@ Loading a particular person from the server might look like this:
 ==== Nested Things
 
 Of course components are typically nested, and all of this composes with elegance.
-Say your person had some addresses that you modelled on a sub-component.
+Say your person had some addresses that you modeled on a sub-component.
 If you compose those together everything else just falls into place:
 
 ```
