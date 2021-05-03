@@ -3213,7 +3213,7 @@ in Fulcro *adds metadata* to the query!
 -----
 
 The `:queryid` is used for dynamic queries, but the `component` is the literal *class* (in this case `Person`) that
-supplied *that element* of the query (you can tell because the the :fulcro$registryKey is the fully-qualified name of the class)!
+supplied *that element* of the query (you can tell because the :fulcro$registryKey is the fully-qualified name of the class)!
 
 So, normalization can do this:
 
