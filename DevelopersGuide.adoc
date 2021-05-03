@@ -9495,7 +9495,7 @@ If you know the class you can use it.
 Use `(actor-class actor-name)` to get the correct class for an arbitrary actor, or
 `(comp/registry-key->class component-fully-qualified-symbol)` to look a class up (for avoiding circular `require`s in Clojure).
 `::targeting/target explicit-target` ::
-Option for targeting retuned result using data-targeting.
+Option for targeting returned result using data-targeting.
 Should be used with `::m/returning`.
 `::uism/target-actor actor` ::
 Helper that can translate an actor name to a target, if returning a result.
