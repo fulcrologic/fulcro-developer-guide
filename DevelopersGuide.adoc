@@ -10916,7 +10916,7 @@ This is common when you're trying to switch to a screen whose data might not yet
 ```
 
 here we're assuming that `ensure-report-loaded` is a mutation that ensures that there is at least placeholder data in place (or the UI rendering might look a bit odd or otherwise fail from lack of data).
-It may also do things like trigger background loads that will fufill the graph's needs, something like this:
+It may also do things like trigger background loads that will fulfill the graph's needs, something like this:
 
 ```
 (defmutation ensure-report-loaded [{:keys [report-id]}]
