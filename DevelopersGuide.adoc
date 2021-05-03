@@ -12365,13 +12365,13 @@ will queue up refresh of components that query for `:some/prop`.
 
 In either case *no data diff calculations* occur, and the renderer will *skip rendering from root* and will instead
 directly refresh just the components requested.  This allows you fine-grained control refresh and can easily achieve
-the performance leves of component-local state while still using the central database!
+the performance levels of component-local state while still using the central database!
 
 ==== Ident-optimized render
 
 NOTE: This was the default renderer, but we now recommend using keyframe-render2 for most applications. This is
 still the default to prevent legacy application regressions, but keyframe render 2 is much easier to use,
-and can be easily hand-optimized to be as fast as component-local state in most situaltions.
+and can be easily hand-optimized to be as fast as component-local state in most situations.
 
 The ident-optimized render is the most complex of the options. It is described below mainly
 to inform you of the kind of things an optimized renderer can do, in case you want to roll your own. The description
