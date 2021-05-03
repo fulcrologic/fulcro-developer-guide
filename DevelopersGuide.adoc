@@ -1237,7 +1237,7 @@ The following are all equivalent:
 (dom/div :.x#id {:classes ["y" "z"] :style {:color "red"}} ...)
 ```
 
-NOTE: The keyword notation requires each class to be preceeded by a `.`, and will give a compile error if you forget to do that.
+NOTE: The keyword notation requires each class to be preceded by a `.`, and will give a compile error if you forget to do that.
 
 Children simply placed after the props as nested children.
 
