@@ -13315,7 +13315,7 @@ This demo is showing a (dynamically generated) list of items.
 The server can generate any number of them, so you can page ahead as many times as you like.
 Each page is dynamically loaded if and only if the browser does not already have it.
 The demo also ensures you cannot run out of browser memory by removing items and pages that are more than 4 steps away from your current position.
-You can demostrate this by moving ahead by more than 4 pages, then page back 5.
+You can demonstrate this by moving ahead by more than 4 pages, then page back 5.
 You should see a reload of that early page when you go back to it.
 
 The UI of this example is a great example of how a complex application behavior remains very simple at the UI layer with Fulcro.
