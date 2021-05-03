@@ -157,7 +157,7 @@ to organize groups of operations around components in order to reason over them.
 extensibility/flexibility to your application, and the overall design and internals might help you understand more advanced usage of
 Fulcro itself.
 * Keep your query light! You can do this by adopting either the legacy union router (fast, low-feature, bit harder to
-understand) or the dynamic router (preferred, composeable, more moving internal parts). When used
+understand) or the dynamic router (preferred, composable, more moving internal parts). When used
 at the top level of your app these will lead to better performance by making sure only the data needed for the active view
 is pulled from the database.
 
