@@ -4318,7 +4318,7 @@ Fulcro actually has a wrapper around inputs to deal with these complications for
 are ugly bits of code that do all sorts of magic to work around the problem.
 
 If you use any kind of library that provides input-like controls you may experience similar kinds of issues.
-You have three options to make them behave correctly. The ideal one is to use use Fulcro 3.2 or better. The other
+You have three options to make them behave correctly. The ideal one is to use Fulcro 3.2 or better. The other
 older options are to use component-local state with them, or similarly wrap them using Fulcro's pre-built wrapper code.
 There is a function in the `dom` namespace called `wrap-form-element` that can be used to create a factory for input-like controls that misbehave.
 
