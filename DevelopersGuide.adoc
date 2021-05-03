@@ -10067,7 +10067,7 @@ You can do this as follows:
 
 (defn start []
   (app/set-root! app ui/Root {:initialize-state? true})
-  (dr/change-route! SPA ["langing-page"])
+  (dr/change-route! SPA ["landing-page"])
   (app/mount! app ui/Root "app" {:initialize-state? false}))
 -----
 
