@@ -1992,7 +1992,7 @@ So, the last diagram could be represented as:
 ```
 
 This is close, but not quite good enough.
-The set in `:list/people` is a problem.
+The set in `:people` is a problem.
 There is no schema so there is no way to know which table to look in for "1" and "2"!
 
 The solution is rather easy: code the foreign reference to *include* the name of the table: `[:Person 1]`.
