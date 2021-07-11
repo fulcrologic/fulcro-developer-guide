@@ -17,7 +17,7 @@
     (person? props) [:person/id (:person/id props)]
     (place? props) [:place/id (:place/id props)]
     (thing? props) [:thing/id (:thing/id props)]
-    :else (log/error "Cannot generate a valid ident. Invalid props." props)))
+    :else nil))
 
 (defn item-key
   "Generate a distinct react key for a person, place, or thing"

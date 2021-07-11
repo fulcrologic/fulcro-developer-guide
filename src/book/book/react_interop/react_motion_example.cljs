@@ -30,7 +30,7 @@
                     :margin        "5px"
                     :padding       "5px"
                     :border        "1px solid black"
-                    :border-radius "10px"}}
+                    :borderRadius "10px"}}
     (dom/button {:onClick (fn [] (m/toggle! this :ui/slid?))} "Toggle")
     (ui-motion {:style {"y" (spring (if slid? 175 0))}}
       (fn [p]

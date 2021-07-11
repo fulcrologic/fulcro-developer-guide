@@ -6,7 +6,6 @@
                    :asset-path      "/js/book"
                    :module-loader   true
                    :closure-defines {com.fulcrologic.fulcro.inspect.inspect-client/INSPECT true}
-                   :dev             {:compiler-options {:external-config {:ghostwheel {}}}}
                    :modules         {:book    {:entries [book.main]
                                                :init-fn book.main/init}
                                      ; For the dynamic code splitting demo

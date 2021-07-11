@@ -9725,6 +9725,244 @@ Remember:
 
 You can also pass specific event data when you trigger events, so you can trigger your own state change events (instead of using `uism/set-value!`) that include the current validity of the form.
 
+= Fulcro Raw (version 3.5+)
+
+Various interested parties in the community were interested in using the full-stack data management facilities of Fulcro
+without necessarily being tied to React. Fulcro itself is written almost entirely in CLJC, and many of the namespaces
+work in CLJ just as well as they do in CLJS. The opens the door to all sorts of interesting possibilities:
+
+* Using Fulcro with libraries that take care of their own rendering, but would like to use the data management facilities.
+* Developing Desktop UIs with Fulcro and JVM libraries.
+
+This support also leads to cleaner support in Fulcro itself for creating components that are detached from the data tree.
+
+The two new namespaces that enable this are `com.fulcrologic.fulcro.raw.application` and `com.fulcrologic.fulcro.raw.components`.
+
+IMPORTANT: You MUST NOT use the old components or application namespace if you're trying to
+avoid React. The raw versions of these namespaces have all of the functions found in the non-raw
+version, except for the ones that require React to operate.
+
+We will assume you are using the following aliases for these namespaces:
+
+[source]
+-----
+(ns some-ns
+  (:require
+    [com.fulcrologic.fulcro.raw.application :as rapp]
+    [com.fulcrologic.fulcro.raw.components :as rc]))
+-----
+
+== Normalizing Components
+
+At this point you should understand the normalization system of Fulcro very well. In order for Fulcro to integrate a
+tree of data into its database it must be able to determine (via an ident function) how to split apart the denormalized
+tree at each EQL join.
+
+The `defsc` macro generates a React component, so using it in a non-React environment is not possible.
+
+A new function called `rc/nc` is instead supplied that can generate anonymous (or named) component trees. It uses
+the query and a naming conventions to be as succinct as possible:
+
+[source]
+-----
+(def Person (rc/nc [:person/id :person/name {:person/address [:address/id :address/street]}]))
+-----
+
+This generates *two* anonymous components, complete with query and ident.  How does it get the ident function? It reads
+the query and assumes any attribute whose *name* is `id` is both the name of the table for that item, and how to get the
+id from an instance.
+
+If this convention is not what you want, or you want to specify more options (including a component registry name), then
+you can pass it a component options map as the second argument, and the API nests cleanly
+(and technically also works with the standard `defsc` components as well):
+
+[source,clojure,role="source"]
+----
+include::src/book/book/raw/normalizing_components.cljs[]
+----
+
+
+NOTE: `nc` is a *function* not a macro. As such it does no magic interpretation of the
+component options map. The `initial-state` and `ident` options must be functions, and of
+course these are not React components, so things like `:componentDidMount` mean nothing
+(unless you make them mean something in your own rendering system). Technically raw components
+will work in standard React Fulcro, but *they will not act* as components that can be rendered.
+
+These components, of course, have no idea how to render anything. They are purely artifacts that
+can be used to do data management (pulling props trees from the Fulcro database,
+issuing loads, etc.)
+
+This means that you can be quite concise with things like a network load:
+
+[source]
+-----
+;; Load just the name and age of person with ID 42. No component def needed.
+(df/load! app [:person/id 42] (rc/nc [:person/name :person/age]))
+-----
+
+== Raw Applications
+
+Fulcro always requires that you define a Fulcro application. This is where remotes are defined,
+the client database is stored, transaction processing is customized, etc.  Of course the Fulcro
+application doesn't have to be your "master controller", since without React there is no user-driven
+event system or rendering. Instead, a raw Fulcro application is mainly a data management system.
+
+The constructor in the raw application namespace specifically disables Fulcro's rendering. You *can*
+specify a custom rendering system and turn rendering back on, but then you are responsible for
+figuring out what to do when Fulcro notifies you that something needs to be re-rendered.
+
+Most applications that are using the pure data management facilities want something slightly
+different: notifications that some data tree of interest has changed.
+
+=== Subscribing to Data
+
+The raw application namespace has an `add-component!` and `remove-component!` function. These
+allow you to add a watch on the props of a component, and receive a callback whenever those
+props change.
+
+NOTE: This is *not* a network subscription. If you have a network request that loads something that
+a component is subscribed to, then it *will* be notified, but Fulcro *does not* do the network
+request automatically, as it has no opinion on the database of the back-end at all. The lifecycle,
+caching, and so forth are either trivial (e.g. just load the thing once if it isn't there) or
+quite complicated (e.g. load it, but only if I'm about to edit it or it is older than 10 seconds).
+All of these behaviors are easy, in isolation, to get via `df/load!` and Fulcro websockets, if
+the data arrives, the components will know it.
+
+The basic operation usage is as follows:
+
+[source,clojure,role="source"]
+----
+include::src/book/book/raw/adding_components.cljs[]
+----
+
+Any *transactional* operation (`transact!`, `merge-component!`, `load!`, etc.) will cause
+such a callback, but *only if* the props actually change. This means you get the basic
+`shouldComponentUpdate` optimization for free!
+
+=== Supported Namespaces in Raw Mode
+
+The vast majority of Fulcro's namespaces work with a raw application (and *all* of the raw versions of things
+work in standard React Fulcro applications).
+
+The exceptions are the ones that tie to anything related to a DOM or browser.
+
+Notable exceptions that do *not* work with Raw Fulcro applications:
+
+* `com.fulcrologic.fulcro.dom*`
+* `com.fulcrologic.fulcro.routing.dynamic-routing`
+* `com.fulcrologic.fulcro.networking.file-upload`
+* `com.fulcrologic.fulcro.networking.file-url`
+* `com.fulcrologic.fulcro.react.*`
+* `com.fulcrologic.fulcro.rendering.*`
+* `com.fulcrologic.fulcro.application` (`raw.application` is the raw version)
+* `com.fulcrologic.fulcro.components` (`raw.components` is the raw version)
+
+NOTE: The `ui-state-machines` namespace *does* work; however, any actors defined in a UISM *must* include a
+`:componentName` option, so that they will appear in the global component registry.
+
+=== Dynamic Queries with Normalizing Components
+
+Any component that needs to use a dynamic query *must* be in the global registry, and therefore *must* include
+the `:componentName` option. Otherwise, normalizing components should work (at a class-level at least) with
+the dynamic query API.
+
+== Raw APIs in Normal Fulcro
+
+The non-raw namespaces actually just refer to the raw versions when possible to avoid code duplication, so all
+of these APIs work perfectly fine in regular Fulcro. So, you can actually use `add-component!` in a normal
+Fulcro application. The problem is that normal component-based React does not expect you to move props around
+outside of the normal rendering mechanisms.
+
+Fortunately, more recent versions of React include the Hooks API. The hooks API lets you build components
+from simple functions (See the React documentation), and Fulcro's `com.fulcrologic.react.hooks` namespace
+has wrappers for the standard hooks calls, but also includes some lovely integrations that make writing
+Fulcro hooks-based components very nice.
+
+== Fulcro Hook Components from Vanilla React
+
+Classic Fulcro requires that you use the application as a container for your application. This means that the
+best you can do for integrating a Fulcro-controlled component into a vanilla React app is to have React generate
+an element that Fulcro can then be mounted on. This is sub-optimal for this kind of integration.
+
+The new hooks support makes this use-case much easier and more flexible.
+
+.[[RawReactHooks]]<<RawReactHooks,Raw React Hooks>>
+====
+++++
+<button class="inspector" onClick="book.main.focus('raw-fulcro-hooks')">Focus Inspector</button>
+<div class="short narrow example" id="raw-fulcro-hooks"></div>
+<br/>
+++++
+
+[source,clojure,role="source"]
+----
+include::src/book/book/raw/fulcro_hooks.cljs[]
+----
+====
+
+The `hooks/use-component` React effect hook connects you to the props of the component via `add-component!` internally,
+but it also hooks that callback up to React state so that refresh will work properly. You still get the
+optimization that the component will *not* re-render unless the props it has actually *queried for* have
+changed.
+
+These usages of component state can be embedded via raw js React (as shown), or within other components that Fulcro is managing
+directly. This is particularly useful for components that spring into existence in an ad-hoc manner during
+the dynamic runtime of your application.
+
+== Dynamic Lifecycle
+
+There is also an effect hook for generating a random UUID (and also doing garbage collection on it) that can
+be combined with the above APIs so that you can be as dynamic as you want to be:
+
+.[[DynamicHooks]]<<DynamicHooks,Dynamic Hooks>>
+====
+++++
+<button class="inspector" onClick="book.main.focus('dynamic-hooks')">Focus Inspector</button>
+<div class="short narrow example" id="dynamic-hooks"></div>
+<br/>
+++++
+
+[source,clojure,role="source"]
+----
+include::src/book/book/raw/dynamic_hooks.cljs[]
+----
+====
+
+In the example above we don't even define a root query! Root renders the container just by calling the factory.
+We use component-local state to decide if we want to render the container.
+
+The container uses the various hooks effects and state management to join in a proper Fulcro-managed component
+that is sprung into existence on mount, and cleaned up on unmount!
+
+Be sure to open Inspect and focus the inspector while you play with this demo. When you toggle the container
+into view, you'll see the button's state appear at a random ID. Using the button works normally. Toggling the
+container off will clean up the state.
+
+== UI State Machines via Raw or Hooks
+
+WARNING: I have not had time to refine the internals of this. It is NOT WORKING RIGHT as of Fulcro 3.5-RC3.
+
+The UI State Machine support has a new function called `uism/add-uism!` that is much like `rapp/add-component!`. It
+is not tied to React in *any* way, but allows you to associated normalizing components as actors in a UISM
+model, and retrieve the props for these actors as they change.
+
+The `add-uism!` is callback-based, and of course there is a `hooks/use-uism` stateful effect hook that provides
+an easy way to use it from React.
+
+.[[RawUISM]]<<RawUISM,Raw UISM>>
+====
+++++
+<button class="inspector" onClick="book.main.focus('raw-uism')">Focus Inspector</button>
+<div class="short narrow example" id="raw-uism"></div>
+<br/>
+++++
+
+[source,clojure,role="source"]
+----
+include::src/book/book/raw/raw_uism.cljs[]
+----
+====
+
 = Dynamic Queries [[DynamicQueries]]
 
 Fulcro supports dynamic queries: the ability to change the query of a component at runtime.

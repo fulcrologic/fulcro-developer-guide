@@ -31,6 +31,12 @@
     book.merge-component
     book.html-converter
 
+    book.raw.normalizing-components
+    book.raw.adding-components
+    book.raw.fulcro-hooks
+    book.raw.dynamic-hooks
+    book.raw.raw-uism
+
     book.server.morphing-example
     book.server.network-activity
     [book.server.ui-blocking-example :as ui-blocking]
@@ -89,6 +95,7 @@
                                 book.server.ui-blocking-example/submit-form-mutation
                                 book.demos.loading-in-response-to-UI-routing/all-settings-resolver
                                 book.server.network-activity/silly-resolver
+                                book.raw.raw-uism/resolvers
                                 book.demos.server-targeting-return-values-into-app-state/resolvers
                                 book.demos.cascading-dropdowns/model-resolver])
 
@@ -149,9 +156,12 @@
 (defexample "UI Blocking" ui-blocking/Root "ui-blocking-example" :remotes book.main/example-server)
 (defexample "Network Activity" book.server.network-activity/Root "network-activity" :remotes book.main/example-server)
 
+(defexample "Dynamic Hooks" book.raw.dynamic-hooks/Root "dynamic-hooks")
+(defexample "Hooks with UISM" book.raw.raw-uism/Root "raw-uism" :remotes book.main/example-server)
+
 ;;; Dynamic queries
 (defexample "Dynamic Query" book.queries.dynamic-queries/Root "dynamic-queries")
-(defexample "Dynamic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters")
+;(defexample "Dynamic Query Parameters" book.queries.dynamic-query-parameters/Root "dynamic-query-parameters")
 ;
 (defexample "Routing Demo" book.ui-routing/Root "ui-routing" :remotes book.main/example-server)
 (defexample "Simple Router" book.simple-router-1/Root "simple-router-1")
