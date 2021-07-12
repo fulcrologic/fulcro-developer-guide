@@ -9973,7 +9973,7 @@ an `:event/remounted` event if it was already started on the first call or compo
 It returns `:current-state` which is the current state the machine is in, along with each actor's props.
 The return value is similar to the useState hook: it will automatically cause a re-render when the value changes.
 
-Here's a working example that emulates login:
+Here's a working example that emulates login (this is a half-baked implementation, but it gets the point across):
 
 .[[RawUISM]]<<RawUISM,Raw UISM>>
 ====
