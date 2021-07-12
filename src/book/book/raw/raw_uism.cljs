@@ -132,42 +132,46 @@
                              (uism/trigger-remote-mutation :actor/current-account `logout {})
                              (uism/activate :state/gathering-credentials))))}})}}})
 
-(defn ui-login-form [app {:keys [email password failed?] :as login-form} checking?]
-  (div :.ui.segment
-    (h2 "Username is bob@example.com, password is letmein")
-    (div :.ui.form {:classes [(when failed? "error")
-                              (when checking? "loading")]}
-      (div :.field
-        (label "Email")
-        (input {:value    (or email "")
-                :onChange (fn [evt] (m/raw-set-value! app login-form :email (evt/target-value evt)))}))
-      (div :.field
-        (label "Password")
-        (input {:type     "password"
-                :onChange (fn [evt] (m/raw-set-value! app login-form :password (evt/target-value evt)))
-                :value    (or password "")}))
-      (div :.ui.error.message
-        "Invalid credentials. Please try again.")
-      (div :.field
-        (button :.ui.primary.button {:onClick (fn [] (uism/trigger! app :sessions :event/login {}))} "Login")))))
-
 (def LoginForm (rc/nc [:component/id :email :password :failed?]
                  {:componentName ::LoginForm
                   :ident         (fn [] [:component/id ::LoginForm])}))
 
 (def Session (rc/nc [:account/id :account/email] {:componentName ::Session}))
 
-(defsc Root [this props]
+(defsc MainScreen [this props]
   {:use-hooks? true}
-  (let [app (comp/any->app this)
+  (let [app       (comp/any->app this)
         {:actor/keys [login-form current-account]
          :keys       [active-state] :as sm} (hooks/use-uism app session-machine :sessions
                                               {::uism/actors {:actor/login-form      LoginForm
-                                                              :actor/current-account (uism/with-actor-class [:account/id :none] Session)}})]
-    (js/console.log sm)
-    (case active-state
-      :state/logged-in (div :.ui.segment
-                         (dom/p {} (str "Hi," (:account/email current-account)))
-                         (button :.ui.red.button {:onClick #(uism/trigger! app :sessions :event/logout)} "Logout"))
-      (:state/checking-session :state/gathering-credentials) (ui-login-form app login-form (= :state/checking-session active-state))
-      (div (str active-state)))))
+                                                              :actor/current-account (uism/with-actor-class [:account/id :none] Session)}})
+        {:keys [email password failed?]} login-form
+        checking? (= :state/checking-session active-state)]
+    (if (= :state/logged-in active-state)
+      (div :.ui.segment
+        (dom/p {} (str "Hi," (:account/email current-account)))
+        (button :.ui.red.button {:onClick #(uism/trigger! app :sessions :event/logout)} "Logout"))
+      (div :.ui.segment
+        (dom/h5 :.ui.header "Username is bob@example.com, password is letmein")
+        (div :.ui.form {:classes [(when failed? "error")
+                                  (when checking? "loading")]}
+          (div :.field
+            (label "Email")
+            (input {:value    (or email "")
+                    :onChange (fn [evt] (m/raw-set-value! app login-form :email (evt/target-value evt)))}))
+          (div :.field
+            (label "Password")
+            (input {:type     "password"
+                    :onChange (fn [evt] (m/raw-set-value! app login-form :password (evt/target-value evt)))
+                    :value    (or password "")}))
+          (div :.ui.error.message
+            "Invalid credentials. Please try again.")
+          (div :.field
+            (button :.ui.primary.button {:onClick (fn [] (uism/trigger! app :sessions :event/login {}))} "Login")))))))
+
+(def ui-main-screen (comp/factory MainScreen))
+
+(defsc Root [this _]
+  {}
+  ;; NOTE: Hooks and Root without a query don't mix well, so we push the example down one level.
+  (ui-main-screen {}))

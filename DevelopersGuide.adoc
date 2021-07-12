@@ -4573,6 +4573,13 @@ NOTE: You still use factories with hooks components, and `computed-factory` shou
 (for the time being) use `(get-computed this)` instead of the 3rd `defsc` argument to get computed props
 in hooks-enabled components. This will be fixed in a future release.
 
+NOTE: The version of React at the time of this writing was not able to batch updates to state via hooks when called
+from async functions without help, which results in some over-rendering when using hooks.
+Fulcro supports React's optimization for this (which is under an unstable API), but since it requires different mechanisms
+depending on what you are using (DOM, Native, etc.) and isn't API-stable you have to manually install the optimization.
+For DOM it requires you set the `:batch-notifications` option on your app, and set it to
+`(fn [n!] (js/ReactDOM.unstable_batchedUpdates n!))`. See https://dev.to/raibima/batch-your-react-updates-120b for more information.
+
 == Using Javascript React Components
 
 One of the great parts about React is the ecosystem.
@@ -9938,16 +9945,35 @@ Be sure to open Inspect and focus the inspector while you play with this demo. W
 into view, you'll see the button's state appear at a random ID. Using the button works normally. Toggling the
 container off will clean up the state.
 
-== UI State Machines via Raw or Hooks
-
-WARNING: I have not had time to refine the internals of this. It is NOT WORKING RIGHT as of Fulcro 3.5-RC3.
+== UI State Machines via Raw or Hooks (Fulcro 3.5+)
 
 The UI State Machine support has a new function called `uism/add-uism!` that is much like `rapp/add-component!`. It
-is not tied to React in *any* way, but allows you to associated normalizing components as actors in a UISM
+is not tied to React in *any* way, but allows you to associate normalizing components as actors in a UISM
 model, and retrieve the props for these actors as they change.
 
 The `add-uism!` is callback-based, and of course there is a `hooks/use-uism` stateful effect hook that provides
 an easy way to use it from React.
+
+The basic ideas are simple:
+
+* You define the state machine and actors. The state machine usage is exactly as described in the chapter on UISM
+* The hooks-based and raw usages hook you to the current state and actor values in the state machine.
+
+So, for example, let's say you had an actor called `:actor/form`. The API call (from a hooks component):
+
+[source]
+------
+(let [{:keys [current-state actor/form]} (use-uism app some-machine-def :machine-id
+                                           {::uism/actors  {:actor/form MyForm}})]
+  ...)
+------
+
+acts as an effect/state hook that will initialize the state machine definition under the id `:machine-id` (or trigger
+an `:event/remounted` event if it was already started on the first call or component remount).
+It returns `:current-state` which is the current state the machine is in, along with each actor's props.
+The return value is similar to the useState hook: it will automatically cause a re-render when the value changes.
+
+Here's a working example that emulates login:
 
 .[[RawUISM]]<<RawUISM,Raw UISM>>
 ====
