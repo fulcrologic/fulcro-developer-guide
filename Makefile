@@ -1,6 +1,6 @@
 # gem install asciidoctor asciidoctor-diagram coderay
 docs/DevelopersGuide.html: DevelopersGuide.adoc
-	asciidoctor -o docs/DevelopersGuide.html -b html5 -r asciidoctor-diagram DevelopersGuide.adoc
+	asciidoctor -o docs/DevelopersGuide.html -b html5 -r asciidoctor-diagram DevelopersGuide.adoc || docker run -it -v $(PWD):/documents/ asciidoctor/docker-asciidoctor asciidoctor -o ./docs/DevelopersGuide.html -b html5 -r asciidoctor-diagram DevelopersGuide.adoc
 
 # Requires asciidoctor-pdf, see readme
 docs/DevelopersGuide.pdf: DevelopersGuide.adoc
