@@ -9,63 +9,90 @@ Explanations of the Fulcro warnings errors that you might see in the browser Con
 ==== api_middleware
 
 [[err-parser-errored-on-query]]Parser threw an exception on `query`::
--
+
+Your server middleware called your query processor with an incoming request, and that processor threw an exception.
+This will cause the API result handler to return a status 500 to the client, which will result in the error actions of
+the client.
 
 ==== application
 
 [[err-cannot-compute-shared]] Cannot compute shared::
--
+
+Your custom `:shared-fn` on the application likely threw an exception.
 
 [[err-render-listener-failed]] Render listener failed.::
--
+
+A custom-installed render listener threw an exception. Fulcro uses the render listener for certain hooks behaviors
+as well, and it is possible this could happen due to a bug in those listeners.
 
 [[err-mount-cannot-find-node]]Mount cannot find DOM node `node` to mount `(comp/class->registry-key root)`::
+
 Could not find a DOM element with the given ID to mount to. Perhaps your HTML is wrong?
 
 ==== browser_edn_store
 
 [[err-edn-store-denied]] Local storage denied. `edn`::
--
+
+The browser denied storing more in local storage. Perhaps it is full?
 
 [[err-edn-store-list-failed]] Cannot list items in storage.::
--
+
+The browser denied looking in local storage. Browser Permissions?
 
 [[err-edn-store-load-failed]] Load failed.::
--
+
+The browser's local storage refused the load. Permissions?
 
 [[err-edn-store-delete-failed]] Delete failed.::
--
+
+The browser's local storage refused the load. Permissions?
 
 [[err-edn-store-update-failed]] Cannot update edn.::
--
+
+The browser's local storage refused the load. Permissions?
 
 ==== components
 
 [[err-comp-app-not-bound]]Cannot create proper fulcro component, as *app* isn't bound. This happens when something renders a Fulcro component outside of Fulcro's render context. See `with-parent-context`.::
+
 This can happen for example when you want a third-party component to render a Fulcro component. Wrap it with `with-parent-context` to preserve the important data.
 
 It also happens more rarely that this error appears in production code when you try to render a lazy-seq and then replace it with another one. See: https://github.com/fulcrologic/fulcro/discussions/477 In this case you should force your sequences with `mapv` or a `vec` around your lazy-seq.
 
 [[err-comp-query-id-no-class]]Query ID received no class (if you see this warning, it probably means metadata was lost on your query)::
--
+
+Dynamic queries use metadata on the query itself to track which part of the query is normalized by which component. If
+you morph the query in any way and forget to maintain this metadata, then certain parts of Fulcro will fail. This could
+also mean you somehow used a hand-built query (not `defsc` or `nc`) to build a raw EQL query that has no such metadata,
+and then somehow used it in the context of rendering or normalization.
 
 [[err-comp-rendered-outside-parent-ctx]]A Fulcro component was rendered outside of a parent context. This probably means you are using a library that has you pass rendering code to it as a lambda. Use `with-parent-context` to fix this.::
--
+
+Standard Fulcro rendering requires dynamic vars to be set, which are unset when you try to render components
+from some kind of async context (e.g. raw js container). You may want to consider using the raw support (via hooks)
+to make this kind of case easier to code.
 
 [[err-comp-props-middleware-corrupts]]Props middleware seems to have corrupted props for `(component-name class)`::
+
 Check what the props produced by the middleware are. They must not be nil.
 
 [[err-comp-props-not-a-map]]Props passed to `(component-name class)` are of the type `<type>` instead of a map. Perhaps you meant to `map` the component over the props?::
 Props must be a map but isn't. Look at the code in the parent component and its props. Perhaps the value is actually a vector of maps (such as "people") and you should map this component over it? Or it is just the ident of the component, which happens sometimes when the data graph is not connected properly. Tip: Log the value of the props in the body of the target component to see what it is actually getting.
 
 [[err-comp-q-norm-failed]] Query normalization failed. Perhaps you tried to set a query with a syntax error?::
--
+
+Dynamic queries use a normalization mechanism to remember your new query in the actual state database. That normalization
+process must parse through your newly-suggested query and do this, but if there is a syntax error in the EQL it can fail.
+Check your query.
 
 [[err-comp-set-q-failed]]Set query failed. There was no query ID. Use a class or factory for the second argument.::
--
+
+Every dynamic query must have a query ID (usually the fully-qualified class name as a keyword). This indicates that
+Fulcro was unable to determine which component/id you were trying to set the query of.
 
 [[err-comp-unable-set-q]]Unable to set query. Invalid arguments.::
--
+
+Most likely you forgot to pass a map containing at least `:query`.
 
 [[err-comp-cannot-rerender-non-comp]]Cannot re-render a non-component::
 The argument passed to `refresh-component!` should be a Fulcro component but is not.
@@ -92,16 +119,23 @@ You have used `replace-at` to target an element under a to-many prop (which is a
 ==== durable_mutations
 
 [[err-dm-save-failed]]Save failed. Running transaction now, non-durably.::
--
+
+Durable mutations was not able to save the mutation into a durable storage, and therefore had to try sending the mutation
+without any ability to recover. The mutation will succeed if the network is OK, but cannot be retried if it isn't.
 
 [[err-dm-missing-store-id]]The transaction that submitted this mutation did not assign it a persistent store ID. This probably means you did not submit it as a durable mutation.::
--
+
+There was an inconsistent submission of a mutation. You wanted it to be durable, but didn't say how.
 
 [[err-dm-int-txn-id-missing]]INTERNAL ERROR: TXN ID MISSING!::
--
+
+Indicates an unexpected bug in Fulcro's code.
 
 [[err-dm-update-failed]]Failed to update durable mutation!::
--
+
+Durable mutations tracks retry attempts and backoff. This indicates that for some reason it could not write these updates
+to the durable store. This could result in the mutation being retried forever, and not backing off correctly. Fix the
+durable store.
 
 ==== dynamic_routing
 
@@ -109,13 +143,17 @@ You have used `replace-at` to target an element under a to-many prop (which is a
 If you want to use a component as a router target, it needs to have an ident.
 
 [[err-dr-cant-eval-route-chng]]Cannot evaluate route change. Assuming ok. Exception message:  `(ex-message e)`::
--
+
+Dynamic routing asks the current target(s) if it is ok to change routes. One of your components in the old route
+probably threw an exception, which is considered an error, not a request to deny the route. The routing request will
+proceed, but you should fix the bug in your `:allow-route-change?` or `:will-leave` handlers.
 
 [[err-dr-ident-mismatch]]<route-immediate|deferred> was invoked with the ident `ident` which doesn't seem to match the ident of the wrapping component (class  `*target-class*`  , ident ...)::
 The ident that you pass to `route-immediate` or `route-deferred` must match the ident of the wrapping component, where the `:will-enter` is defined. Check your code.
 
 [[err-dr-apply-route-lacks-router]]apply-route* was called without a proper :router argument.::
--
+
+You used the `apply-route*` helper with invalid arguments.
 
 [[err-dr-apply-route-no-component]]apply-route* for router `router-class` was given a target that did not have a component. Did you remember to call route-deferred or route-immediate?::
 The `target` passed to the `apply-route` mutation needs to metadata containing the key `:component`, containing the class of the target.
@@ -147,16 +185,26 @@ Check the `:route-segment` of the component and see <<_routing_targets>>.
 ==== file_upload
 
 [[err-fu-cant-assoc-file]]Unable to associate a file with a mutation `file`::
--
+
+The server received a file in the multipart submission that did not indicate which mutation it was supposed to go with.
+The file upload support uses low-level multipart forms to attach uploads to the EQL request. Something went wrong
+when trying to do that. No mutation will see the file.
 
 [[err-fu-cant-attach-uploads]] Unable to attach uploads to the transaction.::
--
+
+An exception was thrown while trying to decode file upload(s) on the server. This probably means the client sent
+a corrupted file upload request. Check your client and server middleware for encode/decode problems.
 
 [[err-fu-tx-has-no-files]]Incoming transaction with uploads had no files attached.::
--
+
+The client sent a transaction to the server that indicated there would be attached files; however, when the server
+middleware tried to find files there were none attached. Check your client and server middleware to make sure
+things are properly configured.
 
 [[err-fu-mut-convert-exc]] Exception while converting mutation with file uploads.::
--
+
+The client file upload middleware caught an exception while trying to encode file uploads with a transaction. This could
+mean that your mutation failed to properly attach js File objects.
 
 ==== form_state
 
@@ -166,31 +214,52 @@ The value of client DB -> `<entity-ident>` -> `::fs/config` should be an ident. 
 ==== http_remote
 
 [[err-httpr-multiple-items]]Attempt to request alternate response from HTTP remote from multiple items in a single transaction. This could mean more than one transaction got combined into a single request.::
--
+
+The HTTP remote has to determine what MIME type to use for the response of a request. Normally this is just transit over
+JSON; however, customizations to your application (e.g. including ::http/response-type on the AST params)
+are allowed to change this type. If the internals also COMBINE more than one transaction, and they each want a different
+MIME type, then the HTTP remote has no way of asking for both on a single request.
 
 [[err-httpr-response-extract-fail]]Unable to extract response from XhrIO Object `e`::
--
+
+A low-level failure happened when trying to read the underlying XhrIO object. Probably means something bad
+happened at a very low network layer that is beyond your control.
 
 [[err-httpr-resp-middleware-exc]]Client response middleware threw an exception. `e` . Defaulting to raw response.::
--
+
+Middleware you installed threw an exception, so the response was NOT run through your middleware, but was instead
+passed on to the next layer as-is. This probably means other things failed as well. Fix your middleware.
 
 [[err-httpr-middleware-exc]]Client middleware threw an exception `middleware-exception`::
--
+
+Basically the same as prior.
 
 [[err-httpr-result-handler-exc]]Result handler for remote `url` failed with an exception.::
--
+
+The `result-handler` for the network request threw an exception. The result handler is a function created
+by the internals of Fulcro to merge the response back into the database, and/or invoke the result-action of
+a mutation. Check that your response seems correct for the request, and that your middleware hasn't corrupted
+the data in some way.
 
 [[err-httpr-update-handler-exc]]Update handler for remote `url` failed with an exception.::
--
+
+The `update-handler` for the network request threw an exception. The update handler is a function created
+by the internals of Fulcro to give progress updates.
 
 [[err-httpr-remote-err]]`Remote Error::
--
+
+This error is a catch-all. Check the logs for other error messages that preceeded it for details.
 
 [[err-httpr-err-handler-exc]] Error handler for remote `url` failed with an exception.::
--
+
+An attempt to deliver the result of an error failed. In other words there was a remote error, and then the delivery
+of that error to the application layer of Fulcro also threw an exception. This is not the source of your problem, but
+instead an indication that the kind of error that happened was unforseen in the original design or some customization
+of the result handling at the application layer is incorrect.
 
 [[err-httpr-send-abort]] Send aborted due to middleware failure::
--
+
+Your request middleware crashed while processing a send request. Check your middleware and your request.
 
 ==== icons
 
@@ -204,11 +273,18 @@ The value of client DB -> `<entity-ident>` -> `::fs/config` should be an ident. 
 
 ==== indexing
 
+Indexing tracks which components are currently mounted on-screen. This is used for things like rendering optimizations.
+
 [[err-idx-invalid-ident]]Component `(comp/component-name this)` supplied an invalid ident `ident` using props `props`::
--
+
+The indexing system was asked to index a component that just mounted, but that component's props, when passed to
+`get-ident`, resulting in something that didn't look like a proper ident. Check your `:ident` on that component.
 
 [[err-idx-missing-app]]Unable to re-index root. App was not set in the mutation env.::
--
+
+A change was detected that required indexing to re-index the root query, however, the indexing needs access to the
+app to do so. This probably indicates it was triggered via some async call, and that the dynamic `*app*` var was
+unbound. See `with-parent-context`.
 
 ==== inspect_client
 
@@ -431,7 +507,9 @@ The recursive query has hit an ident that it already has included before, which 
 ==== dom
 
 [[warn-dom-type-mismatch]]There is a mismatch for the data type of the value on an input with value `element-value`. This will cause the input to miss refreshes. In general you should force the :value of an input to be a string since that is how values are stored on most real DOM elements.::
--
+
+This is a low-level js limitation. ALL inputs in the DOM world work with strings. If you use a non-string for `:value`
+js will coerce it, but that can lead to weird behavior. You should do the coercion yourself.
 
 ==== durable_mutations
 
@@ -441,7 +519,9 @@ The recursive query has hit an ident that it already has included before, which 
 ==== dynamic_routing
 
 [[warn-routing-will-leave-deprecated]]DEPRECATED USE OF `:will-leave` to check for allowable routing. You should add :allow-route-change? to: `(comp/component-name this)`::
--
+
+Historical dynamic routing used `:will-leave` for two purposes. If you define `:will-leave` you should also define
+`:allow-route-change?` to eliminate this warning.
 
 [[warn-routing-multiple-target-matches]]More than one route target matches `path`::
 Check the `:route-segment` of your target components.
@@ -449,12 +529,15 @@ Check the `:route-segment` of your target components.
 ==== http_remote
 
 [[warn-transit-decode-failed]]Transit decode failed!::
-The body was either not transit or you have not installed the correct transit read/write handlers. See `com.fulcrologic.fulcro.algorithms.transit/install-type-handler!` and how it is used to handle tempids.
+The body was either not transit-compatible (e.g. you tried to send a fn/class/etc as a parameter over the network) or you
+have not installed the correct transit read/write handlers. See `com.fulcrologic.fulcro.algorithms.transit/install-type-handler!` and how it is used to handle tempids.
 
 ==== tenacious_remote
 
 [[warn-remote-retry-limit-exceeded]]Tenacious remote exceeded retry limit `max-attempts`::
--
+
+The given remote operation was retried too many times, and was deleted from the queue with no *confirmation* that the
+server ever received it.
 
 ==== inspect.transit
 
@@ -475,8 +558,14 @@ Synchronous transactions will not cause a full UI refresh. It will only target r
 This can happen e.g. if you are rendering routers before you’ve started their associated UISMs (and is mostly harmless) - you can use `app/set-root!` with initialize state, then `dr/initialize!` or `dr/change-route!`, then `app/mount!` with NO initialize state to get rid of most or all of those. Basically: Make sure you’ve explicitly routed to a leaf (target) before mounting. In other cases - make sure the UISM has been started before you try to use it.
 
 [[warn-uism-fallback-missing-event]]A fallback occurred, but no event was defined by the client. Sending generic ::uism/load-error event.::
--
+
+Fallbacks are an old mechanism for dealing with remote errors. UISM can wrap these in a named event, but you did not define what
+that event should be called.
 
 [[warn-uism-unexpected-event]]UNEXPECTED EVENT: Did not find a way to handle event `event-id` in the current active state: `current-state`::
 An event the UISM did not expect and cannot handle has been received. Whether that is a problem or not depends on your app. A common example is this warning from Dynamic Routing: "UNEXPECTED EVENT: Did not find a way to handle event `:timeout!` in the current active state: `:failed`" - which is no problem.
 
+Basically this just means the list of events in the current state does not list the given event. The most typical cause
+of this is async deliver of an event that expected the state machine to be in one state, but when it arrived it was in
+another.  You can eliminate this warning by making a noop handler for that event in all the possible (unexpected) states
+it could arrive for.

@@ -13,9 +13,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; SERVER:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defn airport-search [s]
+(defn airport-search [search-string]
   (->> airports
-    (filter (fn [i] (str/includes? (str/lower-case i) (str/lower-case s))))
+    (filter (fn [airport] (str/includes? (str/lower-case airport) (str/lower-case search-string))))
     (take 10)
     vec))
 
