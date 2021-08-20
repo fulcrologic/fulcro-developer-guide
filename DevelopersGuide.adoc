@@ -6718,6 +6718,8 @@ For example, if you are using the `api-middleware/wrap-api` and Ring Session mid
    (server/augment-response user (fn [resp] (update resp :session merge {:uid real-uid}))))
 ```
 
+NOTE: This is not specific to fulcro, but be aware with https://github.com/ring-clojure/ring/wiki/Sessions[Ring Sessions (wrap-session)], updating the `:session` key in your augmented response will replace the session map. Your first `augment-response` function called will receive an empty map as input, so any parts of the session you want to retain will need to be copied from the request, or re-built. This is important as other parts of your app may use the session, for example, the anti-forgery token used by `ring-anti-forgery`.
+
 === Binary Return Values
 
 Fulcro 3.0.8 and above has extended support for returning binary values from full-stack mutations. Prior versions
