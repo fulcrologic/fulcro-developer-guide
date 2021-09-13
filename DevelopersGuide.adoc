@@ -8450,7 +8450,9 @@ You could use the code in `http_remote.cljs` as a starting point.
 Here are the basics:
 
 . A remote is just a map.
-The map can contain anything you want, but *MUST* contain a `:transmit!` key whose value is a `(fn [send-node] )`.
+The map can contain anything you want, but *MUST* contain a `:transmit!` key whose value is a `(fn [remote send-node] )`.
+
+A `remote` is the remote map itself.
 
 A `send-node` has the following spec:
 
