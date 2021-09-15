@@ -2262,7 +2262,9 @@ and create the file `src/main/app/parser.clj` with this content:
                           ::pc/mutation-join-globals [:tempids]}
              ::p/mutate  pc/mutate
              ::p/plugins [(pc/connect-plugin {::pc/register resolvers})
-                          p/error-handler-plugin]}))
+                          p/error-handler-plugin
+                          ;; or p/elide-special-outputs-plugin
+                          (p/post-process-parser-plugin p/elide-not-found)]}))
 
 (defn api-parser [query]
   (log/info "Process" query)
@@ -2449,6 +2451,15 @@ Here is a sample resolver:
 it declares "Given a `:person/id` as input, I can produce their name".
 The inputs are written as a set, and the output is written as an EQL query.
 The body of the function will find the required input in the `input` parameter, and must return an EQL response that matches the shape of the declared `::pc/output`.
+
+In cases where the resolver is not able to find the data promised in `::pc/output``, simply elide the promised key from
+the returned map. Loosely following the examples below, such a situation might arise if the person you're querying for
+has no enemies while `:person/enemies` is in the declared `::pc/output`. Excluding a key like this from the resolver's
+return value will cause Pathom to respond with `{:person/enemies ::p/not-found ...}`, which gets removed from the final
+query output *as long as* your parser config includes one of the elide plugins like `p/elide-special-outputs-plugin` or
+`(p/post-process-parser-plugin p/elide-not-found)`. Foregoing this step can cause Fulcro to produce malformed idents like
+`[:thing/id nil]` when referring to the thing that could not be found. Lastly, another option is to set `:person/enemies`
+to an empty vector in such cases instead of excluding it from the map entirely.
 
 Furthermore, the *output* of a resolver augments the known context that Pathom is working with, and can be used to chain lookups across resolvers to fulfill a complete query.
 
