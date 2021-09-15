@@ -6313,6 +6313,11 @@ Thus, the edit will apply to the correct server entity, as will the delete.
 
 All the mutation has to do is return a map with the special key `:tempids`
 whose value is a map of `tempid->realid`.
+
+NOTE: Make sure that the remote returns the `:tempids` map to Fulcro. For Pathom, you can ensure that by
+adding `::pc/mutation-join-globals [:tempids]` into its `::p/env` config map - see this 
+https://github.com/fulcrologic/fulcro-template/blob/f7d97957d0016ba62526306c78b3f50c85063f86/src/main/app/server_components/pathom.clj#L49[demonstrated in fulcro-template].
+
 Here are the client-side and server-side implementations of the same mutation that create a new item:
 
 ```
