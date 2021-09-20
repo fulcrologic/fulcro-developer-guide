@@ -5931,7 +5931,7 @@ In Summary:
 - Loads/transactions queued while "holding the UI thread" may be joined together in a single network request.
 - Remote writes go before reads (for a given processing event)
 - Loads/transactions queued at a later event (new UI thread event) are guaranteed to be processed after ones queued earlier.
-- You can override this behavior with the `parallel` option of `load!` or `transact!`.
+- You can override this behavior with the `parallel` option of `load!` or `parallel?` of `transact!`.
 
 === Server Result Query Merging [[ResultMerge]]
 
