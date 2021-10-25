@@ -4515,7 +4515,7 @@ The things to note for this example are:
 * We override the React lifecycle method `shouldComponentUpdate` to return false.
 This tells React to never ever call render once the component is mounted.
 D3 is in control of the underlying stuff.
-* We override `componentWillReceiveProps` and `componentDidMount` to do the actual D3 render/update.
+* We override `shouldComponentUpdate` and `componentDidMount` to do the actual D3 render/update.
 The former will get incoming data changes, and the latter is called on initial mount.
 Our render method delegates all of the hard work to D3.
 
