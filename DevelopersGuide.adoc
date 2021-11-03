@@ -12705,6 +12705,29 @@ All of the required indexes still exist, so it would not be hard to "replicate" 
 Another possible future expansion would be to re-purpose "follow-on reads" as "refresh only this" (tell the underlying scanner not to scan anything else).
 This could be useful when doing rapid UI interactions where you want to eliminate as much processing as possible in-between frames.
 
+= Production Debug
+
+Sometimes it happens that data in production causes a hard-to-diagnose issue that you just cannot reproduce locally. In cases like these it is sometimes
+quite useful to have Inspect available. The Inspect hooks are normally elided at compile time for UI performance, but you can force the hooks
+to remain by setting a compiler option:
+
+[source]
+-----
+;; inside of any build config
+:compiler-options  {:closure-defines {com.fulcrologic.fulcro.inspect.inspect_client/INSPECT true}}
+-----
+
+Release builds that have that define set will allow the Inspect tool to work in production.
+
+WARNING: Exposing the internal application details makes it much easier to see the data of the application, which may not
+be acceptable from a security perspective. The performance implications can also be significant. Ideally you would make
+an "alternate index" page that loads an inspect-enabled version of your app so that your primary page can serve the
+fully-optimized one.
+
+It is also possible to include proper source maps in a production build, which makes source-level debugging the 
+production application easier. See the Shadow-cljs or Clojurescript compiler documentation for details on doing
+that.
+
 = Testing
 
 Fulcro has a companion library called Fulcro Spec.
