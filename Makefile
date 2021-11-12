@@ -25,3 +25,9 @@ publish-all: book
 	rsync -av docs/DevelopersGuide.html linode:/usr/share/nginx/html/index.html
 	rsync -av docs/js/book/*.js linode:/usr/share/nginx/html/js/book/
 	rsync -av docs/assets/img linode:/usr/share/nginx/html/assets/
+
+docker-html: DevelopersGuide.adoc
+	docker run -it -v $$(pwd):/current_dir asciidoctor/docker-asciidoctor asciidoctor -o /current_dir/docs/DevelopersGuide.html -b html5 -r asciidoctor-diagram /current_dir/DevelopersGuide.adoc
+
+docker-pdf: DevelopersGuide.adoc
+	docker run -it -v $$(pwd):/current_dir asciidoctor/docker-asciidoctor asciidoctor-pdf -o /current_dir/docs/DevelopersGuide.pdf -b pdf -r asciidoctor-diagram /current_dir/DevelopersGuide.adoc

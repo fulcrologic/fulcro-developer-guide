@@ -6,24 +6,24 @@ The source for v2 of the book is in the root of the Fulcro repository, at any 2.
 
 == Generating HTML
 
-See the `Makefile`.
+```bash
+make book
+# or using docker:
+make docker-html
+```
 
-You can also use https://github.com/asciidoctor/docker-asciidoctor[asciidoc in Docker], which comes with PDF and diagram support. Example:
-
-    docker run -it -v $(pwd):/docs/ asciidoctor/docker-asciidoctor asciidoctor -o ./docs/DevelopersGuide.html -b html5 -r asciidoctor-diagram DevelopersGuide.adoc
-
-
-== Generating a pdf
+== Generating a PDF
 
 ```bash
 make pdf
+# or using docker:
+make docker-pdf
 ```
 
 === Prerequisites
 
 asciidoctor-pdf is a ruby gem. It is recommended to manage userspace gems using
 rvm.
-
 
 Please see the asciidoctor guide for more information
 
