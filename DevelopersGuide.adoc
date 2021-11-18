@@ -1039,6 +1039,11 @@ Create a `deps.edn` file with this content:
                                binaryage/devtools          {:mvn/version "0.9.10"}}}}}
 ```
 
+[TIP]
+--
+[#clj-kondo]*clj-kondo support*: Fulcro exports configs for the clj-kondo linter (used e.g. by Calva). To import them, create `.clj-kondo/config.edn` containing `{}` and run `clj-kondo --copy-configs --dependencies --lint  (clojure -Spath)` and follow the printed instructions for adding them to the config file.
+--
+
 === https://shadow-cljs.github.io/docs/UsersGuide.html[Shadow-cljs] Build Tool Configuration
 
 And a `shadow-cljs.edn` file that looks like this:
