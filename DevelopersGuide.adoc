@@ -76,7 +76,7 @@ A lot of time and energy went into creating these libraries and materials and pr
 If you find them useful please consider
 http://patreon.com/fulcro[contributing to the project].
 
-Of course fixes to this guide are also appreciated.
+Of course fixes to this guide are also appreciated as pull requests against the https://github.com/fulcrologic/fulcro-developer-guide[github repository].
 
 This book includes quite a bit of live code.
 Live code demos with their source look like this:
