@@ -4079,7 +4079,7 @@ The latter approach is useful in functions that receive the instance as an argum
 In components with queries there is a strong correlation between the query (which must join the child's query), props (from which you must extract the child's props), and calling of the child's factory (to which you must pass the child's data).
 
 If you are using components that do not have queries, then you may pass whatever properties you deem useful.
-Such components do not take advantage of any other Fulcro advantages, such as render optimizations.
+Such components do not benefit from many other Fulcro advantages. However, you may still wish to use `defsc` for <<defscForOptimization, rendering optimization>>.
 
 Details about additional aspects of rendering are in the sections that follow.
 
