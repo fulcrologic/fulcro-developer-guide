@@ -1063,7 +1063,7 @@ And a `shadow-cljs.edn` file that looks like this:
 The `init-fn` and `after-load` options give you a place to put code that will set up an application on load, and trigger UI refreshes on hot code reload.
 We'll put those functions in the source in a moment.
 
-The top-level `dev-http` server will cause shadow to start a dev web server on port 8000 that serves the files from our `resources/public` directory (`resources` is on our classpath via `:paths` in `deps.edn`).
+The top-level `dev-http` server will cause shadow to start a dev web server on port 8000 that serves the files from our `resources/public` directory (`resources` is on our classpath via `:paths` in `deps.edn`). This port is used for <<Workspaces>> and test UI, which you can configure separately in `shadow-cljs.edn`. To access your application after <<Running the Server>>, make sure to use port 3000.
 
 The `:modules` section configures what code gets pulled into a given build.
 Every build has at least one module, and shadow will follow requires in the code so you typically only need your entry-point namespace in `:entries`.
