@@ -502,8 +502,9 @@ Perhaps you have not defined it using `targeting/append-to` or similar?
 ==== denormalize
 
 [[warn-denormalize-loop-detected]]Loop detected in data graph - we have already seen  `entity` inside/under `key`. Recursive query stopped.::
-The recursive query has hit an ident that it already has included before, which indicates a loop. This may be a "false positive" if the repeated ident is a "leaf" in the graph, without child nodes of its own, that has only been included by at least two non-leaf entities.
-If the loop is desired, use a recursive query with an explicit limit instead of just `...`. See <<_recursive_queries,Recursive Queries>> for details.
+The recursive query has hit an ident that it already has included before, which _may_ indicate a loop. 
+This may be a "false positive" if the repeated ident is not on the recursive path and just has been included by at least two entities that are on the path.
+If the "loop" is desired, use a recursive query with an explicit limit instead of just `...`. See <<_recursive_queries,Recursive Queries>> for details.
 
 ==== dom
 
