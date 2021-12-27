@@ -1595,6 +1595,10 @@ would have a query that looks like this:
 [{:friends  ; JOIN
     [ :list/label
       {:list/people ; JOIN
+         [:person/name :person/age]}]}
+ {:enemies  ; JOIN
+    [ :list/label
+      {:list/people ; JOIN
          [:person/name :person/age]}]}]
 ```
 
