@@ -1596,7 +1596,7 @@ would have a query that looks like this:
     [ :list/label
       {:list/people ; JOIN
          [:person/name :person/age]}]}
- {:friends  ; JOIN
+ {:enemies  ; JOIN
     [ :list/label
       {:list/people ; JOIN
          [:person/name :person/age]}]}]
