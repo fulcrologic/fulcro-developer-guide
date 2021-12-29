@@ -1039,6 +1039,11 @@ Create a `deps.edn` file with this content:
                                cider/cider-nrepl           {:mvn/version "0.27.4"}}}}}
 ```
 
+[TIP]
+--
+[#clj-kondo]*clj-kondo support*: Fulcro exports configs for the clj-kondo linter (Calva uses Clojure LSP which will import these automatically). If you are using clj-kondo with another tool you may need to import these manually. To import them, create `.clj-kondo/config.edn` containing `{}` and run `clj-kondo --copy-configs --dependencies --lint  $(clojure -Spath)` and follow the printed instructions for adding them to the config file.
+--
+
 === https://shadow-cljs.github.io/docs/UsersGuide.html[Shadow-cljs] Build Tool Configuration
 
 And a `shadow-cljs.edn` file that looks like this:
@@ -1052,7 +1057,8 @@ And a `shadow-cljs.edn` file that looks like this:
                    :modules    {:main {:init-fn app.client/init
                                        :entries [app.client]}}
                    :devtools   {:after-load app.client/refresh
-                                :preloads   [com.fulcrologic.fulcro.inspect.preload]}}}}
+                                :preloads   [com.fulcrologic.fulcro.inspect.preload
+                                             com.fulcrologic.fulcro.inspect.dom-picker-preload]}}}}
 ```
 
 The `init-fn` and `after-load` options give you a place to put code that will set up an application on load, and trigger UI refreshes on hot code reload.
@@ -2284,17 +2290,18 @@ Open your `deps.edn` file and add dependencies so it looks like this:
 
 ```
 {:paths   ["src/main" "resources"]
- :deps    {org.clojure/clojure    {:mvn/version "1.10.1"}
-           com.fulcrologic/fulcro {:mvn/version "3.4.14"}
-           com.wsscode/pathom     {:mvn/version "2.2.15"}
-           ring/ring-core         {:mvn/version "1.6.3"}
-           com.taoensso/timbre    {:mvn/version "4.10.0"}
-           http-kit               {:mvn/version "2.3.0"}}
+ :deps    {org.clojure/clojure    {:mvn/version "1.10.3"}
+           com.fulcrologic/fulcro {:mvn/version "3.5.9"}
+           com.wsscode/pathom     {:mvn/version "2.4.0"}
+           com.taoensso/timbre    {:mvn/version "5.1.2"}
+           ring/ring-core         {:mvn/version "1.9.4"}
+           http-kit/http-kit      {:mvn/version "2.5.3"}}
 
  :aliases {:dev {:extra-paths ["src/dev"]
-                 :extra-deps  {org.clojure/clojurescript {:mvn/version "1.10.520"}
-                               thheller/shadow-cljs      {:mvn/version "2.8.40"}
-                               binaryage/devtools        {:mvn/version "0.9.10"}}}}}
+                 :extra-deps  {org.clojure/clojurescript   {:mvn/version "1.10.914"}
+                               thheller/shadow-cljs        {:mvn/version "2.16.9"}
+                               binaryage/devtools          {:mvn/version  "1.0.4"}
+                               cider/cider-nrepl           {:mvn/version "0.27.4"}}}}}
 ```
 
 and then add a `src/main/app/server.clj` namespace:
