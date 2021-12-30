@@ -1028,7 +1028,8 @@ and a brand-new version of shadow-cljs can lead to confusing build errors.
 
 Create a `deps.edn` file with this content:
 
-```{:paths   ["src/main" "resources"]
+```
+{:paths   ["src/main" "resources"]
  :deps    {org.clojure/clojure    {:mvn/version "1.10.3"}
            com.fulcrologic/fulcro {:mvn/version "3.5.9"}}
 
