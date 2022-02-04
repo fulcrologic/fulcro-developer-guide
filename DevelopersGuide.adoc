@@ -5010,7 +5010,7 @@ React elements inside Reagent processed Hiccup - or any React elements no matter
 [source]
 -----
 (defsc Page [this props]
-  {} 
+  {}
   [:div.ui.container
    [:div
     (dom/p "A paragraph")]])
@@ -5027,7 +5027,7 @@ Any Fulcro component that returns a React element will also be passed through by
 
 Thus you can mix and match both React element creation styles in one Fulcro application.
 
-Note that if you want to render a Reagent data structure within Fulcro created React elements you will 
+Note that if you want to render a Reagent data structure within Fulcro created React elements you will
 need to invoke `reagent.core/as-element` to convert that data structure to a React element.
 
 [source]
@@ -6338,7 +6338,7 @@ All the mutation has to do is return a map with the special key `:tempids`
 whose value is a map of `tempid->realid`.
 
 NOTE: Make sure that the remote returns the `:tempids` map to Fulcro. For Pathom, you can ensure that by
-adding `::pc/mutation-join-globals [:tempids]` into its `::p/env` config map - see this 
+adding `::pc/mutation-join-globals [:tempids]` into its `::p/env` config map - see this
 https://github.com/fulcrologic/fulcro-template/blob/f7d97957d0016ba62526306c78b3f50c85063f86/src/main/app/server_components/pathom.clj#L49[demonstrated in fulcro-template].
 
 Here are the client-side and server-side implementations of the same mutation that create a new item:
@@ -10324,7 +10324,7 @@ In the latter case you must be sure that the ident returned from `will-enter` po
 == Initial Route
 
 The dynamic routing relies on a call to `change-route!` in order to start the routing system. You can use `dr/initialize!`
-to ensure that the state machines for all routers that can be found in the current query are started at application startup, 
+to ensure that the state machines for all routers that can be found in the current query are started at application startup,
 but your application will be in an "unrouted" state until you explicitly set a route!
 
 Therefore you MUST make a call to `change-route!` on start in order for the dynamic routers to work; however, there is
@@ -12478,6 +12478,19 @@ Technically this could probably be solved at the compiler level, but it is a "ha
 . Keep the compiler up-to-date.
 I've seen 10-20% performance boosts in single releases.
 
+== Logging
+
+Fulcro uses https://github.com/ptaoussanis/timbre for logging. Several namespaces include high levels of debug or trace logging
+to help you debug dev-time issues. Timbre uses macros for logging such that all performance overhead of logging under
+a certain level can be completely removed from the code on a release build.
+
+See https://github.com/ptaoussanis/timbre#log-levels-and-ns-filters-compile-time-elision[compile time elision] in the Timbre docs.
+
+WARNING: Elision can be done via an *ENVIRONMENT* variable that must be set *before* the compiler runs. Environment variables
+cannot be changed by the running VM. Thus *if you are running `shadow-cljs server` you cannot set the env variable in another
+terminal and run a release build and expect it to work*!  If the server is running, then the command `shadow-cljs release X`
+just sends a command to the _already-running_ server, which will *not* have the environment variable.
+
 == Callbacks causing Over-rendering
 
 A lot of people don't realize that placing lambdas in their DOM can cause performance problems of various kinds:
@@ -12736,7 +12749,7 @@ be acceptable from a security perspective. The performance implications can also
 an "alternate index" page that loads an inspect-enabled version of your app so that your primary page can serve the
 fully-optimized one.
 
-It is also possible to include proper source maps in a production build, which makes source-level debugging the 
+It is also possible to include proper source maps in a production build, which makes source-level debugging the
 production application easier. See the Shadow-cljs or Clojurescript compiler documentation for details on doing
 that.
 
