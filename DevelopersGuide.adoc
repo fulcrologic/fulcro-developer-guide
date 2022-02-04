@@ -12478,7 +12478,7 @@ Technically this could probably be solved at the compiler level, but it is a "ha
 . Keep the compiler up-to-date.
 I've seen 10-20% performance boosts in single releases.
 
-== Logging
+== Removing Debug Logging
 
 Fulcro uses https://github.com/ptaoussanis/timbre for logging. Several namespaces include high levels of debug or trace logging
 to help you debug dev-time issues. Timbre uses macros for logging such that all performance overhead of logging under
