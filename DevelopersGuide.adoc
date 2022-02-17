@@ -10362,7 +10362,7 @@ You can do this as follows:
 (defonce SPA (app/fulcro-app ...))
 
 (defn start []
-  (app/set-root! app ui/Root {:initialize-state? true})
+  (app/set-root! SPA ui/Root {:initialize-state? true})
   (dr/change-route! SPA ["landing-page"])
   (app/mount! app ui/Root "app" {:initialize-state? false}))
 -----
