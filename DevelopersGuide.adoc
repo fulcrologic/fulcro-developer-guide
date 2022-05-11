@@ -4570,8 +4570,8 @@ Clicking to save the box position and resizing the container are real transactio
 React introduced a new, more functional, API for creating UI components as simple functions known as
 https://reactjs.org/docs/hooks-intro.html[hooks] in version 16.8.
 
-React hooks are supported in Fulcro 3.1.17 and above. At the time of this writing hooks support is not heavily used
-and may still have bugs. The `defsc` macro will generate a plain function that supports hook usage if you include
+React hooks are supported in Fulcro 3.1.17 and above.
+The `defsc` macro will generate a plain function that supports hook usage if you include
 the `:use-hooks? true` component option:
 
 [source]
@@ -4807,6 +4807,11 @@ If you decide that it is worth giving up things like composition of the dynamic 
 then you can change the renderer in Fulcro to one that supports multiple Fulcro roots. This allows a *single* Fulcro
 application to continue to control the data needs of the components while not requiring that they be composed
 together in the graph.
+
+NOTE: As of Fulcro 3.2 you should use React Hooks and `use-component` for this instead of the
+multi-root render. See <<HooksUseComponent>>. The multi-root renderer is works, but it introduces a
+coupling between the rendering layer and the application's general composition, and should be
+avoided for that reason.
 
 Fulcro 3.1.13+ includes such a renderer, which includes generation functions for making floating root factories
 for use with in Fulcro itself, as well as a function to create a vanilla React class.
@@ -9917,7 +9922,7 @@ from simple functions (See the React documentation), and Fulcro's `com.fulcrolog
 has wrappers for the standard hooks calls, but also includes some lovely integrations that make writing
 Fulcro hooks-based components very nice.
 
-== Fulcro Hook Components from Vanilla React
+== Fulcro Hook Components from Vanilla React [[HooksUseComponent]]
 
 Classic Fulcro requires that you use the application as a container for your application. This means that the
 best you can do for integrating a Fulcro-controlled component into a vanilla React app is to have React generate
