@@ -58,6 +58,7 @@ endif::[]
 .wide.example { width: 80%; }
 .short.example { min-height: 200px; }
 .tall.example { min-height: 800px; }
+.example div table, .example div textarea { width: 100%; }
 </style>
 
 <!-- div for server controls -->

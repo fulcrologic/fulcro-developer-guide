@@ -28,3 +28,22 @@ rvm.
 Please see the asciidoctor guide for more information
 
 https://asciidoctor.org/docs/install-asciidoctor-macos/#rvm-procedure-recommended
+
+=== Developing
+* Generate html
+```shell
+$ make docker-html
+or
+$ make book
+```
+* Publish
+```shell
+$ rm -rf docs/js/book docs/js/book.js
+$ npx yarn
+$ shadow-cljs release book
+```
+* Run the server
+```shell
+npx shadow-cljs server
+```
+* Check the page at `http://localhost:9005`
