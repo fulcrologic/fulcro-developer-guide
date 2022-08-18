@@ -10798,6 +10798,45 @@ The ID of the active state machine will be the keyword name of the router:
    ...
 ```
 
+== Path-ordered Pessimistic Transactions (Requires Fulcro 3.5.24+)
+
+The default routing scheme assumes you don't want to couple your components in your routing tree, and it is
+generally recommended that you use UISM if a group of components needs logic beyond pure rendering; however,
+it is convenient to be able to associate actions with a route (thus deferred routing) that can accomplish
+things such as I/O.
+
+The deferrered routing system runs things in depth-first order. It does this to prevent UI flicker in the common
+case, and it has no way to coordinate among the parent/child without the parent simply being the one in
+control.
+
+The dynamic routing system supports an additional mode that can compose transactions together from a path, and
+run them via a pessimistic transaction. This can be used when a parent needs to do operations that a child
+is dependent upon. This does introduce a coupling that is generally undesirable, but is common enough that
+the convenience is useful.
+
+To use it, return the result of `(dr/route-with-path-ordered-transaction target-ident [(mutation {})])`
+from `:will-enter`. The arguments to this function are the target ident, and a normal Fulcro transaction
+(that could be passed to `transact!`). The routing system will compose these together and run them as:
+
+[source]
+-----
+[(parent-mutation) (child-mutation) (subchild-mutation) (target-ready {:target parent-ident})
+ (target-ready {:target child-ident}) (target-ready {:target subchild-ident})]
+-----
+
+*and run that transaction pessimistically*. See pessimistic transactions. Basically NOTHING about the child
+router will run until the *full stack* operations of the parent have finished.
+
+You can interleave the target ready calls by passing `:show-early? true` to the options
+of `route-with-path-ordered-transaction`. You also have the option of showing the target immediately
+(before the transaction even runs) with `:route-immediate? true`.
+
+Finally, you can use this as a shorthand for `route-deferred` by passing `:optimistic? true`, which
+will skip the transaction composition altogether and just combine the transaction with a call
+to target ready for you.
+
+See the docstring for more information and options.
+
 == Simultaneous On-Screen Routers
 
 A more complex scenario involves the desire to have more than one router on screen at a time.  Since dynamic routers
