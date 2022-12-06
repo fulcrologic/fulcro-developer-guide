@@ -10835,7 +10835,9 @@ Finally, you can use this as a shorthand for `route-deferred` by passing `:optim
 will skip the transaction composition altogether and just combine the transaction with a call
 to target ready for you.
 
-See the docstring for more information and options.
+See the docstring for more information. See also the
+https://github.com/fulcrologic/fulcro/blob/develop/src/workspaces/com/fulcrologic/fulcro/cards/path_ordered_routing_cards.cljs[workspaces card]
+with demo code.
 
 == Simultaneous On-Screen Routers
 
@@ -13175,9 +13177,10 @@ functions in front of `transact!`, but they still go through there.
 
 It might help to further clarify that fulcro *does not watch the state atom* (Inspect does, but that's a tool,
 not the library itself). So, if you `swap!` against the state atom outside of a mutation, then you are doing
-an unsanctioned thing.
+an advanced thing that is circumventing a lot of Fulcro.
 
-*Rendering refresh* is a by-product of transaction steps. The default built-in tx processing schedules renders after
+*Rendering refresh* is a by-product of transaction steps (or an explicit request to do so). The default
+built-in tx processing schedules renders after
 optimistic updates from mutations, on the arrival/merge of network results, etc.
 
 The default algorithm is in `tx_processing.cljc`. You can replace this algorithm with an option on the application, but
