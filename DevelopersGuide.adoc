@@ -162,6 +162,32 @@ understand) or the dynamic router (preferred, composable, more moving internal p
 at the top level of your app these will lead to better performance by making sure only the data needed for the active view
 is pulled from the database.
 
+= React Versions [[ReactCompatibility]]
+
+Fulcro works with React for browsers, embedded in Electron, and React Native. The default version at the moment is
+17, but it should work correctly (unchanged) with React 16.
+
+React 18 changed the core API and requires a small bit of additional setup. When creating your Fulcro app, do the following:
+
+* Make sure you require "react-dom/client"
+* Set the `:render-root!` function as shown in the example below:
+
+[source]
+-----
+(ns com.example.client
+  (:require
+    [com.fulcrologic.fulcro.application :as app]
+    ["react-dom/client" :as dom-client]
+    ...))
+
+(defonce reactRoot (volatile! nil))
+
+(def my-app (app/fulcro-app {:render-root! (fn [ui-root mount-node]
+                                             (when-not @reactRoot
+                                               (vreset! reactRoot (dom-client/createRoot mount-node)))
+                                             (.render @reactRoot ui-root))}))
+-----
+
 = Fulcro From 10,000 Feet
 
 You may be reading this guide hoping for a "quick feel" for why Fulcro might be a good fit for a project.
