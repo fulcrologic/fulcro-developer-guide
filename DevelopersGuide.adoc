@@ -188,6 +188,9 @@ React 18 changed the core API and requires a small bit of additional setup. When
                                              (.render @reactRoot ui-root))}))
 -----
 
+React 18 support is new, and may have problems. Report any issues to the #fulcro
+Slack channel.
+
 = Fulcro From 10,000 Feet
 
 You may be reading this guide hoping for a "quick feel" for why Fulcro might be a good fit for a project.
