@@ -164,36 +164,32 @@ is pulled from the database.
 
 = React Versions [[ReactCompatibility]]
 
-Fulcro works with React for browsers, embedded in Electron, and React Native. The default version at the moment is
-17, but it should work correctly (unchanged) with React 16.
+Fulcro works with React for browsers, embedded in Electron, and React Native. Version 15+ should work with Fulcro through
+version 3.5.x, though React 17 is recommended for versions of Fulcro through 3.5.x.
 
-React 18 changed the core API and requires a small bit of additional setup. When creating your Fulcro app, do the following:
+Fulcro 3.6.0+ are compatible with React 17 and above (the final few versions of 16 that have Context should also work).
 
-* Make sure you require "react-dom/client"
-* Set the `:render-root!` function as shown in the example below:
+If you want to use React 18 in non-legacy mode, then you need to enable it. This is a manual process because React
+changed the namespaces where the entry point code lives.
+
+When creating your Fulcro app, do the following:
 
 [source]
 -----
 (ns com.example.client
   (:require
     [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.react.version18 :refer [with-react18]]
     ["react-dom/client" :as dom-client]
     ...))
 
-(defonce reactRoot (volatile! nil))
-
-(def my-app (app/fulcro-app {:render-root! (fn [ui-root mount-node]
-                                             (when-not @reactRoot
-                                               (vreset! reactRoot (dom-client/createRoot mount-node)))
-                                             (.render @reactRoot ui-root))}))
+(def my-app (-> (app/fulcro-app {... normal options ...})
+              (with-react18)))
 -----
 
-React 18 support is new, and the internals of Fulcro have not been updated
-to work with the breaking changes. The following are known problems:
+At the time of this writing Fulcro 3.6.0 is in progress, and is available as 3.6.0-SNAPSHOT.
 
-* Hot code reload isn't working properly
-
-Report any additional issues to the #fulcro Slack channel.
+Report any issues to the #fulcro Clojurians Slack channel.
 
 = Fulcro From 10,000 Feet
 
