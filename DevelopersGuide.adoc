@@ -4750,6 +4750,19 @@ depending on what you are using (DOM, Native, etc.) and isn't API-stable you hav
 For DOM it requires you set the `:batch-notifications` option on your app, and set it to
 `(fn [n!] (js/ReactDOM.unstable_batchedUpdates n!))`. See https://dev.to/raibima/batch-your-react-updates-120b for more information.
 
+=== The React.memo optimization
+
+The components namespace includes a `memo` function which will correctly work for Fulcro hooks components to give the
+same effect as a PureComponent (shouldComponentUpdate of class-based components). Wrap the component class
+with it when you're building your factory:
+
+[source]
+-----
+(def ui-thing (comp/factory (comp/memo Thing) {:keyfn :thing/id}))
+-----
+
+NOTE: This is only useful on hooks-based components.
+
 == Using Javascript React Components
 
 One of the great parts about React is the ecosystem.
@@ -8906,6 +8919,8 @@ Still others do more complex schemes that persist data into browser local storag
 
 Fulcro gives you the power to express any user experience, and this chapter covers some of the techniques you can use to provide the experience you desire.
 
+Network latency can often be improved by using <<BatchedReads, Batched Reads>>.
+
 == Global Network Activity
 
 Fulcro tracks the general idea that network activity is happening in the state database under the key :com.fulcrologic.fulcro.application/active-remotes.
@@ -10160,6 +10175,17 @@ This means that you can be quite concise with things like a network load:
 (df/load! app [:person/id 42] (rc/nc [:person/name :person/age]))
 -----
 
+If you'd like a macro version of this, version 3.6+ of Fulcro includes:
+
+[source]
+-----
+(defnc Person [:person/id :person/name {:person/address [:address/id :address/street]}])
+-----
+
+which will also give the component a name and make it compatible with dynamic queries. (It still isn't a renderable
+thing). The `:ident` option (3rd arg is options) can take special values like `:constant` and a single keyword
+for generating the ident function. See the docstring for more details.
+
 == Raw Applications
 
 Fulcro always requires that you define a Fulcro application. This is where remotes are defined,
@@ -10218,7 +10244,7 @@ Notable exceptions that do *not* work with Raw Fulcro applications:
 * `com.fulcrologic.fulcro.components` (`raw.components` is the raw version)
 
 NOTE: The `ui-state-machines` namespace *does* work; however, any actors defined in a UISM *must* include a
-`:componentName` option, so that they will appear in the global component registry.
+`:componentName` option (i.e. use the `rc/defnc` macro), so that they will appear in the global component registry.
 
 === Dynamic Queries with Normalizing Components
 
@@ -12171,7 +12197,60 @@ Thus, the application must do a few things in order for editing to work:
 
 TODO: example
 
-= Synchronous Operation
+= Batched Reads [[BatchedReads]]
+
+As of Fulcro 3.6 there are two alternative transaction processing systems to choose from that can affect the performance
+of full-stack operations.
+
+The synchronous processing is somewhat complex, and is covered in the <<SyncOp, Syncrhonous Operation>> chapter.
+
+Batched processing is somewhat simpler. It attempts to combine loads that are in the
+submission queue into a single network request. This reduces the round trips, and thus eliminates
+a good deal of latency.
+
+Enabling it is quite simple, just wrap your application definition with a function that adds in
+the proper options:
+
+[source]
+-----
+(ns example
+  (:require
+    [com.fulcrologic.fulcro.application :refer [fulcro-app]]
+    [com.fulcrologic.fulcro.algorithms.tx-processing.batched-processing :refer [with-batched-reads]]))
+
+(defonce SPA (-> (fulcro-app)
+                (with-batched-reads)))
+-----
+
+Now any loads that are submitted together (while holding the js thread) will all be sent in a single
+network request.
+
+NOTE: The synchronous system can also support batching, but it typically doesn't get much out of it
+since the first load is always submitted immediately, and others are stacked behind it. See the docstrings
+on the synchronous transaction processing for instructions on enabling it.
+
+== Aborting Batched Requests
+
+If you assign abort IDs to your loads, then the following behavior takes effect:
+
+* If NO loads have an abort ID, then can all batch together.
+* The first load's abort id is used to gather all loads with the *same* abort id for a batch.
+* Asking for an abort aborts all entries with the same ID (this is also the standard behavior).
+
+This means that loads can end up going in an order other than their submission:
+
+[source]
+-----
+(df/load! this :h T {:abort-id 1})
+(df/load! this :j T {:abort-id 2})
+(df/load! this :k T {:abort-id 1})
+-----
+
+will send a network request for `:h` and `:k` in the first batch, then `:j`. Aborting `1` will stop the first
+batch if it isn't done (both loads).
+
+
+= Synchronous Operation [[SyncOp]]
 
 The default transaction processing system of Fulcro 3 is highly asynchronous. This is partly for legacy compatibility with
 some now-deprecated features that were inherited from Fulcro 2, and partly an attempt to provide semantics that make sense
