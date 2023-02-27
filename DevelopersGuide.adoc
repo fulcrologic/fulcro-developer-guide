@@ -10756,16 +10756,18 @@ If the parent's data is loaded dynamically, you must make sure to create this ed
 -----
 (defsc Settings [this {:settings/keys [panes-router]}]
   {:query         [{:settings/panes-router (comp/get-query SettingPanesRouter)} ...]
-   :initial-state {:settings/panes-router {}} ; <1>
+   :initial-state {:settings/panes-router {}}
    ;; ...
    :pre-merge (fn [{:keys [data-tree state-map]}]
-                (merge (comp/get-initial-state Settings) ; <2>
-                       {:settings/panes-router (get-in state-map (comp/get-ident SettingPanesRouter {}))} ; <3>
-                       data-tree)) ...}
+                (assoc data-tree
+                  :settings/panes-router (merge                                                        ; <1>
+                                           (comp/get-initial-state SettingPanesRouter)                 ; <2>
+                                           (get-in state-map (comp/get-ident SettingPanesRouter {})))) ; <3>
+   ...}
     (ui-settings-panes-router panes-router))
 -----
-<1> Include the router's initial state in the parent's initial state
-<2> Include the router's initial state in the dynamically-loaded state to ensure an edge between the two
+<1> Add the router's data to the parent's
+<2> If the router has no data yet (e.g. on page reload), then use its initial state
 <3> Make sure to preserve any state the router might already have
 
 == Controlling the Route Rendering
