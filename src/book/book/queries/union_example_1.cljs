@@ -120,7 +120,7 @@
    :ident         (fn [] [:lists/id :singleton])
    :query         [{:items (comp/get-query ItemUnion)}]}
   (dom/ul :.ui.list
-    (map (fn [i] (ui-item-union (comp/computed i {:onSelect onSelect}))) items)))
+    (mapv (fn [i] (ui-item-union (comp/computed i {:onSelect onSelect}))) items)))
 
 (def ui-item-list (comp/factory ItemList))
 

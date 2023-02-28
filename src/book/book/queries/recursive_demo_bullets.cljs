@@ -16,7 +16,7 @@
     label
     (when subitems
       (dom/ul
-        (map ui-item subitems)))))
+        (mapv ui-item subitems)))))
 
 (def ui-item (comp/factory Item {:keyfn :db/id}))
 
@@ -24,7 +24,7 @@
   {:query [:db/id {:list/items (comp/get-query Item)}]
    :ident [:list/by-id :db/id]}
   (dom/ul
-    (map ui-item items)))
+    (mapv ui-item items)))
 
 (def ui-item-list (comp/factory ItemList {:keyfn :db/id}))
 

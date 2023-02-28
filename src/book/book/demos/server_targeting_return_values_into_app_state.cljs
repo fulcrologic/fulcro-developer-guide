@@ -87,7 +87,7 @@
         (dom/pre (pr-str error-message))))
     (dom/h6 "Children")
     (dom/ul
-      (map ui-entity children))))
+      (mapv ui-entity children))))
 
 (def ui-item (comp/factory Item {:keyfn :db/id}))
 

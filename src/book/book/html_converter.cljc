@@ -23,7 +23,7 @@
 (defn fix-style [style]
   (try
     (let [lines     (str/split style #";")
-          style-map (into {} (map (fn [line]
+          style-map (into {} (mapv (fn [line]
                                     (let [[k v] (str/split line #":")]
                                       [(csk/->camelCase (keyword k)) (str/trim v)])) lines))]
 
@@ -123,7 +123,7 @@
   - `ignore-entities?`: Boolean (default false). If true, entities in strings will not be touched.
   "
   ([html-fragment options]
-   (let [hiccup-list (map hc/as-hiccup (hc/parse-fragment html-fragment))
+   (let [hiccup-list (mapv hc/as-hiccup (hc/parse-fragment html-fragment))
          options     (cond-> options
                        (not (contains? options :entity-ns)) (assoc :entity-ns "ent"))]
      (let [result (keep (fn [e] (element->call e options)) hiccup-list)]

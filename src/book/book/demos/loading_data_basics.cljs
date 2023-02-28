@@ -25,7 +25,7 @@
    :query         [:list/id {:list/people (comp/get-query Person)}]
    :ident         :list/id}
   (dom/ul
-    (map ui-person people)))
+    (mapv ui-person people)))
 
 (def ui-people (comp/factory People {:keyfn :people/kind}))
 

@@ -17,8 +17,8 @@
 
 ;; " [ {:year 1991 :value 2345 } ...] "
 (defsc YearlyValueChart [this {:keys [label plot-data x-step]}]
-  (let [start-year (apply min (map :year plot-data))
-        end-year   (apply max (map :year plot-data))
+  (let [start-year (apply min (mapv :year plot-data))
+        end-year   (apply max (mapv :year plot-data))
         years      (range start-year (inc end-year) x-step)
         dates      (mapv #(new js/Date % 1 2) years)
         {:keys [min-value

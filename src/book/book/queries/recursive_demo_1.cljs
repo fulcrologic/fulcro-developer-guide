@@ -28,7 +28,7 @@
     (when (seq children)
       (dom/div
         (dom/ul
-          (map (fn [p]
+          (mapv (fn [p]
                  (ui-person p))
             children))))))
 

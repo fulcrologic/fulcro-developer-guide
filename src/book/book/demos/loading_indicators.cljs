@@ -31,11 +31,11 @@
 (defsc Child [this {:keys [child/label items] :as props}]
   {:query [:child/label {:items (comp/get-query Item)}]
    :ident (fn [] [:lazy-load/ui :child])}
-  (let [render-list (fn [items] (map ui-item items))]
+  (let [render-list (fn [items] (mapv ui-item items))]
     (dom/div
       (dom/p "Child Label: " label)
       (if (seq items)
-        (map ui-item items)
+        (mapv ui-item items)
         (dom/button {:onClick #(df/load-field! this :items {:marker :child-marker})} "Load Items")))))
 
 (def ui-child (comp/factory Child {:keyfn :child/label}))

@@ -108,7 +108,7 @@
   (dom/div
     (dom/h4 "Phone Book (click a number to edit)")
     (dom/ul
-      (map (fn [n] (ui-phone-number (comp/computed n {:onSelect onSelect}))) phone-numbers))))
+      (mapv (fn [n] (ui-phone-number (comp/computed n {:onSelect onSelect}))) phone-numbers))))
 
 (def ui-phone-book (comp/factory PhoneBook {:keyfn :phonebook/id}))
 

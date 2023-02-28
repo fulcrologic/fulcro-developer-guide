@@ -36,7 +36,7 @@
   (let [params (-> env :ast :params)]
     (js/console.log "Server received form submission with content: ")
     (cljs.pprint/pprint params)
-    (let [ids    (map (fn [[k v]] (second k)) (:diff params))
+    (let [ids    (mapv (fn [[k v]] (second k)) (:diff params))
           remaps (into {} (keep (fn [v] (when (tempid/tempid? v) [v (next-id)])) ids))]
       {:tempids remaps})))
 
@@ -148,7 +148,7 @@
                   :onChange #(m/set-integer! this :person/age :event %)}))
     (dom/h4 "Phone numbers:")
     (when (seq phone-numbers)
-      (map ui-phone-form phone-numbers))
+      (mapv ui-phone-form phone-numbers))
     (dom/button :.ui.button {:onClick #(comp/transact! this `[(add-phone {:person-id ~id})])} "+")))
 
 (def ui-person-form (comp/factory PersonForm {:keyfn :person/id}))

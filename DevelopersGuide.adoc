@@ -1458,7 +1458,7 @@ Replace your UI content with this:
   (dom/div
     (dom/h4 label)
     (dom/ul
-      (map ui-person people))))
+      (mapv ui-person people))))
 
 (def ui-person-list (comp/factory PersonList))
 
@@ -1580,7 +1580,7 @@ It looks like this:
    (dom/div
      (dom/h4 label)
      (dom/ul
-       (map ui-person people))))
+       (mapv ui-person people))))
 
 (def ui-person-list (comp/factory PersonList))
 
@@ -1750,7 +1750,7 @@ Next up the chain, we compose the `Person` query into `PersonList` (notice how t
   (dom/div
     (dom/h4 label)
     (dom/ul
-      (map ui-person people))))
+      (mapv ui-person people))))
 -----
 
 again, nothing else changes.
@@ -1823,7 +1823,7 @@ Thus, the parent will need to pass in a function that the child can call to affe
     (dom/div
       (dom/h4 label)
       (dom/ul
-        (map (fn [p] (ui-person (assoc p :onDelete delete-person))) people))))) ; <2>
+        (mapv (fn [p] (ui-person (assoc p :onDelete delete-person))) people))))) ; <2>
 -----
 
 <1> A function acting in as a stand-in for our real delete
@@ -1866,7 +1866,7 @@ that you can use to deconstruct them:
     (dom/div
       (dom/h4 label)
       (dom/ul
-        (map (fn [p] (ui-person (comp/computed p {:onDelete delete-person}))) people))))) ; <1>
+        (mapv (fn [p] (ui-person (comp/computed p {:onDelete delete-person}))) people))))) ; <1>
 -----
 
 <1> The `comp/computed` function is used to add the computed data to the props being passed.
@@ -2157,7 +2157,7 @@ The program will now look like this:
     (dom/div
       (dom/h4 label)
       (dom/ul
-        (map #(ui-person (comp/computed % {:onDelete delete-person})) people)))))
+        (mapv #(ui-person (comp/computed % {:onDelete delete-person})) people)))))
 
 (def ui-person-list (comp/factory PersonList))
 
@@ -2742,7 +2742,7 @@ First, get rid of the application's initial state
   (let [delete-person (fn [person-id] (comp/transact! this [(api/delete-person {:list/id id :person/id person-id})]))] ; <2>
     (dom/div
       (dom/ul
-        (map #(ui-person (comp/computed % {:onDelete delete-person})) people)))))
+        (mapv #(ui-person (comp/computed % {:onDelete delete-person})) people)))))
 
 (def ui-person-list (comp/factory PersonList))
 
@@ -3803,10 +3803,15 @@ Here are some common things you'll want to know how to do that are different whe
 
 * Attributes follow the react naming conventions for [Tags and Attributes](https://facebook.github.io/react/docs/tags-and-attributes.html)
 ** As an example - CSS class names are specified with `:className` instead of `:class`.
-* Any time an element includes a collection of children they should each have a unique `:key`
-attribute.
-This helps the React diff figure out how that collection has changed.
-You will get warnings in the browser console if you fail to do so.
+* Any time an element includes a collection of children they should:
+** each have a unique `:key` attribute. This helps the React diff figure out how that collection has changed. You will get warnings in the browser console if you fail to do so.
+** You should *NOT* use lazy sequences (e.g. use `mapv` not `map`). Fulcro's DOM namespace auto-fixes lazy sequences, but this one is particularly
+nefarious, because lazy seqs *will* work in dev mode, but *can* fail in production compiles. This is because React itself walks the children in
+dev mode aggressively, but can defer that in production mode. If it gets deferred, then you will get rendering errors about Fulcro context.
+
+WARNING: Lazy sequences will always work for children in dev mode, but can fail to work in production builds if you use them in any context other than Fulcro's
+DOM functions/macros. This is a low-level React concern that Fulcro tries to correct for you, but it cannot possibly fix the js ecosystem to tolerate CLJS lazy
+sequences.
 
 === Converting HTML to Fulcro
 

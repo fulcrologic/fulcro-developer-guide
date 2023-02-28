@@ -39,7 +39,7 @@
   (dom/div nil
     settings-content
     (if (seq settings)
-      (map ui-setting settings)
+      (mapv ui-setting settings)
       (dom/div "No settings."))))
 
 (defsc MainTab [this {:keys [main-content]}]

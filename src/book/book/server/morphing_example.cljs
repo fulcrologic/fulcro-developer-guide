@@ -39,7 +39,7 @@
   (dom/li
     name
     (dom/ul
-      (map ui-toolbar-item items))))
+      (mapv ui-toolbar-item items))))
 
 (def ui-toolbar-category (comp/factory ToolbarCategory {:keyfn :db/id}))
 
@@ -78,7 +78,7 @@
     (dom/button {:onClick #(comp/transact! this [(group-items {})])} "Trigger Post Mutation")
     (dom/button {:onClick #(comp/transact! this [(group-items-reset {})])} "Reset")
     (dom/ul
-      (map ui-toolbar-category categories))))
+      (mapv ui-toolbar-category categories))))
 
 (defexample "Morphing Data" Toolbar "morphing-example" :initial-db (fnorm/tree->db component-query sample-server-response true))
 

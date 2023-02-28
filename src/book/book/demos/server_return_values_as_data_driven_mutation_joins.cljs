@@ -77,7 +77,7 @@
    :ident         [:list/by-id :db/id]}
   (dom/div {:style {:width "600px" :height example-height}}
     (dom/h3 title)
-    (dom/ul (map ui-item items))
+    (dom/ul (mapv ui-item items))
     (dom/button {:onClick #(comp/ptransact! this [(add-item {:list-id id
                                                              :id      (tempid/tempid)
                                                              :value   "A New Value"})

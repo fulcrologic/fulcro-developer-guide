@@ -45,7 +45,7 @@
   [state-map page-number]
   (let [page        (get-in state-map [:page/by-number page-number])
         item-idents (:page/items page)
-        item-ids    (map second item-idents)]
+        item-ids    (mapv second item-idents)]
     (as-> state-map s
       (update s :page/by-number dissoc page-number)
       (reduce (fn [acc id] (update acc :items/by-id dissoc id)) s item-ids))))

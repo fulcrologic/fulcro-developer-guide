@@ -46,7 +46,7 @@
     (dom/div
       (dom/h4 name)
       (dom/ul
-        (map #(ui-list-item (item-props %)) items)))))
+        (mapv #(ui-list-item (item-props %)) items)))))
 
 (def ui-list (comp/factory ItemList))
 

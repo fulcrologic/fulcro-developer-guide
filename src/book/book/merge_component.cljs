@@ -43,7 +43,7 @@
       ; computed lets us pass calculated data to our component's 3rd argument. It has to be
       ; combined into a single argument or the factory would not be React-compatible (not would it be able to handle
       ; children).
-      (map #(ui-counter (comp/computed % {:onClick click-callback})) counters))))
+      (mapv #(ui-counter (comp/computed % {:onClick click-callback})) counters))))
 
 (def ui-counter-panel (comp/factory CounterPanel))
 

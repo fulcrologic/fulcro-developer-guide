@@ -37,7 +37,7 @@
 
 (defsc CompletionList [this {:keys [values onValueSelect]}]
   (dom/ul nil
-    (map (fn [v]
+    (mapv (fn [v]
            (dom/li {:key v}
              (dom/a {:href "javascript:void(0)" :onClick #(onValueSelect v)} v))) values)))
 
