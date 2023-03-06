@@ -2342,8 +2342,8 @@ Add this to your deps:
 
 [source]
 -----
-com.wsscode/pathom     {:mvn/version "2.2.15"}
-com.taoensso/timbre    {:mvn/version "4.10.0"}
+com.wsscode/pathom     {:mvn/version "2.4.0"}
+com.taoensso/timbre    {:mvn/version "5.1.2"}
 -----
 
 and create the file `src/main/app/parser.clj` with this content:
