@@ -2342,8 +2342,8 @@ Add this to your deps:
 
 [source]
 -----
-com.wsscode/pathom     {:mvn/version "2.2.15"}
-com.taoensso/timbre    {:mvn/version "4.10.0"}
+com.wsscode/pathom     {:mvn/version "2.4.0"}
+com.taoensso/timbre    {:mvn/version "5.1.2"}
 -----
 
 and create the file `src/main/app/parser.clj` with this content:
@@ -2454,9 +2454,9 @@ First, code reloading tools in `deps.edn`:
 {:paths   ["src/main" "resources"]
  :deps    {org.clojure/clojure    {:mvn/version "1.10.1"}
            com.fulcrologic/fulcro {:mvn/version "3.0.10"}
-           com.wsscode/pathom     {:mvn/version "2.2.15"}
+           com.wsscode/pathom     {:mvn/version "2.4.0"}
            ring/ring-core         {:mvn/version "1.6.3"}
-           com.taoensso/timbre    {:mvn/version "4.10.0"}
+           com.taoensso/timbre    {:mvn/version "5.1.2"}
            http-kit               {:mvn/version "2.3.0"}}
 
  :aliases {:dev {:extra-paths ["src/dev"]
