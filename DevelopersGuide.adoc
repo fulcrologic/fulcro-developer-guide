@@ -1458,7 +1458,7 @@ Replace your UI content with this:
   (dom/div
     (dom/h4 label)
     (dom/ul
-      (mapv ui-person people))))
+      (map ui-person people))))
 
 (def ui-person-list (comp/factory PersonList))
 
@@ -1580,7 +1580,7 @@ It looks like this:
    (dom/div
      (dom/h4 label)
      (dom/ul
-       (mapv ui-person people))))
+       (map ui-person people))))
 
 (def ui-person-list (comp/factory PersonList))
 
@@ -1750,7 +1750,7 @@ Next up the chain, we compose the `Person` query into `PersonList` (notice how t
   (dom/div
     (dom/h4 label)
     (dom/ul
-      (mapv ui-person people))))
+      (map ui-person people))))
 -----
 
 again, nothing else changes.
@@ -1823,7 +1823,7 @@ Thus, the parent will need to pass in a function that the child can call to affe
     (dom/div
       (dom/h4 label)
       (dom/ul
-        (mapv (fn [p] (ui-person (assoc p :onDelete delete-person))) people))))) ; <2>
+        (map (fn [p] (ui-person (assoc p :onDelete delete-person))) people))))) ; <2>
 -----
 
 <1> A function acting in as a stand-in for our real delete
@@ -1866,7 +1866,7 @@ that you can use to deconstruct them:
     (dom/div
       (dom/h4 label)
       (dom/ul
-        (mapv (fn [p] (ui-person (comp/computed p {:onDelete delete-person}))) people))))) ; <1>
+        (map (fn [p] (ui-person (comp/computed p {:onDelete delete-person}))) people))))) ; <1>
 -----
 
 <1> The `comp/computed` function is used to add the computed data to the props being passed.
@@ -2157,7 +2157,7 @@ The program will now look like this:
     (dom/div
       (dom/h4 label)
       (dom/ul
-        (mapv #(ui-person (comp/computed % {:onDelete delete-person})) people)))))
+        (map #(ui-person (comp/computed % {:onDelete delete-person})) people)))))
 
 (def ui-person-list (comp/factory PersonList))
 
@@ -2342,8 +2342,8 @@ Add this to your deps:
 
 [source]
 -----
-com.wsscode/pathom     {:mvn/version "2.4.0"}
-com.taoensso/timbre    {:mvn/version "5.1.2"}
+com.wsscode/pathom     {:mvn/version "2.2.15"}
+com.taoensso/timbre    {:mvn/version "4.10.0"}
 -----
 
 and create the file `src/main/app/parser.clj` with this content:
@@ -2454,9 +2454,9 @@ First, code reloading tools in `deps.edn`:
 {:paths   ["src/main" "resources"]
  :deps    {org.clojure/clojure    {:mvn/version "1.10.1"}
            com.fulcrologic/fulcro {:mvn/version "3.0.10"}
-           com.wsscode/pathom     {:mvn/version "2.4.0"}
+           com.wsscode/pathom     {:mvn/version "2.2.15"}
            ring/ring-core         {:mvn/version "1.6.3"}
-           com.taoensso/timbre    {:mvn/version "5.1.2"}
+           com.taoensso/timbre    {:mvn/version "4.10.0"}
            http-kit               {:mvn/version "2.3.0"}}
 
  :aliases {:dev {:extra-paths ["src/dev"]
@@ -2742,7 +2742,7 @@ First, get rid of the application's initial state
   (let [delete-person (fn [person-id] (comp/transact! this [(api/delete-person {:list/id id :person/id person-id})]))] ; <2>
     (dom/div
       (dom/ul
-        (mapv #(ui-person (comp/computed % {:onDelete delete-person})) people)))))
+        (map #(ui-person (comp/computed % {:onDelete delete-person})) people)))))
 
 (def ui-person-list (comp/factory PersonList))
 
@@ -3803,15 +3803,10 @@ Here are some common things you'll want to know how to do that are different whe
 
 * Attributes follow the react naming conventions for [Tags and Attributes](https://facebook.github.io/react/docs/tags-and-attributes.html)
 ** As an example - CSS class names are specified with `:className` instead of `:class`.
-* Any time an element includes a collection of children they should:
-** each have a unique `:key` attribute. This helps the React diff figure out how that collection has changed. You will get warnings in the browser console if you fail to do so.
-** You should *NOT* use lazy sequences (e.g. use `mapv` not `map`). Fulcro's DOM namespace auto-fixes lazy sequences, but this one is particularly
-nefarious, because lazy seqs *will* work in dev mode, but *can* fail in production compiles. This is because React itself walks the children in
-dev mode aggressively, but can defer that in production mode. If it gets deferred, then you will get rendering errors about Fulcro context.
-
-WARNING: Lazy sequences will always work for children in dev mode, but can fail to work in production builds if you use them in any context other than Fulcro's
-DOM functions/macros. This is a low-level React concern that Fulcro tries to correct for you, but it cannot possibly fix the js ecosystem to tolerate CLJS lazy
-sequences.
+* Any time an element includes a collection of children they should each have a unique `:key`
+attribute.
+This helps the React diff figure out how that collection has changed.
+You will get warnings in the browser console if you fail to do so.
 
 === Converting HTML to Fulcro
 
@@ -6327,6 +6322,9 @@ This raw result's content will depend on the actual remote and middleware you're
 A map from section name to the lambdas that represent the other sections of the mutation (e.g. `:action`
 in this map is the lambda representing the `action` section of the mutation).
 This can be used to cross-call sections, usually to invent your own purpose-built sections of mutations via overriding the default `result-action`.
+`:mutation-return-value`::
+The data returned from the server-side mutation (if available). Will be in `env` of `ok-action` and `error-action` IF you are using
+the built-in default result action handler. (requires Fulcro 3.6.4+). Otherwise you can derive this by looking in `result`, which is the network result.
 
 === The Sections
 
@@ -10761,18 +10759,16 @@ If the parent's data is loaded dynamically, you must make sure to create this ed
 -----
 (defsc Settings [this {:settings/keys [panes-router]}]
   {:query         [{:settings/panes-router (comp/get-query SettingPanesRouter)} ...]
-   :initial-state {:settings/panes-router {}}
+   :initial-state {:settings/panes-router {}} ; <1>
    ;; ...
    :pre-merge (fn [{:keys [data-tree state-map]}]
-                (assoc data-tree
-                  :settings/panes-router (merge                                                        ; <1>
-                                           (comp/get-initial-state SettingPanesRouter)                 ; <2>
-                                           (get-in state-map (comp/get-ident SettingPanesRouter {})))) ; <3>
-   ...}
+                (merge (comp/get-initial-state Settings) ; <2>
+                       {:settings/panes-router (get-in state-map (comp/get-ident SettingPanesRouter {}))} ; <3>
+                       data-tree)) ...}
     (ui-settings-panes-router panes-router))
 -----
-<1> Add the router's data to the parent's
-<2> If the router has no data yet (e.g. on page reload), then use its initial state
+<1> Include the router's initial state in the parent's initial state
+<2> Include the router's initial state in the dynamically-loaded state to ensure an edge between the two
 <3> Make sure to preserve any state the router might already have
 
 == Controlling the Route Rendering
