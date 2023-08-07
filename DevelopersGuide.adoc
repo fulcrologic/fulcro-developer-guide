@@ -1050,7 +1050,8 @@ Java(TM) SE Runtime Environment (build 1.8.0_162-b12)
 Java HotSpot(TM) 64-Bit Server VM (build 25.162-b12, mixed mode)
 ----
 
-your version may be different, but it should be 1.8.x.
+your version may be different. In general you should use the latest version of the JDK that is 
+compatible with Clojure, but later versions should probably work fine as well.
 
 [source,bash]
 ----
