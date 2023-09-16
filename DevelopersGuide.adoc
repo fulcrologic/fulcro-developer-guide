@@ -839,14 +839,14 @@ and has a name that indicates the way it is indexed:
 === Idents
 
 Items are joined together into a graph using a tuple of the table name and the key of
-an entity. For example, the item above is known as `[:person/by-id 4]`. Notice that this
+an entity. For example, the item above is known as `[:person/id 4]`. Notice that this
 tuple is also exactly the vector you'd need in an operation that would pull data from that
 entity or modify it:
 
 [source]
 -----
-(update-in state-db [:person/by-id 4] assoc :person/age 33)
-(get-in state-db [:person/by-id 4])
+(update-in state-db [:person/id 4] assoc :person/age 33)
+(get-in state-db [:person/id 4])
 -----
 
 These tuples are known as 'idents'. Idents can be used anywhere one node
