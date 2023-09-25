@@ -1050,7 +1050,7 @@ Java(TM) SE Runtime Environment (build 1.8.0_162-b12)
 Java HotSpot(TM) 64-Bit Server VM (build 25.162-b12, mixed mode)
 ----
 
-your version may be different. In general you should use the latest version of the JDK that is 
+your version may be different. In general you should use the latest version of the JDK that is
 compatible with Clojure, but later versions should probably work fine as well.
 
 [source,bash]
@@ -1113,6 +1113,7 @@ And a `shadow-cljs.edn` file that looks like this:
  :builds   {:main {:target     :browser
                    :output-dir "resources/public/js/main"
                    :asset-path "/js/main"
+                   :dev        {:compiler-options {:external-config {:fulcro {:html-source-annotations? true}}}}
                    :modules    {:main {:init-fn app.client/init
                                        :entries [app.client]}}
                    :devtools   {:after-load app.client/refresh
@@ -1127,6 +1128,30 @@ The top-level `dev-http` server will cause shadow to start a dev web server on p
 
 The `:modules` section configures what code gets pulled into a given build.
 Every build has at least one module, and shadow will follow requires in the code so you typically only need your entry-point namespace in `:entries`.
+
+The dev-time compiler option for source-annotations is very handy for back-tracing UI from the DOM to the code. It adds
+a data-fulcro-source attribute to every DOM node generate by a DOM macro (CLJS can have function and macros bound to
+the same symbol). The macro will be used IF you provide any
+props, even as an empty map or nil). For example:
+
+[source]
+-----
+   (mapv dom/div ["a" "b"]) ; uses DOM function. Will NOT have the source attribute
+   (dom/div nil "a") ; uses the DOM macro. WILL have source annotation if compiler option is on
+   (dom/div {} "a") ; uses the DOM macro. WILL have source annotation if compiler option is on
+-----
+
+so in Chrome dev tools, when the option is on and the macro is used, you'll see the source code namespace and line
+like this:
+
+[source, html]
+-----
+  <div data-fulcro-source="com.example.myns:34">a</div>
+-----
+
+NOTE: using the macro versions of dom factories not only gives you good debugging info, it emits vanilla js (and
+pre-converts clj prop maps to js objects at COMPILE time). This means it emits code
+that is identical to what JSX with babel would do, so there is no performance hit for interop!
 
 See the  https://shadow-cljs.github.io/docs/UsersGuide.html[Shadow-cljs User's Guide] for more information.
 
