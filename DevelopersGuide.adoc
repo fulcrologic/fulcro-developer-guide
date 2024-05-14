@@ -15,6 +15,10 @@
 :scriptsdir: js
 :imagesoutdir: docs/assets/img
 :favicon: assets/favicon.ico
+:d2: /opt/homebrew/bin/d2
+:d2-executable: /opt/homebrew/bin/d2
+:d2-layout: elk
+:d2-sketch: true
 
 ifdef::env-github[]
 :tip-caption: :bulb:
@@ -14562,6 +14566,8 @@ The more powerful and extensible method allows you to combine GraphQL access wit
 This gives you very powerful features, including many useful ones that GraphQL doesn't support natively!
 
 include::AppendixFulcroErrorsAndWarnings.adoc[]
+
+include::AppendixDiagrams.adoc[]
 
 ++++
 <style>

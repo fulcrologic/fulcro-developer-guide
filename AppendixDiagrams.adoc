@@ -1,0 +1,331 @@
+= Appendix: Fulcro Subsystems in Diagram Form
+:d2: /opt/homebrew/bin/d2
+
+== Startup
+
+Fulcro startup is pretty trivial. It copies the initial tree from the
+co-located initial state on the component tree, normalizes it using the
+application's query, and does a single keyframe render to make the initial
+DOM appear.
+
+.The steps done during Fulcro startup.
+[d2]
+-----
+Start: {}
+
+initialize: |`clojure
+;; Copy the initial state tree from the UI into the state atom
+(let [tree (get-initial-state Root {})
+      Q (get-query Root)
+      database (tree->db Q tree)]
+  (reset! state-atom database))
+`|
+
+keyframe: |`clojure
+;; Keyframe Render
+(let [Q (get-query Root)
+      tree (db->tree @state-atom Q)]
+  (react-render Root tree))
+`|
+
+Start -> initialize -> keyframe
+-----
+
+== Transaction Processing
+
+Once started, you *could* actually work with Fulcro by manipulating the database in the
+state atom and call the `schedule-render!` function. But you really should not do that except
+in extreme cases (e.g. external tooling for development).
+
+Instead, Fulcro provides a very configurable transaction processing system where all side-effects
+and asynchronous behaviors can be safely encapsulated and reasoned about.
+
+NOTE: The Default Result Action in the diagram is pluggable, and can even be overriden by each mutation (using a `(result-action [])` clause). The default is what most people rely on.
+
+.The normal mutation processing with no result action override.
+[d2]
+----
+transaction -> optimistic updates
+transaction -> remote queue: "normal?"
+transaction -> remote handler: "parallel?"
+
+remote queue: {
+  e: |`
+  * In order
+     * BUT: Writes before reads (on submission)
+  `|
+}
+
+remote handler: {
+  e: |`
+  Async processing. E.g. `http-remote`
+  `|
+}
+
+dra: {
+  label: "Default Result Action"
+  rewrite tempids
+update errors: {
+  e: |clojure
+  (when (remote-error? result)
+    (swap! state assoc-in (conj ref ::mutations/mutation-error) result))
+  |
+}
+
+merge result: {
+  e: |`
+Uses `transaction` for normalization of result.
+
+ **NOTE: Uses mark/sweep merge against query/result.**
+  `|
+}
+
+rewrite tempids: {
+  e: |`
+  Looks for `:tempids` on top-level result.
+
+  Uses that to globally rewrite ids in state atom and network queue.
+  `|
+}
+
+}
+
+optimistic updates -> render
+
+optimistic updates: {
+  e: |`
+  action block of mutation modifies state atom.
+  `|
+}
+
+remote queue -> remote handler: "May be batched, but one at a time"
+remote handler -> dra.update errors: "Graph Result"
+remote handler -> render: "On start and updates"
+
+dra.update errors -> dra.rewrite tempids
+dra.rewrite tempids -> dra.merge result: "No Error"
+dra.rewrite tempids -> dra.error action: "Had Error"
+dra.merge result -> dra.ok action
+
+dra.ok action -> render
+dra.error action -> render
+
+----
+
+=== Load Transaction Processing
+
+Loads are transactions. In fact, pretty much every side-effect in Fulcro
+should run as a transaction. Loads use the exact diagram above but manually modify
+the outgoing EQL on the remote handler, and use an alternative result action.
+
+== Targeted Refresh
+
+Certain operations, such as `set-value!!` and `transact!!` (usually denoted with a `!!` suffix) trust the programmer that no *parent* components will need to be refreshed in the UI as a result of the changes that the operation will make to state. This is a *pure optimization*, and Fulcro can use this to "tunnel" a subtree of props to the component from which these calls are made (the component MUST be used as the first argument, instead of the app, or a root render will be done instead). Another optimization that is often applied with targeted refresh is that the optimistic updates to the state atom are done synchronously. This dramatically reduces latency and overhead.
+
+[d2]
+-----
+TX Synchronous -> Optimistic State Update -> Tunnel Props to Component (render subtree)
+-----
+
+== Graph Manipulation
+
+The overall design of Fulcro is centered around the idea of incoming graphs of data which are auto-normalized to a client database. The initial state is the "starting graph", and any operation done from that point forward is simply some form of graph manipulation. The fact that this data is normalized just means you don't have to worry about keeping data that appears in more than one place in the graph "in sync", but you really can just think of your overall application as a graph of data you can manipulate.
+
+By itself, normalization does *not* attach new nodes to anything that already exists in the graph (unless the nodes of the new graph normalize over exising nodes).
+
+So, besides normalization you almost always want to join some new subgraph to the exising graph in one of the following ways:
+
+* Place the newly-loaded subgraph(s) at some root key in the database (default)
+* Add the root of the newly-added subgraph to a ref contained in some pre-existing node.
+* Add all of the elements of the new subgraph to a to-many ref in some pre-existing node.
+
+The source of the "new subgraph node(s)" can be a merge of data you created locally, or data that was obtained from some remote.
+
+[d2]
+-----
+Root -> TodoListA
+Root -> TodoListB
+TodoListA: {
+   id: |clojure
+   ident: [:todolist/id 1]
+   |
+}
+TodoListB: {
+   id: |clojure
+   ident: [:todolist/id 2]
+   |
+}
+TodoListA.new-item-label
+TodoListA.filter
+TodoListA.items -> Item1a
+TodoListA.items -> Item2a
+TodoListA.items -> Item3a
+
+TodoListB.new-item-label
+TodoListB.filter
+TodoListB.items -> Item1b
+TodoListB.items -> Item2b
+TodoListB.items -> Item3b
+-----
+
+We might want to merge a replacement list of items.
+
+[source,clojure]
+-----
+[{:item/id "Item1c" :item/label "Foo"} {:item/id "Item2c"}]
+-----
+
+Just merging these to the root level with:
+
+[source,clojure]
+-----
+(doseq [item items]
+  (merge-component! app TodoItem item))
+-----
+
+just results in disconnected nodes:
+
+[d2]
+-----
+Root -> TodoListA
+Root -> TodoListB
+TodoListA: {
+   id: |clojure
+   ident: [:todolist/id 1]
+   |
+}
+TodoListB: {
+   id: |clojure
+   ident: [:todolist/id 2]
+   |
+}
+TodoListA.new-item-label
+TodoListA.filter
+TodoListA.items -> Item1a
+TodoListA.items -> Item2a
+TodoListA.items -> Item3a
+
+TodoListB.new-item-label
+TodoListB.filter
+TodoListB.items -> Item1b
+TodoListB.items -> Item2b
+TodoListB.items -> Item3b
+
+Item1c
+Item2c
+-----
+
+Let's say we loaded these via `(df/load! this :some-items TodoItem)`. The required "root query key" of load implies
+a "default" target node at the root of the graph, so now we'd get this:
+
+[d2]
+-----
+Root -> TodoListA
+Root -> TodoListB
+TodoListA: {
+   id: |clojure
+   ident: [:todolist/id 1]
+   |
+}
+TodoListB: {
+   id: |clojure
+   ident: [:todolist/id 2]
+   |
+}
+TodoListA.new-item-label
+TodoListA.filter
+TodoListA.items -> Item1a
+TodoListA.items -> Item2a
+TodoListA.items -> Item3a
+
+TodoListB.new-item-label
+TodoListB.filter
+TodoListB.items -> Item1b
+TodoListB.items -> Item2b
+TodoListB.items -> Item3b
+
+some-items -> Item1c
+some-items -> Item2c
+-----
+
+and since we are rendering Root, those items are just data hanging out in the database and will not be on-screen.
+
+So what we actually want it to *patch* the incoming nodes into a *particular spot* in the tree. This is done with
+data targeting.
+
+So something like this:
+
+[source,clojure]
+-----
+(doseq [item items]
+  (merge-component! app TodoItem item :append [:todolist/id 1 :items))
+-----
+
+results in adding the new items to the end of the items at Todo List 1's :items key:
+
+[d2]
+-----
+Root -> TodoListA
+Root -> TodoListB
+TodoListA: {
+   id: |clojure
+   ident: [:todolist/id 1]
+   |
+}
+TodoListB: {
+   id: |clojure
+   ident: [:todolist/id 2]
+   |
+}
+TodoListA.new-item-label
+TodoListA.filter
+TodoListA.items -> Item1a
+TodoListA.items -> Item2a
+TodoListA.items -> Item3a
+TodoListA.items -> Item1c
+TodoListA.items -> Item2c
+
+TodoListB.new-item-label
+TodoListB.filter
+TodoListB.items -> Item1b
+TodoListB.items -> Item2b
+TodoListB.items -> Item3b
+-----
+
+and an operation like `(df/load-field! this :items)` (where `this` is within the render body of TodoList with ID 2) will
+send the server query `[{[:todolist/id 2] [{:items (get-query TodoItem)}]}]`, which because it uses an ident as a "root"
+key will auto-target to the TODO list in question, resulting in:
+
+[d2]
+-----
+Root -> TodoListA
+Root -> TodoListB
+TodoListA: {
+   id: |clojure
+   ident: [:todolist/id 1]
+   |
+}
+TodoListB: {
+   id: |clojure
+   ident: [:todolist/id 2]
+   |
+}
+TodoListA.new-item-label
+TodoListA.filter
+TodoListA.items -> Item1a
+TodoListA.items -> Item2a
+TodoListA.items -> Item3a
+
+TodoListB.new-item-label
+TodoListB.filter
+TodoListB.items -> Item1c
+TodoListB.items -> Item2c
+-----
+
+Remember that all of this data is kept normalized at all times, so the "target path" of a merge or load is one of:
+
+* A top-level ident (e.g. loading or merging one)
+* A top-level keyword
+* A "field" of a normalized entity (a path that has two elements of the ident, and one element that names the attribute)
+
+So, you can think of graph manipulation abstractly in terms of the overall graph, and treat normalization as a pure implementation detail.

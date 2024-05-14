@@ -1,10 +1,10 @@
 # gem install asciidoctor asciidoctor-diagram coderay
-docs/DevelopersGuide.html: DevelopersGuide.adoc
-	asciidoctor -o docs/DevelopersGuide.html -b html5 -r asciidoctor-diagram DevelopersGuide.adoc || docker run -it -v $(PWD):/documents/ asciidoctor/docker-asciidoctor asciidoctor -o ./docs/DevelopersGuide.html -b html5 -r asciidoctor-diagram DevelopersGuide.adoc
+docs/DevelopersGuide.html: DevelopersGuide.adoc AppendixDiagrams.adoc AppendixFulcroErrorsAndWarnings.adoc
+	asciidoctor -o docs/DevelopersGuide.html -b html5 -r ./d2-blocks.rb -r asciidoctor-diagram DevelopersGuide.adoc
 
 # Requires asciidoctor-pdf, see readme
-docs/DevelopersGuide.pdf: DevelopersGuide.adoc
-	asciidoctor-pdf -o docs/DevelopersGuide.pdf -b pdf -r asciidoctor-diagram DevelopersGuide.adoc
+docs/DevelopersGuide.pdf: DevelopersGuide.adoc AppendixDiagrams.adoc AppendixFulcroErrorsAndWarnings.adoc
+	asciidoctor-pdf -o docs/DevelopersGuide.pdf -b pdf -r ./d2-pdf.rb -r asciidoctor-diagram DevelopersGuide.adoc
 
 pdf: docs/DevelopersGuide.pdf
 book: docs/DevelopersGuide.html
@@ -25,9 +25,3 @@ publish-all: book
 	rsync -av docs/DevelopersGuide.html linode:/usr/share/nginx/html/index.html
 	rsync -av docs/js/book/*.js linode:/usr/share/nginx/html/js/book/
 	rsync -av docs/assets/img linode:/usr/share/nginx/html/assets/
-
-docker-html: DevelopersGuide.adoc
-	docker run -it -v $$(pwd):/current_dir asciidoctor/docker-asciidoctor asciidoctor -o /current_dir/docs/DevelopersGuide.html -b html5 -r asciidoctor-diagram /current_dir/DevelopersGuide.adoc
-
-docker-pdf: DevelopersGuide.adoc
-	docker run -it -v $$(pwd):/current_dir asciidoctor/docker-asciidoctor asciidoctor-pdf -o /current_dir/docs/DevelopersGuide.pdf -b pdf -r asciidoctor-diagram /current_dir/DevelopersGuide.adoc
