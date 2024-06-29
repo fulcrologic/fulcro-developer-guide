@@ -1735,7 +1735,7 @@ The function
 
 [source]
 ----
-dev:cljs.user=> (fdn/db->tree [{:friends [:list/label]}] (comp/get-initial-state app.ui/Root {}) {})
+dev:cljs.user=> (com.fulcrologic.fulcro.algorithms.denormalize/db->tree [{:friends [:list/label]}] (comp/get-initial-state app.ui/Root {}) {})
 {:friends {:list/label "Friends"}}
 ----
 
