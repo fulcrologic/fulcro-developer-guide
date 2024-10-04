@@ -696,7 +696,7 @@ we end up writing nightmares of logic to make sure the thing works right because
 having to *store a mutable value* into an object that then does the rendering.
 Then we play with it and find out we
 forgot to handle that event where some sub-box gets unchecked to
-fire an event to ensure to uncheck the "select all"...oh wait, but when I do that
+fire an event to ensure to uncheck the "check all"...oh wait, but when I do that
 it accidentally fires the event from "check all" which unchecks everything
 and then goes into an infinite loop!
 
