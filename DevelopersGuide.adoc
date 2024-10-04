@@ -653,17 +653,16 @@ concept, is really simple:
 Render is a function you make that generates a data structure known as the
 VDOM (a lightweight virtual DOM)
 
-. On The first "frame", the real DOM is made to match this data structure.
+. On the first "frame", the real DOM is made to match this data structure.
 . On every subsequent frame, render is used to make a new VDOM. React
 compares the prior VDOM (which is cached) to the new one, and then applies the
 changes to the DOM.
 
-The cool realization the creators of React had was that the DOM operations
-that are slow and heavy, but there are efficient ways to figure out what
-needs to be changed via the VDOM without you having to write a bunch of
-controller logic.
+The cool realization the creators of React had was that the DOM operations are slow and heavy,
+but there are efficient ways to figure out what needs to be changed via the VDOM without you having to
+write a bunch of controller logic.
 
-Now, because React lives in a mutable space (Javascript), it allows all sorts of things
+Now, because React lives in a mutable space (JavaScript), it allows all sorts of things
 that can embed "rendering logic" within a component. This sounds like a good
 idea to our OOP brains, but consider this:
 

@@ -63,3 +63,5 @@ resources/public/workspaces
 docs/DevelopersGuide.pdf
 package-lock.json
 docs/assets/img/diag-d2-md5*
+.clj-kondo
+.lsp/.cache
