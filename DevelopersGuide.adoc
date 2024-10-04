@@ -874,7 +874,7 @@ in the graph needs to point to another. If the idents (which are vectors)
 
 <1> A to-one relation to Joe's spouse (Julie)
 <2> A to-many relation to Joe's kids
-<3> A to-relation back to Joe from Julie
+<3> A to-one relation back to Joe from Julie
 
 Notice in the example above that Joe and Julie point at each other. This creates
 a 'loop' in the graph. This is perfectly legal. Graphs can contain loops. The
