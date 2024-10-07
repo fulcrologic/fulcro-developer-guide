@@ -558,7 +558,7 @@ Here are some additional interesting things that fall out of this model "for fre
 * The queries can be used to "traverse" the declarative UI graph.
 Some places where this has been used to good effect:
 ** Error checking:
-The `defsc` macro leverages to co-located query to check things like you props destructuring and initial state to warn you when you've got a typo or have forgotten something.
+The `defsc` macro leverages the co-located query to check things like your props destructuring and initial state to warn you when you've got a typo or have forgotten something.
 ** Nested forms can "discover" children using the query and leverage that to calculate diffs for server interactions.
 ** UI screen routers can discover nested routers allowing UI sub-module composition for things like HTML 5 routing without explicit declaration.
 * Debugging is a relatively simple matter of looking at a component's current state, which is always in a well-defined location (and easily visible in Fulcro Inspect, a Chrome extension).
