@@ -11968,9 +11968,9 @@ When you *first* add form config to an entity, all fields are "incomplete".
 You can iteratively mark fields complete as the user interacts with them, or trigger a completion "event" all at once.
 There is a support function and a mutation for this.
 
-The `mark-complete*` is meant to be used from within mutations against the app state database.
+The `mark-complete*` function is meant to be used from within mutations against the app state database.
 It requires the state map (not atom), the entity's ident, and which field you want to mark complete.
-If you omit the field, then it marks everything (recursively) complete form that form down.
+If you omit the field, then it marks everything (recursively) complete from that form down.
 
 So, in our earlier example of loading a person for editing, we'd augment that mutation like so:
 
