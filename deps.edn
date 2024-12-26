@@ -1,10 +1,10 @@
 {:paths ["src/book"],
 
- :deps  {com.fulcrologic/fulcro              {:mvn/version "3.8.0-alpha2"}
+ :deps  {com.fulcrologic/fulcro              {:mvn/version "3.8.0-alpha3-SNAPSHOT"}
          camel-snake-kebab/camel-snake-kebab {:mvn/version "0.4.0"}
          com.fulcrologic/fulcro-garden-css   {:mvn/version "3.0.9"}
          com.fulcrologic/semantic-ui-wrapper {:mvn/version "2.0.2"}
-         com.fulcrologic/fulcro-inspect      {:mvn/version "1.0.2"}
+         com.fulcrologic/fulcro-inspect      {:mvn/version "1.0.3-SNAPSHOT"}
          com.wsscode/pathom                  {:mvn/version "2.4.0"}
          devcards/devcards                   {:mvn/version "0.2.6"}
          bidi/bidi                           {:mvn/version "2.1.5"},

@@ -2,12 +2,12 @@
   (:require
     ["react" :as react]
     ["react-dom" :as rdom]
+    [book.macros]
     [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [com.fulcrologic.fulcro.react.hooks :as hooks]
+    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
+    [com.fulcrologic.fulcro.raw.application :as rapp]
     [com.fulcrologic.fulcro.raw.components :as rc]
-    [com.fulcrologic.fulcro.raw.application :as rapp]))
+    [com.fulcrologic.fulcro.react.hooks :as hooks]))
 
 ;; NOTE: RAW Fulcro App, even though we're using React, because we're not going to leverage
 ;; Fulcro's rendering integration, but instead are just writing a RAW function using hooks.

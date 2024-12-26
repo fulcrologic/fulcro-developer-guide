@@ -2,83 +2,79 @@
   (:require
     ["react" :as react]
     [book.database :as db]
-    [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
-    [book.macros :refer [defexample]]
-    [book.ui.d3-example :as d3-example]
-    [book.ui.focus-example :as focus-example]
-    [book.ui.hover-example :as hover-example]
-    [book.ui.victory-example :as victory-example]
-    [book.queries.union-example-1 :as union-example-1]
-
-    book.react-interop.google-maps-example
-    book.react-interop.stripe-example
-    book.react-interop.react-motion-example
-
-    book.queries.dynamic-queries
-    book.queries.dynamic-query-parameters
-    book.queries.recursive-demo-1
-    book.queries.recursive-demo-2
-    book.queries.recursive-demo-3
-    book.queries.recursive-demo-bullets
-    book.forms.form-state-demo-1
-    book.forms.form-state-demo-2
     [book.demos.autocomplete :as autocomplete]
-    book.ui-routing
-    book.simple-router-1
-    book.simple-router-2
-    book.dynamic-router-example
-    book.tree-to-db
-    book.merge-component
-    book.html-converter
+    [book.demos.cascading-dropdowns]
+    [book.demos.dynamic-ui-routing]
+    [book.demos.initial-app-state]
+    [book.demos.loading-data-basics]
+    [book.demos.loading-in-response-to-UI-routing]
+    [book.demos.paginating-large-lists-from-server]
+    [book.demos.parallel-vs-sequential-loading]
 
-    book.raw.normalizing-components
-    book.raw.adding-components
-    book.raw.fulcro-hooks
-    book.raw.dynamic-hooks
-    book.raw.raw-uism
+    [book.demos.parent-child-ownership-relations]
+    [book.demos.pre-merge.countdown]
+    [book.demos.pre-merge.countdown-extracted]
 
-    book.server.morphing-example
-    book.server.network-activity
-    [book.server.ui-blocking-example :as ui-blocking]
-    book.demos.server-error-handling
+    [book.demos.pre-merge.countdown-initial-state]
+    [book.demos.pre-merge.countdown-many]
+    [book.demos.pre-merge.countdown-mutation]
+    [book.demos.pre-merge.countdown-with-initial]
+    [book.demos.pre-merge.post-mutation-countdown]
+    [book.demos.pre-merge.post-mutation-countdown-many]
+    [book.demos.server-error-handling]
+    [book.demos.server-targeting-return-values-into-app-state]
+    [book.dynamic-router-example]
+    [book.example-1 :as ex1]
+    [book.forms.form-state-demo-1]
+    [book.forms.form-state-demo-2]
+    [book.html-converter]
+    [book.macros :refer [defexample]]
+    [book.merge-component]
+    [book.pathom :as po]
+
+    [book.queries.dynamic-queries]
+    [book.queries.dynamic-query-parameters]
+    [book.queries.recursive-demo-1]
+    [book.queries.recursive-demo-2]
+    [book.queries.recursive-demo-3]
+
+    [book.queries.recursive-demo-bullets]
+    [book.queries.union-example-1 :as union-example-1]
+    [book.raw.adding-components]
+    [book.raw.dynamic-hooks]
     ;book.demos.server-query-security
     ;book.demos.server-return-values-as-data-driven-mutation-joins
     ;book.demos.server-targeting-return-values-into-app-state
     ;book.demos.server-return-values-manually-merging
 
-    book.demos.cascading-dropdowns
-    book.demos.dynamic-ui-routing
-    book.demos.initial-app-state
-    book.demos.loading-data-basics
+    [book.raw.fulcro-hooks]
+    [book.raw.normalizing-components]
+    [book.raw.raw-uism]
+    [book.react-interop.google-maps-example]
     ;book.demos.loading-data-targeting-entities
-    book.demos.loading-in-response-to-UI-routing
+    [book.react-interop.react-motion-example]
     ;book.demos.loading-indicators
-    book.demos.server-targeting-return-values-into-app-state
-    book.demos.paginating-large-lists-from-server
-    book.demos.parallel-vs-sequential-loading
-    book.demos.parent-child-ownership-relations
-    book.demos.pre-merge.post-mutation-countdown
-    book.demos.pre-merge.post-mutation-countdown-many
-    book.demos.pre-merge.countdown
-    book.demos.pre-merge.countdown-many
-    book.demos.pre-merge.countdown-with-initial
-    book.demos.pre-merge.countdown-initial-state
-    book.demos.pre-merge.countdown-extracted
-    book.demos.pre-merge.countdown-mutation
+    [book.react-interop.stripe-example]
+    [book.server.morphing-example]
+    [book.server.network-activity]
+    [book.server.ui-blocking-example :as ui-blocking]
+    [book.simple-router-1]
+    [book.simple-router-2]
+    [book.tree-to-db]
+    [book.ui-routing]
+    [book.ui.d3-example :as d3-example]
+    [book.ui.focus-example :as focus-example]
+    [book.ui.hover-example :as hover-example]
+    [book.ui.victory-example :as victory-example]
 
-    [book.pathom :as po]
-    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [taoensso.timbre :as log]
     [com.fulcrologic.fulcro-css.css-injection :as css]
-    [com.wsscode.pathom.connect :as pc]
-    [com.wsscode.pathom.core :as p]
+    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
-    [book.example-1 :as ex1]
-    [com.fulcrologic.fulcro.data-fetch :as df]
-    [com.fulcrologic.fulcro.application :as app]
-    [taoensso.encore :as encore]
-    [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ior]))
+    [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
+    [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ior]
+    [fulcro.inspect.tool :as inspect]
+    [taoensso.encore :as encore]))
 
 (def non-conflicting-resolvers [autocomplete/list-resolver
                                 book.forms.form-state-demo-2/resolvers
@@ -237,8 +233,5 @@
   (db/seed-database))
 
 (defn ^:export focus [app-id]
-  (encore/when-let [app        (get @book.macros/app-registry app-id)
-                    state-map  (app/current-state app)
-                    inspect-id (get state-map :fulcro.inspect.core/app-uuid)]
-    (log/warn "CANNOT SET ACTIVE APP. Not implemented in Inspect")
-    #_(inspect/set-active-app inspect-id)))
+  (encore/when-let [app (get @book.macros/app-registry app-id)]
+    (inspect/focus-inspector! app)))
