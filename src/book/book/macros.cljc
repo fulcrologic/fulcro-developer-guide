@@ -7,6 +7,7 @@
                [devcards.util.edn-renderer :as edn]])
     #?(:cljs [com.fulcrologic.fulcro.dom :as dom]
        :clj  [com.fulcrologic.fulcro.dom-server :as dom])
+    [fulcro.inspect.tool :as it]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.algorithms.merge :as merge]
@@ -113,10 +114,12 @@
   (let [app       (with-meta (symbol (str "fulcroapp-" id)) {:extern true})
         batchexpr `(fn [notify-all#]
                      (js/ReactDOM.unstable_batchedUpdates notify-all#))]
-    `(do
+    `(try
        (defonce ~app (app/fulcro-app ~(merge {:id                  (name app)
                                               :batch-notifications batchexpr} args)))
        (swap! app-registry assoc ~id ~app)
-       (app/mount! ~app ~root-class ~id))))
+       (it/add-fulcro-inspect! ~app)
+       (app/mount! ~app ~root-class ~id)
+       (catch :default e#))))
 
 

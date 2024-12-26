@@ -1,7 +1,7 @@
 (ns book.main
   (:require
+    ["react" :as react]
     [book.database :as db]
-    [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]
     [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
     [book.macros :refer [defexample]]
     [book.ui.d3-example :as d3-example]
@@ -232,8 +232,6 @@
 
 (defn ^:export init []
   (js/console.log "Init")
-  (when inspect/INSPECT
-    (inspect/install {}))
   (app/mount! server-control-app ServerControlRoot "server-controls")
   (js/console.log "Seeding demo database")
   (db/seed-database))
@@ -242,4 +240,5 @@
   (encore/when-let [app        (get @book.macros/app-registry app-id)
                     state-map  (app/current-state app)
                     inspect-id (get state-map :fulcro.inspect.core/app-uuid)]
-    (inspect/set-active-app inspect-id)))
+    (log/warn "CANNOT SET ACTIVE APP. Not implemented in Inspect")
+    #_(inspect/set-active-app inspect-id)))

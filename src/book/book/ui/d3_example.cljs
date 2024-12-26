@@ -3,9 +3,13 @@
     [com.fulcrologic.fulcro.dom :as dom]
     ;; REQUIRES shadow-cljs, with "d3" in package.json
     ["d3" :as d3]
+    ["react" :as react]
     [goog.object :as gobj]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]))
+
+;; HACK
+(set! (.-React js/window) react)
 
 (defn render-squares [dom-node props]
   (let [svg       (-> d3 (.select dom-node))

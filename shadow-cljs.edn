@@ -12,7 +12,7 @@
                                      :ui-main {:entries    [book.demos.dynamic-ui-main]
                                                :init-fn    book.demos.dynamic-ui-main/init
                                                :depends-on #{:book}}}
-                   :devtools        {:preloads  [com.fulcrologic.fulcro.inspect.preload]
+                   :devtools        {:preloads  [com.fulcrologic.devtools.chrome-preload]
                                      :http-root "resources/public"
                                      :http-port 9005}}}}
 
