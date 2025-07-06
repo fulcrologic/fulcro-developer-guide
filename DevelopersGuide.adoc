@@ -13113,7 +13113,7 @@ overhead itself.
 == Poor React Performance
 
 IMPORTANT: If you are using Guardrails, then many function calls in Fulcro will incur a spec check overhead that
-can *severly* impact performance. Additionally Fulcro Inspect instrumentation in development mode will add quite
+can *severely* impact performance. Additionally Fulcro Inspect instrumentation in development mode will add quite
 a bit of overhead to transaction processing.  Measurements should always be done with Guardrails disabled, and preferably against
 a release build where Inspect instrumentation is completely stripped.
 
