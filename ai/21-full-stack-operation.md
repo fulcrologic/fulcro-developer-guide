@@ -33,12 +33,29 @@ Fulcro's full-stack operation model unifies server interaction into a clean, dat
 [:user/id :user/name {:user/posts (comp/get-query Post)}]
 ```
 
+## Mutations Use Symbols, Not Keywords!
+
+**CRITICAL**: In EQL, mutations are represented as **symbols**, not keywords. This is different from queries, which use keywords.
+
+```clojure
+;; ❌ WRONG: Using a keyword
+[(create-person {:name "Alice"})]  ; Won't work!
+
+;; ✅ CORRECT: Using a symbol (no namespace colon)
+[(create-person {:name "Alice"})]  ; This is a symbol!
+
+;; Server response is also keyed by SYMBOL
+{create-person {:person/id 42 :person/name "Alice"}}
+;  ^
+;  └─ Symbol as key, not :create-person keyword!
+```
+
 ## Types of Server Interactions
 
 ### 1. Initial Loads
 Application startup data loading
 
-### 2. Incremental Loads  
+### 2. Incremental Loads
 Sub-graphs of previously loaded data
 
 ### 3. Event-based Loads
@@ -49,6 +66,45 @@ Server push, WebSocket data, third-party APIs
 
 ### 5. Remote Operations
 Server-side mutations with optional data responses
+
+## Targeting and Nested UI
+
+### The Three-Element Rule
+
+Because Fulcro normalizes all data into a flat graph database, targeting NEVER requires deep paths. Maximum depth is 3 elements: `[table-name id field]`
+
+```clojure
+;; Nested UI structure (arbitrarily deep)
+Root → MainPanel → UserProfile → FriendsList → Person
+
+;; ❌ You DON'T need deep paths:
+{:target [:component/id :root :main-panel :user-profile :friends-list :friends]}
+
+;; ✅ You only need this:
+{:target [:component/id :friends-list :friends]}
+
+;; Why? Normalization flattens everything!
+```
+
+### Constant Idents for Panels
+
+Components can have constant idents (singletons/panels), making them perfect load targets:
+
+```clojure
+(defsc FriendsList [this {:keys [friends]}]
+  {:query [{:friends (comp/get-query Person)}]
+   :ident (fn [] [:component/id :friends-list])}  ; Constant ident!
+  ...)
+
+;; ❌ WRONG: This writes to ROOT, not to component
+(df/load! this :friends Person)
+;; Result: {:friends [...]} at ROOT
+
+;; ✅ CORRECT: Use explicit :target
+(df/load! this :friends Person
+  {:target [:component/id :friends-list :friends]})
+;; Now the idents are placed at the component's location
+```
 
 ## Universal Data Integration Pattern
 
@@ -266,31 +322,56 @@ The merge algorithm can create states that never existed on the server:
 2. **Mutation-local Error Handling**: Per-mutation error logic
 3. **Load Error Handling**: Specific error handling for data loads
 
-## React Lifecycle Considerations
+## User-Triggered Loading
 
 ### Best Practices
 
-- **Avoid Direct Loads**: Don't issue loads directly from lifecycle methods
-- **Use Mutation Checks**: Trigger mutations that check state before loading
-- **Handle Instability**: React lifecycle can trigger unexpectedly due to key changes
+**IMPORTANT**: Do not couple loads to React lifecycle methods (like `componentDidMount`, `useEffect`, etc.). Logic should not be tied to UI lifecycle. Instead:
+
+- **User Events**: Trigger loads in response to button clicks, selections, etc.
+- **Mutations**: Encapsulate business logic (including conditional loading) in mutations
+- **State Machines**: Use state machines or state charts for complex loading workflows
 
 ### Recommended Pattern
 
 ```clojure
-;; DON'T: Direct load in componentDidMount
+;; ❌ DON'T: Loads in lifecycle methods
 (defsc MyComponent [this props]
   {:componentDidMount (fn [this] (df/load! this :data SomeComponent))}
   ...)
 
-;; DO: Mutation that checks before loading
-(defmutation ensure-data-loaded [params]
-  (action [{:keys [state]}]
-    (when-not (seq (get-in @state [:data]))
-      (df/load! :data SomeComponent))))
+;; ✅ DO: User-triggered loads
+(defsc MyComponent [this {:keys [data]}]
+  {:query [{:data (comp/get-query SomeComponent)}]
+   :ident (fn [] [:component/id :my-component])}
 
-(defsc MyComponent [this props]
-  {:componentDidMount (fn [this] (comp/transact! this [(ensure-data-loaded)]))}
-  ...)
+  (dom/div
+    (if (seq data)
+      (ui-some-component data)
+      (dom/button
+        {:onClick #(df/load! this :data SomeComponent
+                     {:target [:component/id :my-component :data]})}
+        "Load Data"))))
+
+;; ✅ DO: Mutation-based conditional loading
+(defsc PersonRow [this {:person/keys [id name]}]
+  {:query [:person/id :person/name]
+   :ident :person/id}
+
+  (dom/div
+    {:onClick #(comp/transact! this [(select-person {:person/id id})])}
+    name))
+
+(defmutation select-person [{:person/id id}]
+  (action [{:keys [state app]}]
+    ;; Check state and conditionally load
+    (swap! state assoc-in [:component/id :main-panel :current-person]
+      [:person/id id])
+    (let [person (get-in @state [:person/id id])
+          needs-details? (not (contains? person :person/age))]
+      (when needs-details?
+        (df/load! app [:person/id id] PersonDetail))))
+  (remote [_] false))
 ```
 
 ## Practical Examples

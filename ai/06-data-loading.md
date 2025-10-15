@@ -6,9 +6,15 @@
 Primary mechanism for loading data from servers into normalized client database.
 
 ### Three Basic Scenarios
-1. **Load to root**: Place data at application root level
-2. **Load and normalize**: Fetch tree and auto-normalize into tables
-3. **Target loading**: Load tree and place at specific graph location
+
+**IMPORTANT**: `load!` has NO auto-targeting. Placement in the tree requires explicit `:target` option.
+
+1. **Load to ROOT** (keyword): Normalizes and places at database root
+   - `(df/load! app :friends Person)` → `{:friends [[:person/id 1] [:person/id 2]]}` at ROOT
+2. **Load by ident**: Only normalizes into tables, does NOT place ident anywhere
+   - `(df/load! app [:person/id 3] Person)` → Updates `{:person/id {3 {...}}}` only
+3. **Load with :target**: Normalizes AND places idents at specified location
+   - `(df/load! app :friends Person {:target [...]})` → Normalizes + places at target
 
 ## Server Setup for Loading
 
@@ -61,8 +67,15 @@ Generates query: `[{:friends (comp/get-query PersonList)}]`
 
 ### 2. Loading Specific Entities (by ident)
 ```clojure
-;; Load specific person
+;; Load specific person - only normalizes, doesn't place in tree!
 (df/load! this [:person/id 3] Person)
+;; Result: {:person/id {3 {:person/id 3 :person/name "..."}}}
+;; The ident [:person/id 3] is NOT placed anywhere in the tree!
+
+;; To place it in the tree, use :target
+(df/load! this [:person/id 3] Person
+  {:target [:component/id :main-panel :current-person]})
+;; Now [:person/id 3] is placed at the target location
 ```
 
 Generates query: `[{[:person/id 3] (comp/get-query Person)}]`
@@ -84,6 +97,20 @@ Generates query: `[{[:person/id 3] (comp/get-query Person)}]`
 
 ## Targeting Options
 
+### The Three-Element Rule
+
+Because of normalization, targeting NEVER requires deep paths. Maximum depth is 3 elements: `[table-name id field]`
+
+```clojure
+;; ❌ You DON'T need deep paths like this:
+{:target [:component/id :root :main-panel :user-profile :friends-list :friends]}
+
+;; ✅ You only need this:
+{:target [:component/id :friends-list :friends]}
+
+;; Why? Because :friends-list is already a normalized reference!
+```
+
 ### Available Targeting Functions
 ```clojure
 (require '[com.fulcrologic.fulcro.algorithms.data-targeting :as targeting])
@@ -91,7 +118,7 @@ Generates query: `[{[:person/id 3] (comp/get-query Person)}]`
 ;; Replace single value
 :target [:path :to :location]
 
-;; Append to vector (if not already present)  
+;; Append to vector (if not already present)
 :target (targeting/append-to [:path :to :vector])
 
 ;; Prepend to vector
@@ -132,19 +159,33 @@ Server receives: `[(:all-people {:limit 10 :offset 20})]`
 ## Loading Indicators
 
 ### Marker Configuration
-```clojure
-(df/load! this :people Person
-  {:marker :people-loading})
 
-;; Check loading state
-(df/loading? (app/current-state app) :people-loading)
+Load markers require a link query in the component to work properly:
+
+```clojure
+(defsc PersonList [this {:keys [people] :as props}]
+  {:query [{:people (comp/get-query Person)}
+           [df/marker-table '_]]  ; ← Required for load markers!
+   :ident (fn [] [:component/id :person-list])}
+
+  (let [marker (get props [df/marker-table :people-loading])
+        loading? (df/loading? marker)]
+    (dom/div
+      (when loading?
+        (dom/div "Loading..."))
+      (if (seq people)
+        (map ui-person people)
+        (dom/button
+          {:onClick #(df/load! this :people Person
+                       {:marker :people-loading
+                        :target [:component/id :person-list :people]})}
+          "Load People")))))
 ```
 
-### Global Loading State
-```clojure
-;; Check if any loads are active
-(df/loading? (app/current-state app))
-```
+**Key Points**:
+- Link query `[df/marker-table '_]` must be in component query
+- Marker is accessed from props: `(get props [df/marker-table :marker-name])`
+- Pass marker to `df/loading?` to check state
 
 ## Error Handling
 
@@ -171,13 +212,22 @@ Server receives: `[(:all-people {:limit 10 :offset 20})]`
   (remote [env] (m/returning Person)))
 ```
 
-### Loading in Lifecycle
+### User-Triggered Loading
+
+**IMPORTANT**: Do not use React lifecycle methods (like `componentDidMount`) to trigger loads. Instead, trigger loads in response to user events:
+
 ```clojure
-(defsc PersonList [this props]
-  {:componentDidMount (fn [this]
-                       (df/load! this :people Person))}
-  ...)
-```
+(defsc PersonList [this {:keys [people]}]
+  {:query [{:people (comp/get-query Person)}]
+   :ident (fn [] [:component/id :person-list])}
+
+  (dom/div
+    (if (seq people)
+      (map ui-person people)
+      (dom/button
+        {:onClick #(df/load! this :people Person
+                     {:target [:component/id :person-list :people]})}
+        "Load People"))))
 
 ### Parallel Loading
 ```clojure
@@ -190,11 +240,17 @@ Server receives: `[(:all-people {:limit 10 :offset 20})]`
 ## Load State Management
 
 ### Automatic Normalization
+
 When data arrives, Fulcro automatically:
-1. **Normalizes** the tree using component idents
-2. **Merges** into existing database
-3. **Updates** any targeted locations
+1. **Normalizes** the tree using component idents (always happens)
+2. **Merges** into existing database (always happens)
+3. **Places at ROOT** (if loading with keyword) OR **Updates targeted locations** (if `:target` provided)
 4. **Triggers** UI refresh
+
+**Key Point**: Normalization is automatic, but placement in tree requires:
+- Loading with keyword (goes to ROOT)
+- OR explicit `:target` option (goes to specified location)
+- Loading by ident only normalizes, does NOT place ident in tree without `:target`
 
 ### Manual Merge Alternative
 ```clojure
@@ -205,14 +261,29 @@ When data arrives, Fulcro automatically:
 
 ## Loading Best Practices
 
-### Component-Level Loading
+### User-Triggered Lazy Loading
+
+Load additional data in response to user actions, not lifecycle events:
+
 ```clojure
-(defsc PersonDetail [this {:person/keys [id name] :as props}]
-  {:componentDidMount 
-   (fn [this]
-     (when (and id (not name)) ; Only load if needed
-       (df/load! this [:person/id id] PersonDetail)))}
-  ...)
+(defsc PersonRow [this {:person/keys [id name]}]
+  {:query [:person/id :person/name]
+   :ident :person/id}
+
+  (dom/div
+    {:onClick #(comp/transact! this [(select-person {:person/id id})])}
+    name))
+
+(defmutation select-person [{:person/id id}]
+  (action [{:keys [state app]}]
+    ;; Set selection and conditionally load details
+    (swap! state assoc-in [:component/id :main-panel :current-person]
+      [:person/id id])
+    (let [person (get-in @state [:person/id id])
+          has-details? (contains? person :person/age)]
+      (when-not has-details?
+        (df/load! app [:person/id id] PersonDetail))))
+  (remote [_] false))
 ```
 
 ### Conditional Loading
