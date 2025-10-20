@@ -567,7 +567,7 @@ All application state is just a single immutable map.
 Saving snapshots over time is all it takes to be able to "view" the app as it existed at some prior point in time.
 * Snapshotting an application state for re-use during development.
 Fulcro Inspect can take a picture of app state and save it in browser local storage for later restoration.
-This allows you to "jump to" some application state that you use a lot during development (e.g. jump to screen 2, with a partially filled form read for submit).
+This allows you to "jump to" some application state that you use a lot during development (e.g. jump to screen 2, with a partially filled form ready to submit).
 
 Finally, a more recent addition to the library has proven to be extremely useful: <<UI State Machines>>.
 
@@ -580,7 +580,7 @@ Should I show a "wait" indicator?
 We've known for years that state machines are a great way to manage this kind of complexity, but they are traditionally a bit of work to integrate into any given "UI library".
 
 Fulcro's central normalized database and mutation model made an internal version of state machines a very good match.
-Not only is it easy to define them, the model makes them reusable: that is to say you can indicate which UI components serve roles within the machine, leading to things like CRUD state machines can manage the interactions (edit, list, save, reset, cancel, etc.) for most of the entities in a form system.
+Not only is it easy to define them, the model makes them reusable: that is to say you can indicate which UI components serve roles within the machine, leading to things like CRUD state machines that can manage the interactions (edit, list, save, reset, cancel, etc.) for most of the entities in a form system.
 
 = Core Concepts
 
