@@ -146,7 +146,7 @@ others will be identified as they are used.
 == Best Practices
 
 Fulcro and our understanding of best practices with it have evolved over time. Unfortunately we don't have time to update
-this book every time a new insight or technique proves to be more useful that older ones. Everything in this book
+this book every time a new insight or technique proves to be more useful than older ones. Everything in this book
 functions in the latest versions of Fulcro (to the best of our knowledge); however, this small section of the book
 is where we'll try to list notes about current evolutions of the library and which features might be best to focus on.
 
