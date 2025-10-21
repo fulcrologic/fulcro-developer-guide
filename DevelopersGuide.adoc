@@ -241,7 +241,7 @@ If you came to Fulcro looking for DOM notation: move along.
 Where are the "reducers"?::
 Re-frame and Redux are very popular choices for front-end work, and for good reason.
 Fulcro is basically a graph-centric full-stack CQRS-style library.
-Mutations are the "commands" that are queued (like events in a reducer system), but Fulcro adds a some very important things:
+Mutations are the "commands" that are queued (like events in a reducer system), but Fulcro adds some very important things:
 graph data support, auto-normalization of central database, and a centralized transaction processing system.
 +
 Fulcro 3's <<UI State Machines>> are usable in exactly the same way as reducer/event systems, but have some distinct differences (dare I say improvements?):
