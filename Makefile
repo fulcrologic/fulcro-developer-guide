@@ -1,4 +1,4 @@
-# gem install asciidoctor asciidoctor-diagram coderay
+# gem install asciidoctor asciidoctor-diagram asciidoctor-diagram-ditaamini coderay
 docs/DevelopersGuide.html: DevelopersGuide.adoc AppendixDiagrams.adoc AppendixFulcroErrorsAndWarnings.adoc
 	asciidoctor -o docs/DevelopersGuide.html -b html5 -r ./d2-blocks.rb -r asciidoctor-diagram DevelopersGuide.adoc
 
