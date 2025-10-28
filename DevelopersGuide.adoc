@@ -6684,7 +6684,7 @@ This looks like this at the UI layer:
 (comp/transact! this `[(charge-card) (route-after-charge)] {:optimistic? false})
 -----
 
-and will run the full-stack operations of `charge-card` *before* the optimistic action of `route-after-change`.
+and will run the full-stack operations of `charge-card` *before* the optimistic action of `route-after-charge`.
 
 This mechanism has the advantage of keeping all transactions "top-level".
 In other words this scheme makes the sequence of transactions apparent right at the point of call to the initial `transact!` and you can follow the sequence linearly right from there.
