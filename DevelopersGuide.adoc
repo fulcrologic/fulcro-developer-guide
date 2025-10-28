@@ -4550,7 +4550,7 @@ So, the current best practice is for your controlled input usage to look like th
   (dom/input {:onChange #(transact!! this [(set-thing-label {:value (.. % -target -value)})])]))
 -----
 
-Violla! You're now doing forms the React way while still *looking like* you're doing them the Fulcro way!
+Voila! You're now doing forms the React way while still *looking like* you're doing them the Fulcro way!
 
 This special `transact!!` will work just as well with imported (vanilla js) React input components.
 
