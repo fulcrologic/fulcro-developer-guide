@@ -6369,7 +6369,7 @@ The return value of a remote determines what, if anything, is sent to that remot
 `result-action`::
 Optional.
 The default value of this can be overridden as an application parameter.
-The `result-action` section receives network results as the arrive.
+The `result-action` section receives network results as they arrive.
 The default result action handles mutation return values and cross-calls `ok-action` or `error-action`.
 `ok-action`::
 Optional.
