@@ -1,3 +1,4 @@
+
 # Building a Fulcro Server
 
 ## Overview
@@ -8,8 +9,8 @@ Building a Fulcro server is relatively straightforward - most complexity comes f
 
 ### Essential Components
 
-1. **Ring Stack with Transit**: Must include `transit-response` and `transit-params` middleware
-2. **API Handler**: Use `api-middleware/handle-api-request` for the API endpoint (defaults to `/api`)
+1. **Ring Stack with Transit**: Must include `wrap-transit-response` and `wrap-transit-params` middleware from Fulcro
+2. **API Handler**: Use `wrap-api` middleware (which internally uses `handle-api-request`)
 3. **EQL Parser**: Pathom is recommended for processing client queries
 
 ### Minimal Ring Stack Example
@@ -17,16 +18,18 @@ Building a Fulcro server is relatively straightforward - most complexity comes f
 ```clojure
 (ns my-app.server
   (:require 
-    [ring.middleware.transit :refer [wrap-transit-response wrap-transit-params]]
-    [com.fulcrologic.fulcro.server.api-middleware :as api-middleware]))
+    [com.fulcrologic.fulcro.server.api-middleware :refer [wrap-api wrap-transit-response wrap-transit-params]]
+    [my-app.parser :refer [api-parser]]))
 
+;; Middleware composition: innermost handler executes last
 (def middleware-stack
-  (-> handler
-      wrap-transit-response
+  (-> (fn [req] {:status 404 :body "Not found"})
+      (wrap-api {:uri "/api" :parser api-parser})
       wrap-transit-params
-      (api-middleware/wrap-api {:uri "/api"
-                                :parser my-parser})))
+      wrap-transit-response))
 ```
+
+**Important**: Ring middleware composes innermost-first. The handler at the bottom executes last, and the outermost middleware (here `wrap-transit-response`) executes first.
 
 ## Using Pathom for EQL Processing
 
@@ -39,7 +42,34 @@ While you can hand-write a server-side parser for EQL, **Pathom is strongly reco
 - Provides excellent tooling and debugging
 - Scales well with complex data requirements
 
-### Basic Pathom Integration
+### Pathom Version Support
+
+Fulcro 3.x supports both Pathom 2.x and 3.x. The examples below show both patterns:
+
+#### Pathom 2.x (Fulcro standard, battle-tested)
+
+```clojure
+(ns my-app.parser
+  (:require 
+    [com.wsscode.pathom.connect :as pc :refer [defresolver]]))
+
+;; Define resolvers
+(defresolver user-by-id [{:keys [user/id]}]
+  {::pc/input  #{:user/id}
+   ::pc/output [:user/name :user/email]}
+  (get-user-from-db id))
+
+(defresolver all-users [env input]
+  {::pc/output [{:all-users [:user/id]}]}
+  {:all-users (list-all-users)})
+
+;; Create index and parser
+(def parser
+  (pc/connect-parser {}
+    [user-by-id all-users]))
+```
+
+#### Pathom 3.x (newer API, available but less common in Fulcro examples)
 
 ```clojure
 (ns my-app.parser
@@ -47,23 +77,17 @@ While you can hand-write a server-side parser for EQL, **Pathom is strongly reco
     [com.wsscode.pathom3.connect.operation :as pco]
     [com.wsscode.pathom3.interface.eql :as p.eql]))
 
-;; Define resolvers
 (pco/defresolver user-by-id [{:keys [user/id]}]
   {::pco/output [:user/name :user/email]}
-  {:user/name "Alice" :user/email "alice@example.com"})
+  (get-user-from-db id))
 
 (pco/defresolver all-users [env input]
   {::pco/output [{:all-users [:user/id]}]}
-  {:all-users [{:user/id 1} {:user/id 2}]})
+  {:all-users (list-all-users)})
 
-;; Create parser  
 (def parser
   (p.eql/boundary-interface
     {::pco/indexes (pco/register [user-by-id all-users])}))
-
-;; Use in API handler
-(defn api-handler [request]
-  (api-middleware/handle-api-request parser request))
 ```
 
 For comprehensive Pathom documentation, see the [Pathom Developer's Guide](https://wilkerlucio.github.io/pathom).
@@ -112,17 +136,18 @@ Fulcro provides configuration utilities in `com.fulcrologic.fulcro.server.config
 
 ;; Basic usage
 (defn make-system []
-  (let [config (config/load-config! {:config-path "/usr/local/etc/app.edn"})]
-    (create-server-components config)))
+  (let [cfg (config/load-config! {:config-path "/usr/local/etc/app.edn"})]
+    (create-server-components cfg)))
 
 ;; With component systems (like Mount)
-(defstate config 
+(defstate cfg
   :start (config/load-config! {:config-path "config/dev.edn"}))
 ```
 
 ### Configuration Features
 
 #### Deep Merge
+
 Environment config recursively merges with defaults:
 
 ```clojure
@@ -132,7 +157,7 @@ Environment config recursively merges with defaults:
 ;; production.edn  
 {:database {:host "prod-server" :ssl true}}
 
-;; Result
+;; Result after merge
 {:database {:host "prod-server" :port 5432 :ssl true}}
 ```
 
@@ -145,12 +170,14 @@ Environment config recursively merges with defaults:
 ```
 
 #### JVM Override
+
 Override config file via JVM option:
 ```bash
 java -Dconfig=/path/to/prod.edn -jar myapp.jar
 ```
 
 #### Relative Paths
+
 Relative paths search CLASSPATH (useful for packaged configs):
 ```clojure
 (config/load-config! {:config-path "config/docker.edn"})
@@ -164,27 +191,29 @@ Relative paths search CLASSPATH (useful for packaged configs):
     [mount.core :as mount :refer [defstate]]
     [ring.adapter.jetty :as jetty]
     [com.fulcrologic.fulcro.server.config :as config]
-    [com.fulcrologic.fulcro.server.api-middleware :as api]))
+    [com.fulcrologic.fulcro.server.api-middleware :refer [wrap-api 
+                                                          wrap-transit-params 
+                                                          wrap-transit-response]]))
 
 ;; Configuration
-(defstate config
+(defstate cfg
   :start (config/load-config! {:config-path "config/dev.edn"}))
 
 ;; Parser (using Pathom)
 (defstate parser
-  :start (create-pathom-parser config))
+  :start (create-pathom-parser cfg))
 
 ;; Ring handler
 (defstate handler
   :start (-> (fn [req] {:status 404 :body "Not found"})
-             (api/wrap-api {:uri "/api" :parser parser})
-             wrap-transit-response
-             wrap-transit-params))
+             (wrap-api {:uri "/api" :parser parser})
+             wrap-transit-params
+             wrap-transit-response))
 
 ;; Web server
 (defstate web-server
   :start (jetty/run-jetty handler 
-                         {:port (get-in config [:server :port])
+                         {:port (get-in cfg [:server :port])
                           :join? false})
   :stop (.stop web-server))
 
@@ -197,7 +226,7 @@ Relative paths search CLASSPATH (useful for packaged configs):
 
 ### Overview
 
-Fulcro 3.3.6+ includes centralized custom type support via a global type registry, eliminating the need to pass transit options throughout your application.
+Fulcro 3.3.6+ includes centralized custom type support via a global type registry, eliminating the need to pass transit options throughout your application. <!-- TODO: Verify this is 3.3.6+ -->
 
 ### Why Custom Types?
 
@@ -295,11 +324,11 @@ Custom types work automatically with:
 
 ### Best Practices
 
-1. **Use `deftype` over `defrecord`**: Records look like maps to Fulcro internals
+1. **Use `deftype` over `defrecord`**: Records look like maps to Fulcro internals and can lose their type identity when queried, converting to plain persistent maps
 2. **Install Early**: Before creating any Fulcro instances
-3. **Unique Tags**: Use globally unique string tags (e.g., "mycompany/user-id")
+3. **Unique Tags**: Use globally unique, namespaced string tags (e.g., "mycompany.geo/point")
 4. **Simple Representations**: Use basic data structures Transit already supports
-5. **Test Thoroughly**: Custom types in state database need careful testing
+5. **Test Thoroughly**: Custom types in the state database need careful testing
 
 ## Template Projects
 

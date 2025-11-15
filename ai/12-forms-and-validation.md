@@ -1,34 +1,52 @@
+
 # Forms and Validation
 
 ## Overview
-Fulcro provides comprehensive form support through the Form State library, enabling complex form validation, field-level state management, and integration with the normalized database.
+
+Fulcro provides comprehensive form support through the Form State library (`com.fulcrologic.fulcro.algorithms.form-state`), enabling complex form validation, field-level state management, and integration with the normalized database. The modern API uses `clojure.spec.alpha` for validation and automatic dirty/pristine state tracking.
 
 ## Core Concepts
 
 ### Form State Benefits
-- **Field-level tracking**: Individual field validation and state
-- **Nested forms**: Complex forms with sub-forms
-- **Validation integration**: Built-in and custom validators
-- **Pristine/dirty tracking**: Know what's been modified
-- **Validation timing**: On change, blur, or submit
-- **Normalization friendly**: Works with Fulcro's graph database
+- **Field-level tracking**: Individual field modification detection via pristine/dirty state
+- **Spec-based validation**: Automatic validation using `clojure.spec.alpha` predicates
+- **Nested forms**: Complex forms with sub-forms, each with independent validation
+- **Dirty detection**: Automatically know what fields have been modified from pristine state
+- **Tri-state validation**: Fields track `:valid`, `:invalid`, or unchecked status
+- **Normalization compatible**: Works seamlessly with Fulcro's graph database
 
-### Form State Structure
+### How Form State Works
+
+Form state maintains **two copies** of entity data:
+- **Entity**: Current working state (what the user has edited)
+- **Pristine**: Last known good state (for detecting changes and reverting)
+
+The form system compares these to determine if fields are dirty. When you load an entity into a form, it copies to pristine. When the user saves successfully, entity is copied to pristine.
+
+### Form Configuration in Queries
+
+Form state is included in a component's query via `fs/form-config-join`:
+
 ```clojure
-;; Form state is added to component data
-{:person/name     "John"
- :person/email    "john@example.com"
- ::fs/config      {:validation-fn validate-person}
- ::fs/fields      {:person/name  {::fs/validation-message "Name is required"}
-                   :person/email {::fs/valid? true}}}
+(require '[com.fulcrologic.fulcro.algorithms.form-state :as fs])
+
+(defsc PersonForm [this {:person/keys [id name email] :as props}]
+  {:query       [:person/id :person/name :person/email fs/form-config-join]
+   :ident       :person/id
+   :form-fields #{:person/name :person/email}}
+  ; render body
+)
 ```
+
+The `:form-fields` set tells Fulcro which keys to track for dirty/pristine state. The `fs/form-config-join` adds form metadata to the query (validation state, marked-complete status, etc.).
 
 ## Basic Form Setup
 
 ### Form Component
+
 ```clojure
 (defsc PersonForm [this {:person/keys [id name email] :as props}]
-  {:query       [:person/id :person/name :person/email ::fs/config ::fs/fields]
+  {:query       [:person/id :person/name :person/email fs/form-config-join]
    :ident       :person/id
    :form-fields #{:person/name :person/email}}
   (let [invalid? (fs/invalid-spec? props)]
@@ -42,198 +60,352 @@ Fulcro provides comprehensive form support through the Form State library, enabl
         (dom/input {:value    (or email "")
                     :onChange #(m/set-string! this :person/email :event %)}))
       (dom/button
-        {:disabled invalid?
-         :onClick  #(comp/transact! this [(save-person {})])}
+        {:disabled (or (not (fs/checked? props)) invalid?)
+         :onClick  #(comp/transact! this [(save-person {:person-id id})])}
         "Save"))))
 ```
 
 ### Form Initialization
+
+Form state must be initialized when you create or load an entity for editing. Use `fs/add-form-config*` (note the `*`) as a state swap function:
+
 ```clojure
-;; Add form configuration to initial state
-(comp/get-initial-state PersonForm
-  (fs/add-form-config PersonForm
-    {:person/id    1
-     :person/name  ""
-     :person/email ""}))
+(defmutation edit-person [{:keys [person-id]}]
+  (action [{:keys [state]}]
+    (swap! state
+      (fn [s]
+        (-> s
+          (fs/add-form-config* PersonForm [:person/id person-id])
+          (assoc :root/form [:person/id person-id])))))  ; Show form UI
+  ; Optionally load from server:
+  (remote [env] true))
+```
+
+After initialization:
+- `fs/add-form-config*` sets up validation state for fields
+- Entity and pristine copies are separate in the state map
+- Component receives entity data; form validation metadata is separate
+
+### Default Values
+
+When creating a new entity for a form:
+
+```clojure
+(defmutation create-new-person [_]
+  (action [{:keys [state]}]
+    (let [person-id (tempid/tempid)]
+      (swap! state
+        (fn [s]
+          (-> s
+            (assoc-in [:person/id person-id]
+              {:person/id person-id
+               :person/name ""
+               :person/email ""})
+            (fs/add-form-config* PersonForm [:person/id person-id])
+            (assoc :root/form [:person/id person-id])))))))
 ```
 
 ## Field Mutations
 
 ### Built-in Field Mutations
+
+Located in `com.fulcrologic.fulcro.mutations`:
+
 ```clojure
-;; String fields
+;; String fields - change on event or from explicit value
 (m/set-string! this :person/name :event event)
 (m/set-string! this :person/name :value "New Name")
 
 ;; Integer fields
 (m/set-integer! this :person/age :event event)
+(m/set-integer! this :person/age :value 25)
 
-;; Boolean fields
-(m/toggle! this :person/active)
+;; Any value (dropdowns, objects, etc.)
+(m/set-value! this :person/status :active)
+```
 
-;; Generic value setting
-(m/set-value! this :person/status :value :active)
+### Usage in Input Elements
+
+```clojure
+;; Text input
+(dom/input {:value    (or name "")
+            :onChange #(m/set-string! this :person/name :event %)})
+
+;; Number input
+(dom/input {:type     "number"
+            :value    (or age 0)
+            :onChange #(m/set-integer! this :person/age :event %)})
+
+;; Select/dropdown
+(dom/select {:value    (or status "")
+             :onChange #(m/set-value! this :person/status (keyword (.-value %)))})
+
+;; Checkbox
+(dom/input {:type     "checkbox"
+            :checked  (boolean active)
+            :onChange #(m/set-value! this :person/active (.-checked %))})
 ```
 
 ### Custom Field Updates
+
+For complex field updates, create a custom mutation:
+
 ```clojure
-(defmutation update-field
-  [{:keys [field value]}]
-  (action [{:keys [component]}]
-    (fs/update-forms-field! component field value)))
+(defmutation update-field [{:keys [field value]}]
+  (action [{:keys [state]}]
+    (swap! state update-in field (constantly value))))
 ```
 
 ## Validation
 
-### Built-in Validators
-```clojure
-(defn validate-person [form field]
-  (let [v (get form field)]
-    (case field
-      :person/name (cond
-                     (str/blank? v) "Name is required"
-                     (< (count v) 2) "Name must be at least 2 characters")
-      :person/email (when-not (valid-email? v)
-                      "Please enter a valid email")
-      nil)))
+### Spec-Based Validation
 
-;; Add validation to form config
-{::fs/config {:validation-fn validate-person}}
-```
+Modern Fulcro uses `clojure.spec.alpha` for validation. Define specs for your fields:
 
-### Validation with Spec
 ```clojure
 (require '[clojure.spec.alpha :as s])
 
-(s/def ::non-empty-string (s/and string? #(not (str/blank? %))))
-(s/def ::email (s/and string? #(re-matches #".+@.+\..+" %)))
-(s/def ::person (s/keys :req [:person/name :person/email]))
+;; Simple string validation
+(s/def :person/name (s/and string? #(seq (str/trim %))))
 
-(defn spec-validation [form field]
-  (when-not (s/valid? (keyword "domain" (name field)) (get form field))
-    "Invalid value"))
+;; Email validation
+(s/def :person/email
+  (s/and string?
+         #(re-matches #"[^@]+@[^@]+\.[^@]+" %)))
+
+;; Integer range
+(s/def :person/age (s/int-in-range? 1 120 %))
+
+;; Composite spec for entire entity
+(s/def :person (s/keys :req [:person/id :person/name :person/email]))
 ```
 
-### Field-Level Validation
+**How it works**: When a field changes via `m/set-string!` or similar, Fulcro automatically checks the field value against its spec. The validation state (`:valid`, `:invalid`, or unchecked) is stored in form state.
+
+### Validation Checking
+
+Check validation state at the form or field level:
+
 ```clojure
-;; Check specific field validity
-(fs/valid? props :person/name)
-(fs/invalid? props :person/email)
+;; Field-level checks
+(fs/get-spec-validity props :person/name)   ; Returns :valid, :invalid, or nil (unchecked)
+(= :invalid (fs/get-spec-validity props :person/email))
 
-;; Get validation message
-(fs/validation-message props :person/name)
+;; Form-level checks
+(fs/invalid-spec? props)      ; Returns true if any field is invalid
+(fs/checked? props)           ; Returns true if all fields have been checked
 
-;; Check entire form
-(fs/valid-spec? props)
-(fs/invalid-spec? props)
+;; Pristine state
+(fs/dirty? props)             ; Form has unsaved changes
+(fs/dirty? props :person/name) ; Specific field has changes
+```
+
+### Complex Validation with Specs
+
+For multi-field validation rules:
+
+```clojure
+(s/def :person/password-match
+  (s/and (s/keys :req [:person/password :person/password-confirm])
+         #(= (:person/password %) (:person/password-confirm %))))
+
+;; In component:
+(let [password-match? (s/valid? :person/password-match props)]
+  (when-not password-match?
+    (dom/div :.error "Passwords don't match")))
 ```
 
 ## Form State Management
 
 ### Pristine/Dirty Tracking
+
+The form system maintains separate entity and pristine states:
+
 ```clojure
-;; Check if form has been modified
-(fs/dirty? props)
-(fs/pristine? props)
+;; Check dirty status
+(fs/dirty? props)              ; Entire form is dirty
+(fs/dirty? props :person/name) ; Specific field is dirty
+(not (fs/dirty? props))        ; Form is pristine (no changes)
 
-;; Check specific fields
-(fs/dirty? props :person/name)
-(fs/pristine? props :person/email)
-
-;; Reset form to pristine state
-(fs/mark-complete! this)
+;; Get changed fields
+(fs/dirty-fields props)        ; Map of fields that changed
+(fs/dirty-fields props true)   ; Include tempids
 ```
 
-### Form Lifecycle
+### Managing Pristine State
+
+After loading or saving, update pristine to mark form as clean:
+
 ```clojure
-;; Mark form as complete (pristine)
-(fs/mark-complete! this)
+;; When user saves successfully:
+(defmutation save-person [{:keys [person-id]}]
+  (action [{:keys [state]}]
+    (swap! state
+      (fn [s]
+        (-> s
+          (fs/entity->pristine* [:person/id person-id])))))  ; Entity becomes pristine
+  (remote [env] true))
 
-;; Reset form to original values
-(comp/transact! this [(fs/reset-form! {})])
+;; When user cancels editing:
+(defmutation cancel-edit [{:keys [person-id]}]
+  (action [{:keys [state]}]
+    (swap! state
+      (fn [s]
+        (-> s
+          (dissoc :root/form)                                ; Hide form
+          (fs/pristine->entity* [:person/id person-id])))))  ; Restore from pristine
+```
 
-;; Add new form configuration
-(fs/add-form-config PersonForm initial-data)
+### Field Validation Completion
+
+Mark fields as "checked" to show validation errors:
+
+```clojure
+;; Mark a single field as checked
+(comp/transact! this [(fs/mark-complete! {:entity-ident [:person/id person-id]
+                                          :field :person/name})])
+
+;; Mark entire form as checked
+(comp/transact! this [(fs/mark-complete! {:entity-ident [:person/id person-id]})])
+
+;; Without explicit ident (when form is root):
+(comp/transact! this [(fs/mark-complete! {:field :person/name})])
+```
+
+### Reset Form to Pristine
+
+Discard all edits and reset form to original state:
+
+```clojure
+(comp/transact! this [(fs/reset-form! {:form-ident [:person/id person-id]})])
 ```
 
 ## Nested Forms
 
 ### Nested Form Structure
-```clojure
-(defsc Address [this {:address/keys [street city state] :as props}]
-  {:query       [:address/id :address/street :address/city :address/state
-                 ::fs/config ::fs/fields]
-   :ident       :address/id
-   :form-fields #{:address/street :address/city :address/state}}
-  (dom/div
-    (dom/input {:value    (or street "")
-                :onChange #(m/set-string! this :address/street :event %)})
-    (dom/input {:value    (or city "")
-                :onChange #(m/set-string! this :address/city :event %)})
-    (dom/input {:value    (or state "")
-                :onChange #(m/set-string! this :address/state :event %)})))
 
-(defsc PersonForm [this {:person/keys [name address] :as props}]
+Parent components can include child forms. Child components are queried via joins and have their own form configs:
+
+```clojure
+(defsc PhoneForm [this {:phone/keys [id type number] :as props}]
+  {:query       [:phone/id :phone/type :phone/number fs/form-config-join]
+   :ident       :phone/id
+   :form-fields #{:phone/type :phone/number}}
+  (dom/div
+    (dom/input {:value    (or number "")
+                :onChange #(m/set-string! this :phone/number :event %)})))
+
+(defsc PersonForm [this {:person/keys [name phone-numbers] :as props}]
   {:query       [:person/id :person/name
-                 {:person/address (comp/get-query Address)}
-                 ::fs/config ::fs/fields]
+                 {:person/phone-numbers (comp/get-query PhoneForm)}
+                 fs/form-config-join]
    :ident       :person/id
-   :form-fields #{:person/name}}
+   :form-fields #{:person/name :person/phone-numbers}}  ; Include nested field
   (dom/div
     (dom/input {:value    (or name "")
                 :onChange #(m/set-string! this :person/name :event %)})
-    (ui-address address)))
+    (dom/h4 "Phone Numbers:")
+    (mapv ui-phone-form phone-numbers)))
 ```
 
-### Nested Form Validation
-```clojure
-(defn validate-person-with-address [form field]
-  (case field
-    :person/name (when (str/blank? (get form field))
-                   "Name is required")
-    ;; Address validation handled by Address component
-    nil))
-```
+### Adding Nested Items
 
-## Advanced Form Features
+When adding new nested items, initialize their form config:
 
-### Multi-step Forms
 ```clojure
-(defsc MultiStepForm [this {:keys [current-step] :as props}]
-  {:query [:form/id :current-step
-           {:step1-data (comp/get-query Step1Form)}
-           {:step2-data (comp/get-query Step2Form)}]}
-  (case current-step
-    1 (ui-step1-form (:step1-data props))
-    2 (ui-step2-form (:step2-data props))
-    (dom/div "Complete")))
-```
-
-### Dynamic Field Addition
-```clojure
-(defmutation add-phone-number
-  [{:keys [person-id]}]
+(defmutation add-phone-number [{:keys [person-id]}]
   (action [{:keys [state]}]
-    (let [new-phone {:phone/id (tempid/tempid) :phone/number ""}]
+    (let [phone-id (tempid/tempid)
+          new-phone {:phone/id phone-id :phone/type :home :phone/number ""}]
       (swap! state
         (fn [s]
           (-> s
-            (merge/merge-component Phone new-phone)
-            (update-in [:person/id person-id :person/phones]
-              (fnil conj []) [:phone/id (:phone/id new-phone)])))))))
+            (merge/merge-component PhoneForm new-phone)  ; Add entity
+            (fs/add-form-config* PhoneForm [:phone/id phone-id])  ; Init form
+            (update-in [:person/id person-id :person/phone-numbers]
+              (fnil conj []) [:phone/id phone-id]))))))  ; Link to parent
+```
+
+**Important**: Each nested form component must have `fs/form-config-join` in its query and `:form-fields` in its options.
+
+### Nested Form Validation
+
+Validation happens independently per form. The parent can check the entire tree:
+
+```clojure
+(let [person-invalid? (fs/invalid-spec? person)
+      phone-invalid?  (some #(fs/invalid-spec? %) phone-numbers)]
+  (dom/button {:disabled (or person-invalid? phone-invalid?)}
+    "Save"))
+```
+
+The dirty state of nested forms contributes to the parent's dirty detection.
+
+## Advanced Form Features
+
+### Multi-Step Forms
+
+Track current step and conditionally render forms:
+
+```clojure
+(defsc MultiStepForm [this {:keys [form-step] :as props}]
+  {:query       [:form/id :form-step
+                 {:form-step-1 (comp/get-query Step1Form)}
+                 {:form-step-2 (comp/get-query Step2Form)}
+                 fs/form-config-join]
+   :ident       :form/id
+   :form-fields #{:form-step :form-step-1 :form-step-2}}
+  (case form-step
+    1 (ui-step1-form (:form-step-1 props))
+    2 (ui-step2-form (:form-step-2 props))
+    (dom/div "Complete")))
+
+;; Advance steps (don't proceed if validation fails)
+(defmutation advance-step [{:keys [form-id current-step]}]
+  (action [{:keys [state]}]
+    (let [step-key (keyword (str "form-step-" current-step))]
+      (when-not (fs/invalid-spec? (get-in @state [:form/id form-id step-key]))
+        (swap! state update-in [:form/id form-id :form-step] inc)))))
+```
+
+### Dynamic Field Addition
+
+Add fields dynamically based on user actions:
+
+```clojure
+(defmutation add-address [{:keys [person-id]}]
+  (action [{:keys [state]}]
+    (let [address-id (tempid/tempid)
+          new-address {:address/id address-id :address/street "" :address/city ""}]
+      (swap! state
+        (fn [s]
+          (-> s
+            (merge/merge-component AddressForm new-address)
+            (fs/add-form-config* AddressForm [:address/id address-id])
+            (update-in [:person/id person-id :person/addresses]
+              (fnil conj []) [:address/id address-id])))))))
 ```
 
 ### File Upload Fields
+
+File inputs require special handling since browsers don't allow direct file access via value:
+
 ```clojure
-(defsc FileUploadField [this {:keys [file/name file/data] :as props}]
-  {:form-fields #{:file/name}}
+(defsc FileUploadField [this {:keys [file/name file/size] :as props}]
+  {:query       [:file/id :file/name :file/size fs/form-config-join]
+   :ident       :file/id
+   :form-fields #{:file/name :file/size}}
   (dom/div
     (dom/input {:type     "file"
+                :accept   "image/*"
                 :onChange (fn [evt]
                             (let [file (-> evt .-target .-files (aget 0))]
-                              (m/set-value! this :file/name :value (.-name file))
-                              ;; Handle file data separately
-                              ))})
+                              (when file
+                                (m/set-value! this :file/name (.-name file))
+                                (m/set-value! this :file/size (.-size file))
+                                ;; Handle actual file data separately - 
+                                ;; typically upload to server in mutation
+                                )))})
     (when name
       (dom/span "Selected: " name))))
 ```
@@ -241,105 +413,154 @@ Fulcro provides comprehensive form support through the Form State library, enabl
 ## Form Submission
 
 ### Basic Submission
+
+Check validation before submitting:
+
 ```clojure
-(defmutation save-person
-  [{:keys [person-id]}]
+(defmutation save-person [{:keys [person-id]}]
   (action [{:keys [state]}]
     (let [person (get-in @state [:person/id person-id])]
-      (if (fs/valid-spec? person)
-        ;; Submit to server
-        (log/info "Saving person" person)
-        (log/warn "Form has validation errors"))))
+      ;; Verify form is valid before attempting save
+      (when (fs/checked? person)
+        (swap! state fs/entity->pristine* [:person/id person-id]))))
+  ;; Send to server
   (remote [env] true))
+
+;; In component:
+(dom/button {:disabled (or (not (fs/checked? props)) (fs/invalid-spec? props))
+             :onClick  #(comp/transact! this [(save-person {:person-id id})])}
+  "Save")
 ```
 
-### Submission with Validation
+### Submission with Delta
+
+Only send changed fields to server:
+
 ```clojure
-(defmutation submit-form
-  [{:keys [form-ident]}]
-  (action [{:keys [app state]}]
-    (let [form-data (get-in @state form-ident)]
-      (if (fs/valid-spec? form-data)
-        (do
-          ;; Mark as submitting
-          (fs/mark-fields-complete! app form-ident)
-          ;; Trigger remote save
-          )
-        ;; Show validation errors
-        (fs/validate-fields! app form-ident)))))
+(defmutation submit-form [{:keys [person-id delta]}]
+  (action [{:keys [state]}]
+    (let [person (get-in @state [:person/id person-id])]
+      (when (fs/checked? person)
+        (swap! state fs/entity->pristine* [:person/id person-id]))))
+  (remote [env] true)
+  ;; Server receives only changed fields
+  (refresh [env] [:person/id person-id]))
+
+;; In component - pass dirty fields
+(dom/button {:onClick #(comp/transact! this
+              [(submit-form {:person-id id
+                            :delta (fs/dirty-fields props false)})])}
+  "Save")
 ```
 
 ### Handling Server Errors
+
+When the server returns validation errors, update form state to reflect them:
+
 ```clojure
-(defmutation save-person
-  [params]
-  (action [env] ...)
+(defmutation save-person [{:keys [person-id]}]
+  (action [{:keys [state]}]
+    (swap! state fs/entity->pristine* [:person/id person-id]))
   (remote [env] true)
-  (error-action [{:keys [component]}]
-    ;; Mark field errors from server response
-    (fs/mark-field-error! component :person/email "Email already exists")))
+  (error-action [{:keys [result]}]
+    ;; Server error response contains field errors
+    ;; Restore entity from pristine since save failed
+    (swap! state
+      (fn [s]
+        (fs/pristine->entity* s [:person/id person-id])))))
 ```
 
 ## Integration Patterns
 
-### Forms with UISM
+### Forms with Dynamic Router
+
+Load form data within route lifecycle:
+
+```clojure
+(defsc EditPersonPage [this props]
+  {:route-segment ["person" :person-id "edit"]
+   :will-enter    (fn [app {:keys [person-id]}]
+                    (dr/route-deferred [:person/id person-id]
+                      #(df/load! app [:person/id person-id] EditPersonPage
+                          {:post-mutation edit-person})))}
+  (let [person (comp/props this)]
+    (dom/div
+      (ui-person-form person))))
+
+(defmutation edit-person [{:keys [person-id]}]
+  (action [{:keys [state]}]
+    (swap! state
+      (fn [s]
+        (-> s
+          (fs/add-form-config* PersonForm [:person/id person-id])
+          (assoc :root/form [:person/id person-id]))))))
+```
+
+### Forms with State Machines (UISM)
+
+Manage form lifecycle with Fulcro's actor model:
+
 ```clojure
 (defstatemachine form-machine
   {::uism/states
-   {:editing
+   {:viewing
+    {::uism/events
+     {:event/edit {:target :editing}}}
+
+    :editing
     {::uism/events
      {:event/save   {:handler save-handler}
       :event/cancel {:handler cancel-handler}}}
 
     :saving
     {::uism/events
-     {:event/save-complete {:target :viewing}
-      :event/save-failed   {:target :editing}}}}})
+     {:event/save-success {:target :viewing}
+      :event/save-error   {:target :editing}}}}})
 
 (defn save-handler [env]
   (let [form-ident (uism/actor->ident env :form)]
-    (if (fs/valid-spec? (get-in @(::uism/state-map env) form-ident))
+    (if (fs/invalid-spec? (get-in @(::uism/state-map env) form-ident))
+      ;; Validation failed - stay in editing
+      env
+      ;; Send to server
       (-> env
-        (uism/trigger-remote-mutation 'save-form
-          {:form-data form-ident
-           :on-ok     :event/save-complete
-           :on-error  :event/save-failed}))
-      ;; Stay in editing, show validation errors
-      env)))
-```
+        (uism/trigger-remote-mutation 'save-person
+          {:person-id (second form-ident)
+           :on-ok     :event/save-success
+           :on-error  :event/save-error})))))
 
-### Forms with Dynamic Router
-```clojure
-(defsc EditPersonPage [this props]
-  {:route-segment ["person" :person-id "edit"]
-   :will-enter    (fn [app {:keys [person-id]}]
-                    (dr/route-deferred [:person/id person-id]
-                      #(df/load! app [:person/id person-id] EditPersonPage)))}
-  (ui-person-form props))
+(defn cancel-handler [env]
+  (let [form-ident (uism/actor->ident env :form)]
+    (-> env
+      (uism/apply-action #(fs/pristine->entity* % form-ident))
+      (uism/goto-state :viewing))))
 ```
 
 ## Best Practices
 
 ### Form Design
-- **Keep forms focused**: One concern per form
-- **Use appropriate field types**: String, integer, boolean mutations
-- **Validate early**: Show errors as user types when appropriate
-- **Provide clear feedback**: Loading states, success messages
+- **Keep forms focused**: Each form handles one entity or logical group
+- **Use appropriate field mutations**: `set-string!` for text, `set-integer!` for numbers, `set-value!` for complex types
+- **Initialize form config**: Always call `fs/add-form-config*` when creating/loading entities for editing
+- **Include `fs/form-config-join`**: All form components must include this in their query
 
 ### Validation Strategy
-- **Client-side first**: Immediate feedback for user
-- **Server-side authoritative**: Final validation on server
-- **Progressive validation**: More validation as user progresses
-- **Meaningful messages**: Clear, actionable error messages
+- **Define specs early**: Create specs for all form fields before creating the form component
+- **Use spec predicates**: Leverage `s/and`, `s/int-in-range?`, `re-matches`, etc.
+- **Mark fields complete selectively**: Use `fs/mark-complete!` on blur or submit, not on every keystroke
+- **Client-side is convenience**: Server validation is authoritative; always validate on server too
+- **Meaningful error messages**: Validation tells you a field is invalid, but specs don't provide messages—add custom UI to display helpful text
 
 ### State Management
-- **Track pristine state**: Know what's been modified
-- **Handle concurrent edits**: Server-side conflict resolution
-- **Auto-save considerations**: Balance UX with server load
-- **Undo/redo support**: Maintain operation history
+- **Maintain pristine copy**: Only use `fs/entity->pristine*` when save succeeds
+- **Restore on cancel**: Use `fs/pristine->entity*` to discard changes
+- **Track dirty state**: Use `fs/dirty?` and `fs/dirty-fields` for conditional saves
+- **Nested forms have independent state**: Each nested component manages its own form config
 
 ### Performance
-- **Debounce validation**: Don't validate on every keystroke
-- **Lazy load options**: Large dropdown data loaded on demand
-- **Optimize re-renders**: Use React.memo for expensive form fields
-- **Normalize form data**: Store in graph database efficiently
+- **Avoid deep nested forms**: Each nested level adds complexity to dirty tracking
+- **Lazy validate**: Check `fs/checked?` to avoid showing errors prematurely
+- **Debounce server saves**: If auto-saving, debounce to avoid excessive requests
+- **Normalize form entities**: Use standard idents (`[:person/id 1]`) for proper normalization
+
+---

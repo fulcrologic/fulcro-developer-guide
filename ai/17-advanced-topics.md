@@ -1,3 +1,4 @@
+
 # Advanced Topics
 
 ## Overview
@@ -5,76 +6,77 @@ This chapter covers advanced Fulcro concepts including code splitting, logging, 
 
 ## Code Splitting
 
-### Shadow-cljs Module Configuration
+Code splitting is fully covered in [Chapter 29: Code Splitting and Modules](./29-code-splitting.md). See that chapter for comprehensive coverage including:
+
+- Module configuration in shadow-cljs
+- DynamicRouter vs Union Router patterns
+- Self-installation mechanisms with `cljs.loader/set-loaded!`
+- Complete code splitting examples
+- Best practices and common pitfalls
+
+The key pattern for split modules is to register themselves at load time:
+
 ```clojure
 ;; shadow-cljs.edn
 {:builds
  {:main
   {:target :browser
+   :module-loader true
    :modules
-   {:main     {:init-fn app.client/init
-               :entries [app.client]}
-    :admin    {:depends-on #{:main}
-               :entries [app.admin]}
-    :reports  {:depends-on #{:main}
-               :entries [app.reports]}
-    :vendor   {:entries [react react-dom]
-               :depends-on #{}}}}}}
-```
+   {:main   {:init-fn app.client/init
+             :entries [app.client]}
+    :admin  {:depends-on #{:main}
+             :entries [app.admin]}
+    :reports {:depends-on #{:main}
+              :entries [app.reports]}}}}}
 
-### Dynamic Loading in Router
-```clojure
+;; In split module (e.g., app/admin.cljs)
+(ns app.admin
+  (:require
+    [com.fulcrologic.fulcro.components :refer [defsc]]
+    [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]
+    [com.fulcrologic.fulcro.dom :as dom]
+    cljs.loader))
+
 (defsc AdminPage [this props]
-  {:route-segment ["admin"]
-   :will-enter
-   (fn [app params]
-     (-> (js/import "./admin.js")
-         (.then
-           (fn [module]
-             ;; Module loaded, can now route
-             (dr/route-immediate [:component/id ::AdminPage])))
-         (.catch
-           (fn [error]
-             (log/error "Failed to load admin module" error)
-             (dr/route-immediate [:component/id ::ErrorPage])))))}
+  {:initial-state (fn [_] {r/dynamic-route-key :admin})
+   :ident (fn [] [:admin :singleton])
+   :query [r/dynamic-route-key]}
   (dom/div "Admin Interface"))
-```
 
-### Component-Level Code Splitting
-```clojure
-(defsc LazyChart [this props]
-  {:componentDidMount
-   (fn [this]
-     (when-not @chart-lib-loaded?
-       (-> (js/import "chart.js")
-           (.then (fn [Chart]
-                    (reset! chart-lib-loaded? true)
-                    (comp/force-update! this))))))}
-  (if @chart-lib-loaded?
-    (ui-chart props)
-    (dom/div "Loading chart...")))
+;; Critical: Register with dynamic router
+(defmethod r/get-dynamic-router-target :admin [k] AdminPage)
+
+;; Critical: Mark module as loaded
+(cljs.loader/set-loaded! :admin)
 ```
 
 ## Logging
 
-### Logging Configuration
-```clojure
-(ns app.logging
-  (:require
-    [taoensso.timbre :as log]))
+Comprehensive logging coverage is available in [Chapter 30: Logging in Fulcro](./30-logging.md). Key points:
 
-;; Configure logging levels and outputs
-(log/set-config!
-  {:level     :info
-   :appenders {:console (log/console-appender)
-               :file    (when-not js/goog.DEBUG
-                          (log/spit-appender {:fname "app.log"}))}
-   :middleware [(fn [data]
-                  ;; Add request ID to all log entries
-                  (assoc data :request-id (get-request-id)))]})
+### Basic Log Levels
+
+```clojure
+(ns app.core
+  (:require [taoensso.timbre :as log]))
+
+;; Available log levels (lowest to highest)
+(log/trace "Very detailed debug info")
+(log/debug "Debug information")
+(log/info "General information")
+(log/warn "Warning messages")
+(log/error "Error messages")
+(log/fatal "Fatal errors")
+
+;; Set global log level
+(log/set-level! :debug)    ; Show debug and above
+(log/set-level! :info)     ; Show info and above (default)
+(log/set-level! :warn)     ; Show warnings and above only
 ```
 
 ### Structured Logging
+
 ```clojure
 (defn log-user-action [user-id action details]
   (log/info "User action"
@@ -88,7 +90,8 @@ This chapter covers advanced Fulcro concepts including code splitting, logging, 
 (log-user-action 123 :document-created {:doc-id 456 :doc-type :report})
 ```
 
-### Performance Logging
+### Performance Logging with Timing Macro
+
 ```clojure
 (defmacro with-timing [operation-name & body]
   `(let [start# (js/performance.now)]
@@ -105,9 +108,43 @@ This chapter covers advanced Fulcro concepts including code splitting, logging, 
   (perform-complex-calculation data))
 ```
 
-## Production Debug
+### Enhanced Console Output for Development
+
+Use Fulcro's enhanced logging helpers for better error formatting:
+
+```clojure
+(ns app.development-preload
+  (:require
+    [taoensso.timbre :as log]
+    [com.fulcrologic.fulcro.algorithms.timbre-support :refer [console-appender prefix-output-fn]]))
+
+;; Enhanced logging setup for development
+(log/set-level! :debug)
+(log/merge-config!
+  {:output-fn prefix-output-fn        ; Better formatting
+   :appenders {:console (console-appender)}})
+```
+
+### Exception Logging
+
+```clojure
+;; CORRECT: Exception first for proper formatting
+(try
+  (risky-operation)
+  (catch :default ex
+    (log/error ex "Operation failed with context:" {:user-id 123})))
+
+;; INCORRECT: Don't put exception last
+(try
+  (risky-operation)
+  (catch :default ex
+    (log/error "Operation failed:" ex)))
+```
+
+## Production Debugging
 
 ### Debug Information in Builds
+
 ```clojure
 ;; shadow-cljs.edn production debugging
 {:builds
@@ -119,17 +156,72 @@ This chapter covers advanced Fulcro concepts including code splitting, logging, 
                      app.config/DEBUG_ENABLED true}}}}
 ```
 
-### Remote Debug Access
-```clojure
-(ns app.debug
-  (:require [com.fulcrologic.fulcro.inspect.inspect-client :as inspect]))
+### Error Handling Patterns
 
-(when (and js/goog.DEBUG (= "true" js/process.env.REMOTE_DEBUG))
-  ;; Enable remote inspect connection
-  (inspect/app-started! app {:remote-inspector-url "ws://localhost:8237/ws"}))
+Fulcro provides multiple ways to handle errors from remote operations:
+
+```clojure
+(ns app.errors
+  (:require
+    [com.fulcrologic.fulcro.mutations :refer [defmutation]]
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [taoensso.timbre :as log]))
+
+;; Mutation with error handling
+(defmutation error-mutation [params]
+  (action [env]
+    (js/alert "Optimistic action ran"))
+
+  (error-action [{:keys [app ref result]}]
+    (js/alert "Mutation error")
+    (log/error "Mutation failed:" result))
+
+  (remote [env] true))
+
+;; Load with fallback on error
+(defmutation handle-read-error [params]
+  (action [env]
+    (js/alert "There was a read error")
+    (log/info "Load failed with:" (:result params))))
+
+;; Usage
+(df/load! this :data SomeComponent
+  {:fallback `handle-read-error})
 ```
 
-### Production Error Reporting
+### Remote Error Detection
+
+```clojure
+(ns app.error-detection
+  (:require
+    [com.fulcrologic.fulcro.application :as app]
+    [com.wsscode.pathom.core :as p]))
+
+(defn contains-error?
+  "Check if response contains Pathom error indicators."
+  [body]
+  (when (map? body)
+    (let [values (vals body)]
+      (reduce
+        (fn [error? v]
+          (if (or
+                (and (map? v) (contains? (set (keys v)) ::p/reader-error))
+                (= v ::p/reader-error))
+            (reduced true)
+            error?))
+        false
+        values))))
+
+(def app
+  (app/fulcro-app
+    {:remote-error? (fn [{:keys [body] :as result}]
+                      (or
+                        (app/default-remote-error? result)
+                        (contains-error? body)))}))
+```
+
+### Global Error Reporting
+
 ```clojure
 (defn setup-error-reporting []
   (set! js/window.onerror
@@ -148,8 +240,9 @@ This chapter covers advanced Fulcro concepts including code splitting, logging, 
              :message message
              :stack (when error (.-stack error))}))))
 
-(defn report-fulcro-errors []
+(defn report-fulcro-errors [app-instance]
   (app/set-global-error-handler!
+    app-instance
     (fn [error-map]
       (log/error "Fulcro error" error-map)
       (report-error-to-service error-map))))
@@ -157,269 +250,113 @@ This chapter covers advanced Fulcro concepts including code splitting, logging, 
 
 ## React Native Integration
 
-### React Native Setup
-```clojure
-;; deps.edn
-{:deps {com.fulcrologic/fulcro {:mvn/version "3.5.9"}
-        com.fulcrologic/fulcro-native {:mvn/version "1.0.0"}}}
+React Native integration is covered in detail in [Chapter 31: React Native Integration](./31-react-native.md). Key points:
 
-;; App component
-(ns mobile.core
-  (:require
-    [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.components :as comp]
-    ["react-native" :as rn]))
+- Use Expo for React Native development
+- Wrap native components for Fulcro compatibility
+- Share business logic between web and mobile
+- Use `cljs.loader` for loading modules when available
+- Test on actual devices for performance
 
-(defsc MobileApp [this props]
-  {:query [:ui/loading?]
-   :initial-state {:ui/loading? false}}
-  (rn/View #js {:style #js {:flex 1}}
-    (rn/Text #js {:style #js {:fontSize 20}}
-             "Hello from Fulcro Native!")))
-
-(def ui-mobile-app (comp/factory MobileApp))
-```
-
-### Native DOM Elements
-```clojure
-(ns mobile.components
-  (:require
-    ["react-native" :as rn]
-    [com.fulcrologic.fulcro.components :as comp]))
-
-(defsc UserProfile [this {:user/keys [name avatar bio]}]
-  {:query [:user/name :user/avatar :user/bio]}
-  (rn/View #js {:style styles/container}
-    (rn/Image #js {:source #js {:uri avatar}
-                   :style styles/avatar})
-    (rn/Text #js {:style styles/name} name)
-    (rn/Text #js {:style styles/bio} bio)))
-
-(def styles
-  #js {:container #js {:padding 20}
-       :avatar    #js {:width 80 :height 80 :borderRadius 40}
-       :name      #js {:fontSize 18 :fontWeight "bold"}
-       :bio       #js {:fontSize 14 :color "#666"}})
-```
-
-### Navigation in React Native
-```clojure
-(ns mobile.navigation
-  (:require
-    ["@react-navigation/native" :as nav]
-    ["@react-navigation/stack" :as stack]
-    [com.fulcrologic.fulcro.components :as comp]))
-
-(def Stack (stack/createStackNavigator))
-
-(defsc AppNavigator [this props]
-  (nav/NavigationContainer nil
-    (comp/create-element Stack.Navigator nil
-      (comp/create-element Stack.Screen
-                          #js {:name "Home" :component ui-home-screen})
-      (comp/create-element Stack.Screen
-                          #js {:name "Profile" :component ui-profile-screen}))))
-```
-
-## GraphQL Integration
-
-### GraphQL Remote
-```clojure
-(ns app.graphql
-  (:require
-    [com.fulcrologic.fulcro.networking.http-remote :as http]
-    [edn-query-language.core :as eql]))
-
-(defn eql->graphql [query]
-  ;; Convert EQL to GraphQL query string
-  ;; This is a simplified example
-  (str "query { " 
-       (eql/query->string query)
-       " }"))
-
-(defn graphql-remote []
-  (http/fulcro-http-remote
-    {:url "/graphql"
-     :request-middleware
-     [(fn [request]
-        (update request :body
-                (fn [eql-query]
-                  {:query (eql->graphql eql-query)})))]}))
-```
-
-### GraphQL Query Translation
-```clojure
-(defn translate-eql-to-graphql [eql-ast]
-  (case (:type eql-ast)
-    :root
-    (str "query {\n"
-         (string/join "\n" (map translate-eql-to-graphql (:children eql-ast)))
-         "\n}")
-    
-    :prop
-    (name (:dispatch-key eql-ast))
-    
-    :join
-    (str (name (:dispatch-key eql-ast)) " {\n"
-         (string/join "\n" (map translate-eql-to-graphql (:children eql-ast)))
-         "\n}")
-    
-    :union
-    ;; Handle GraphQL unions/interfaces
-    (str "... on " (:union-key eql-ast) " {\n"
-         (string/join "\n" (map translate-eql-to-graphql (:children eql-ast)))
-         "\n}")
-    
-    ""))
-```
-
-### GraphQL Mutations
-```clojure
-(defmutation create-user [params]
-  (remote [env]
-    ;; Convert to GraphQL mutation
-    {:type :graphql-mutation
-     :mutation 'createUser
-     :params params
-     :selection [:user/id :user/name :user/email]}))
-
-(defn graphql-mutation-remote []
-  (http/fulcro-http-remote
-    {:url "/graphql"
-     :request-middleware
-     [(fn [request]
-        (if (= :graphql-mutation (:type (:body request)))
-          (let [{:keys [mutation params selection]} (:body request)]
-            (assoc request :body
-                   {:query (str "mutation { "
-                               (name mutation) "("
-                               (params->graphql-args params) ") {"
-                               (selection->graphql selection)
-                               "} }")}))
-          request))]}))
-```
+The framework's data-driven architecture provides significant advantages for mobile development with excellent performance and code reuse opportunities.
 
 ## Workspaces Development
 
-### Workspace Configuration
-```clojure
-;; shadow-cljs.edn
-{:builds
- {:workspaces
-  {:target :browser
-   :output-dir "public/workspaces"
-   :asset-path "/workspaces"
-   :modules {:main {:init-fn app.workspaces/init}}
-   :dev {:http-root "public"
-         :http-port 8080}}}}
-```
+Component development workspaces are fully documented in [Chapter 28: Development Workspaces](./28-workspaces.md), which covers:
 
-### Component Workspaces
+- Setting up workspaces with shadow-cljs
+- Creating workspace cards for components
+- Organizing workspace namespaces
+- Testing components in isolation
+- Design system development
+
+Use workspaces to develop and test components before integrating them into your main application.
+
+## Batched and Parallel Loading
+
+Fulcro provides support for parallel data loads to improve performance when loading multiple pieces of data:
+
+### Parallel Loading
+
 ```clojure
-(ns app.workspaces
+(ns app.demos.loading
   (:require
-    [nubank.workspaces.core :as ws]
-    [nubank.workspaces.model :as wsm]
-    [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
-    [app.ui :as ui]))
+    [com.fulcrologic.fulcro.data-fetch :as df]
+    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+    [com.fulcrologic.fulcro.dom :as dom]))
 
-(ws/defcard user-profile-card
-  {::wsm/card-width 3 ::wsm/card-height 4}
-  (ct.fulcro/fulcro-card
-    {::ct.fulcro/root ui/UserProfile
-     ::ct.fulcro/initial-state
-     {:user/id 1
-      :user/name "John Doe"
-      :user/email "john@example.com"
-      :user/avatar "https://via.placeholder.com/150"}}))
-
-(ws/defcard user-form-card
-  (ct.fulcro/fulcro-card
-    {::ct.fulcro/root ui/UserForm
-     ::ct.fulcro/initial-state
-     (fs/add-form-config ui/UserForm
-       {:user/name "" :user/email ""})}))
-
-(defn init []
-  (ws/mount))
+(defsc DataComponent [this {:keys [id data status]}]
+  {:query (fn [] [:id :data [df/marker-table '_]])
+   :ident [:data/by-id :id]}
+  (let [loading-status (get-in this [df/marker-table [:fetching id]])]
+    (dom/div
+      (dom/button
+        {:onClick #(df/load-field! this :data {:parallel true :marker [:fetching id]})}
+        "Load in parallel")
+      (if (df/loading? loading-status)
+        (dom/span "Loading...")
+        (dom/span data)))))
 ```
 
-### Interactive Development
+**Key points:**
+- Use `:parallel true` to load multiple fields simultaneously
+- Use `:marker` to track loading status for each field
+- Sequential loading (default) waits for each load to complete
+
+### Server-Side Resolver Batching
+
+When the same resolver is called multiple times, Pathom can batch the requests if the resolver declares `::pc/batch? true`:
+
 ```clojure
-(ws/defcard data-explorer
-  "Explore application data structure"
-  (ct.fulcro/fulcro-card
-    {::ct.fulcro/root ui/DataExplorer
-     ::ct.fulcro/initial-state
-     {:data/complex-structure
-      {:users [{:id 1 :name "Alice"}
-               {:id 2 :name "Bob"}]
-       :posts [{:id 101 :title "First Post" :author-id 1}
-               {:id 102 :title "Second Post" :author-id 2}]}}
-     ::ct.fulcro/wrap-root? false}))
-```
-
-## Batched Reads
-
-### Server-Side Batching
-```clojure
-(ns app.batch-processing
-  (:require [com.wsscode.pathom.core :as p]))
-
-(defn batch-resolver [batch-fn individual-fn]
-  (fn [env input]
-    (if (> (count input) 1)
-      ;; Batch multiple requests
-      (batch-fn env input)
-      ;; Single request
-      (individual-fn env (first input)))))
+(ns app.resolvers
+  (:require [com.wsscode.pathom.connect :as pc]))
 
 (pc/defresolver users-batch-resolver [env inputs]
   {::pc/input  #{:user/id}
    ::pc/output [:user/name :user/email]
    ::pc/batch? true}
+  ;; env contains multiple inputs in batch
+  ;; Return a map with results for each input
   (let [user-ids (map :user/id inputs)]
     ;; Single database query for all users
     (load-users-by-ids user-ids)))
 ```
 
-### Client-Side Batching
-```clojure
-;; Enable request batching in remote
-(def batched-remote
-  (http/fulcro-http-remote
-    {:batch-requests? true
-     :batch-timeout 10})) ; Wait 10ms for more requests
+<!-- TODO: Verify this claim -->
+**Note**: Batching at the resolver level happens automatically through Pathom's query processing. The `::pc/batch? true` declaration tells Pathom to send multiple requests to this resolver together.
 
-;; Multiple loads get batched automatically
-(df/load! this :user-1 User)
-(df/load! this :user-2 User)
-(df/load! this :user-3 User)
-;; All three requests sent in single HTTP request
-```
+## GraphQL Integration
+
+Fulcro can work with GraphQL APIs through custom remote implementations. This is an advanced pattern not commonly used since Fulcro's EQL provides similar capabilities. If you need GraphQL integration, consider:
+
+1. Using GraphQL as a backend service behind a Pathom resolver layer
+2. Implementing a custom HTTP remote that translates EQL to GraphQL queries
+3. Leveraging Fulcro's data normalization to normalize GraphQL response data
+
+For most use cases, the recommendation is to keep your server API in Fulcro's native format (using Pathom resolvers) for the best integration experience.
 
 ## Best Practices
 
 ### Performance Optimization
-- **Lazy load modules**: Split code at route boundaries
-- **Batch database operations**: Combine multiple reads/writes
-- **Cache expensive operations**: Memoize calculations
-- **Profile before optimizing**: Measure actual bottlenecks
+- **Lazy load modules**: Split code at route boundaries (see Chapter 29)
+- **Use parallel loads**: Load independent data simultaneously with `:parallel true`
+- **Profile before optimizing**: Measure actual bottlenecks with browser tools
+- **Cache resolver results**: Use Pathom's caching mechanisms for expensive computations
 
 ### Error Handling
-- **Graceful degradation**: App should work with partial failures
-- **Comprehensive logging**: Capture context for debugging
-- **User-friendly errors**: Don't expose technical details
+- **Graceful degradation**: Application should function with partial data failures
+- **Comprehensive logging**: Capture enough context for debugging production issues
+- **User-friendly errors**: Don't expose technical details to end users
 - **Error recovery**: Provide ways to retry failed operations
 
 ### Development Workflow
-- **Use workspaces**: Develop components in isolation
-- **Enable source maps**: Debug production issues effectively
-- **Monitor performance**: Track metrics in production
-- **Test on devices**: Mobile performance differs significantly
+- **Use workspaces**: Develop components in isolation (Chapter 28)
+- **Enable source maps**: Debug production issues with source map support
+- **Monitor performance**: Track real-world performance metrics
+- **Test on actual devices**: Mobile performance differs significantly
 
 ### Architecture Guidelines
-- **Keep platform abstractions thin**: Don't over-abstract differences
-- **Share business logic**: Platform-specific UI, shared data layer
-- **Plan for offline**: Consider network reliability
-- **Progressive enhancement**: Basic functionality works everywhere
+- **Keep abstractions thin**: Avoid over-abstracting platform differences
+- **Share business logic**: Maintain platform-specific UI, shared data layer
+- **Plan for offline**: Consider network reliability and offline behavior
+- **Progressive enhancement**: Ensure basic functionality works everywhere

@@ -1,3 +1,4 @@
+
 # Network Latency, Error Handling, and User Experience
 
 ## Overview
@@ -14,7 +15,7 @@ Fulcro tracks network activity in the state database under `:com.fulcrologic.ful
 {:com.fulcrologic.fulcro.application/active-remotes #{:remote :auth-api}}
 ```
 
-The value is a set of remote names with pending operations.
+The value is a **set** of remote names with pending operations. When there are no pending operations, the set is empty.
 
 ### Component Network Status
 
@@ -22,10 +23,10 @@ The value is a set of remote names with pending operations.
 (defsc GlobalStatus [this {::app/keys [active-remotes]}]
   {:query [[::app/active-remotes '_]]
    :ident (fn [] [:component/id :activity])
-   :initial-state {}} ; Required for root-only queries
+   :initial-state {}}
   (let [loading? (boolean (seq active-remotes))]
     (when loading?
-      (dom/div 
+      (dom/div
         {:className "loading-overlay"}
         (dom/div "Loading...")))))
 ```
@@ -60,10 +61,10 @@ Fulcro is optimistic by default but supports several pessimistic patterns:
 
 ```clojure
 (defn save-and-reload [this form-data]
-  (comp/transact! this 
+  (comp/transact! this
     [(save-form form-data)
      (df/load! this :current-form Form {:post-mutation `form-saved})])
-  ;; UI remains responsive, but follow-up happens after server response
+  ;; UI remains responsive, but follow-up load happens after mutation completes
   )
 ```
 
@@ -75,27 +76,29 @@ Fulcro is optimistic by default but supports several pessimistic patterns:
     ;; Block UI optimistically
     (swap! state assoc-in [:ui/global :saving?] true))
   (remote [env] true)
-  (ok-action [{:keys [state]}]
+  (ok-action [{:keys [state result]}]
     ;; Unblock UI on success
     (swap! state assoc-in [:ui/global :saving?] false)
     (swap! state assoc-in [:ui/global :message] "Saved successfully!"))
-  (error-action [{:keys [state]}]
+  (error-action [{:keys [state result]}]
     ;; Unblock UI on error
     (swap! state assoc-in [:ui/global :saving?] false)
     (swap! state assoc-in [:ui/global :error] "Save failed. Please try again.")))
 ```
 
+**Note**: `ok-action` and `error-action` receive an environment map with keys like `:state`, `:result`, `:app`, and `:ref`. These are only called if using the default `result-action` handler.
+
 #### 3. Pessimistic Transactions
 
 ```clojure
 ;; Each mutation completes (full-stack) before the next begins
-(comp/transact! this 
+(comp/transact! this
   [(submit-form form-data)
    (process-result)
    (update-ui-state)]
   {:optimistic? false})
 
-;; More expressive than hidden post-processing
+;; Simplified: single pessimistic mutation
 (comp/transact! this [(submit-form form-data)] {:optimistic? false})
 ```
 
@@ -106,27 +109,33 @@ Fulcro is optimistic by default but supports several pessimistic patterns:
 ```clojure
 (def app
   (app/fulcro-app
-    {:default-result-action 
+    {:default-result-action
      (fn [env]
-       ;; Call default behavior
+       ;; Call default behavior first
        (app/default-result-action! env)
        ;; Add global logging
        (when (:error env)
          (js/console.error "Global error:" (:error env))))}))
 ```
 
-#### Custom Load Mutation
+**Note**: The `default-result-action` is called after every remote operation. It invokes either `ok-action` or `error-action` based on the remote result.
+
+#### Custom Load Error Handling
 
 ```clojure
-(def app
-  (app/fulcro-app
-    {:load-mutation 
-     (fn [env]
-       ;; Wrap default load with global behavior
-       (let [default-load (app/default-load-mutation env)]
-         ;; Add global load tracking, analytics, etc.
-         default-load))}))
+;; Most commonly: use :error-action option on load
+(df/load! this :users User
+          {:error-action `handle-load-error})
+
+(defmutation handle-load-error [{:keys [error load-params]}]
+  (action [{:keys [state]}]
+    ;; error contains the error details
+    ;; load-params contains the original load parameters
+    (swap! state assoc-in [:ui/users :error]
+           "Failed to load users. Please try again.")))
 ```
+
+The `:default-load-error-action` in app config is called for load failures without explicit `:error-action`.
 
 ## Full-Stack Error Handling Philosophy
 
@@ -191,14 +200,14 @@ The Fulcro philosophy: **Only trigger optimistic updates when you expect server 
   (let [{:keys [error result]} env]
     ;; Log for debugging
     (js/console.error "Global error occurred:" error result)
-    
+
     ;; Show user-friendly modal
-    (swap! (::app/state-atom env) 
-           assoc :ui/error-modal 
+    (swap! (::app/state-atom env)
+           assoc :ui/error-modal
            {:open? true
             :message "An unexpected error occurred. Please try again."
             :can-retry? true})
-    
+
     ;; Optional: Submit error report
     (submit-error-report env)))
 
@@ -214,24 +223,30 @@ The Fulcro philosophy: **Only trigger optimistic updates when you expect server 
 ```clojure
 (defn retry-remote [base-remote]
   (assoc base-remote
-    :transmit! 
+    :transmit!
     (fn [remote send-node]
       (let [max-retries 3
-            retry-count (atom 0)]
+            retry-count (atom 0)
+            ;; Get handler from send-node using correct key
+            base-result-handler (:com.fulcrologic.fulcro.algorithms.tx-processing/result-handler send-node)]
         (letfn [(attempt-send []
-                  (let [result-handler (:result-handler send-node)
-                        retry-handler 
+                  (let [retry-handler
                         (fn [result]
                           (if (and (network-error? result)
                                    (< @retry-count max-retries))
                             (do
                               (swap! retry-count inc)
-                              (js/setTimeout attempt-send 
+                              ;; Exponential backoff
+                              (js/setTimeout attempt-send
                                            (* 1000 (Math/pow 2 @retry-count))))
-                            (result-handler result)))]
-                    ((:transmit! base-remote) 
-                     remote 
-                     (assoc send-node :result-handler retry-handler))))]
+                            ;; Success or max retries reached
+                            (base-result-handler result)))]
+                    ;; Replace result handler with retry handler
+                    ((:transmit! base-remote)
+                     remote
+                     (assoc send-node
+                       :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler
+                       retry-handler))))]
           (attempt-send))))))
 
 (def app
@@ -267,9 +282,12 @@ The Fulcro philosophy: **Only trigger optimistic updates when you expect server 
           ;; Queue for later
           (do
             (swap! pending-queue conj send-node)
-            ;; Return queued status
-            ((:result-handler send-node) 
-             {:status :queued :body {}})))))))
+            ;; Return queued status to app using correct key
+            (let [result-handler (:com.fulcrologic.fulcro.algorithms.tx-processing/result-handler send-node)]
+              (result-handler
+               {:status :queued
+                :body {}
+                :status-code 200}))))))))
 ```
 
 ## UI Blocking Patterns
@@ -283,11 +301,11 @@ The Fulcro philosophy: **Only trigger optimistic updates when you expect server 
     (swap! state assoc-in [:ui/global :blocked?] true)
     (swap! state assoc-in [:ui/global :status] "Saving..."))
   (remote [env] true)
-  (ok-action [{:keys [state]}]
+  (ok-action [{:keys [state result]}]
     ;; Unblock on success
     (swap! state assoc-in [:ui/global :blocked?] false)
     (swap! state assoc-in [:ui/global :status] "Saved successfully"))
-  (error-action [{:keys [state]}]
+  (error-action [{:keys [state result]}]
     ;; Unblock on error
     (swap! state assoc-in [:ui/global :blocked?] false)
     (swap! state assoc-in [:ui/global :status] "Save failed")))
@@ -309,13 +327,13 @@ The Fulcro philosophy: **Only trigger optimistic updates when you expect server 
   (action [{:keys [state]}]
     (swap! state assoc-in [:ui/save :status] "saving")
     ;; Set timeout fallback
-    (js/setTimeout 
+    (js/setTimeout
       #(swap! state assoc-in [:ui/save :status] "timeout")
       10000))
   (remote [env] true)
-  (ok-action [{:keys [state]}]
+  (ok-action [{:keys [state result]}]
     (swap! state assoc-in [:ui/save :status] "saved"))
-  (error-action [{:keys [state]}]
+  (error-action [{:keys [state result]}]
     (swap! state assoc-in [:ui/save :status] "error")))
 ```
 
@@ -324,40 +342,48 @@ The Fulcro philosophy: **Only trigger optimistic updates when you expect server 
 ### Defining Remote Errors
 
 ```clojure
-(defn custom-error-detector [result]
-  (or 
-    ;; HTTP errors
-    (not= 200 (:status-code result))
-    ;; Application errors in response body
-    (contains? (:body result) :error)
-    ;; Pathom errors
-    (some #(contains? % :com.wsscode.pathom3.error/cause) 
-          (vals (:body result)))
-    ;; Custom business logic errors
-    (and (map? (:body result))
-         (:business-error (:body result)))))
+;; Pathom includes error markers in response
+(defn contains-error? [body]
+  (when (map? body)
+    (let [values (vals body)]
+      (reduce
+        (fn [error? v]
+          (if (or
+                (and (map? v) (contains? (set (keys v)) ::p/reader-error))
+                (= v ::p/reader-error))
+            (reduced true)
+            error?))
+        false
+        values))))
 
 (def app
   (app/fulcro-app
-    {:remote-error? custom-error-detector}))
+    {:remote-error? (fn [{:keys [body] :as result}]
+                      (or (app/default-remote-error? result)
+                          (contains-error? body)))}))
 ```
+
+**Note**: The default `remote-error?` checks HTTP status codes. Custom implementations should also check for HTTP errors or timeout conditions.
 
 ### Error Response Transformation
 
 ```clojure
+;; Middleware approach: convert errors to data
 (defn error-response-middleware [handler]
   (fn [response]
     (let [{:keys [status-code body]} response]
       (if (not= 200 status-code)
-        ;; Transform error to data
+        ;; Transform error to data (so it's not treated as error-action)
         (handler
           (assoc response
                  :body {:app/error {:type :network
                                    :code status-code
                                    :message "Network request failed"}}
-                 :transaction [:app/error]
+                 :original-transaction [:app/error]
                  :status-code 200))
         (handler response)))))
+
+;; Or use custom remote-error? to decide what is an error
 ```
 
 ## Load Error Handling
@@ -365,25 +391,28 @@ The Fulcro philosophy: **Only trigger optimistic updates when you expect server 
 ### Load-Specific Error Mutations
 
 ```clojure
-(df/load! this :users User 
+(df/load! this :users User
           {:error-action `handle-user-load-error
            :target [:ui/users]})
 
-(defmutation handle-user-load-error [env]
+(defmutation handle-user-load-error [{:keys [error load-params]}]
   (action [{:keys [state]}]
-    (swap! state assoc-in [:ui/users :error] 
+    ;; error contains the error details
+    ;; load-params contains the original load parameters
+    (swap! state assoc-in [:ui/users :error]
            "Failed to load users. Please try again.")))
 ```
 
 ### Global Load Error Handler
 
 ```clojure
-(defmutation global-load-error [params]
+(defmutation global-load-error [{:keys [error load-params]}]
   (action [{:keys [state]}]
     (swap! state update :ui/global-errors conj
            {:type :load-error
-            :query (:original-transaction params)
-            :message "Failed to load data"})))
+            :query (:original-transaction load-params)
+            :message "Failed to load data"
+            :error error})))
 
 (def app
   (app/fulcro-app
@@ -420,20 +449,29 @@ The Fulcro philosophy: **Only trigger optimistic updates when you expect server 
 (defmutation save-data [data]
   (remote [env] true)
   (error-action [{:keys [result]}]
-    (if (::txn/aborted? result)
+    ;; Check if this was an abort vs. actual error
+    (if (::app/aborted? result)
       ;; Handle abortion specifically
       (js/console.log "Save operation was cancelled")
       ;; Handle other errors
       (show-error-message "Save failed"))))
 ```
 
+<!-- TODO: Verify the exact key for abort status in result map -->
+
 ## Progress Updates
 
 ### Mutation Progress Tracking
 
+Progress-action is called during long-running operations (typically file uploads):
+
 ```clojure
 (defmutation upload-file [file-data]
+  (action [{:keys [state]}]
+    (swap! state assoc-in [:ui/upload :progress] 0))
   (progress-action [{:keys [state] :as env}]
+    ;; Called periodically with progress information
+    ;; NOTE: progress-action is only supported by HTTP remote
     (let [progress (http-remote/overall-progress env)]
       (swap! state assoc-in [:ui/upload :progress] progress)))
   (remote [env] true))
@@ -448,6 +486,8 @@ The Fulcro philosophy: **Only trigger optimistic updates when you expect server 
     (dom/span (str progress "% complete"))))
 ```
 
+**Important**: The HTTP remote supports `progress-action`. Custom remotes must explicitly call the update handler to provide progress updates.
+
 ### Progress Helpers
 
 ```clojure
@@ -460,16 +500,21 @@ The Fulcro philosophy: **Only trigger optimistic updates when you expect server 
   (remote [env] true))
 ```
 
-### Load Progress via Mutation Joins
+These helpers are specific to the HTTP remote and won't work with custom remotes.
+
+### Custom Remote Progress Support
 
 ```clojure
-(defmutation load-with-progress [params]
-  (progress-action [{:keys [state] :as env}]
-    (swap! state assoc-in [:load :progress] 
-           (http-remote/overall-progress env)))
-  (remote [env]
-    (-> env
-        (m/returning LargeDataset)))) ; Return data like a load
+;; Custom remotes can simulate progress by calling update-handler
+(defn custom-remote-with-progress [base-remote]
+  (assoc base-remote
+    :transmit!
+    (fn [remote send-node]
+      (let [update-handler (:com.fulcrologic.fulcro.algorithms.tx-processing/update-handler send-node)]
+        ;; Simulate progress updates
+        (doseq [progress [25 50 75 100]]
+          (js/setTimeout #(update-handler {:progress progress}) (* 100 progress)))
+        ((:transmit! base-remote) remote send-node)))))
 ```
 
 This comprehensive approach to network latency and error handling ensures robust applications that gracefully handle the complexities of distributed systems while maintaining excellent user experience.

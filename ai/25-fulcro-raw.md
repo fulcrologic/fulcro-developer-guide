@@ -1,3 +1,4 @@
+
 # Fulcro Raw API (Version 3.5+)
 
 ## Overview
@@ -21,7 +22,7 @@ Fulcro Raw provides the full-stack data management facilities of Fulcro without 
     [com.fulcrologic.fulcro.raw.components :as rc]))
 ```
 
-**Important**: You MUST NOT mix raw and standard namespaces. Use either raw or standard versions consistently.
+**Important**: You MUST NOT mix raw and standard namespaces. Use either raw or standard versions consistently throughout your application.
 
 ## Normalizing Components
 
@@ -36,9 +37,11 @@ Fulcro Raw provides the full-stack data management facilities of Fulcro without 
 (def Person (rc/nc [:person/id :person/name {:person/address [:address/id :address/street]}]))
 ```
 
-This generates **two** anonymous components with:
+This generates a normalizing component with:
 - Complete query and ident functions
 - Automatic ident detection (any attribute named `id` becomes the table name and ID field)
+
+The ident function will assume `:person/id` identifies the `:person/id` table, generating ident `[:person/id <id-value>]`.
 
 ### Custom Component Options
 
@@ -63,20 +66,23 @@ This generates **two** anonymous components with:
 ;; With options
 (rc/defnc Person [:person/id :person/name] 
   {:ident :constant  ; Special ident generation
-   :initial-state (fn [_] {...})})
+   :initial-state (fn [_] {...})
+   :componentName ::Person})
 ```
+
+The macro version automatically provides a component name for registration and is required for dynamic queries and UISM actors.
 
 ### Component Usage Examples
 
 ```clojure
-;; Concise network loading
+;; Concise network loading with anonymous component
 (df/load! app [:person/id 42] (rc/nc [:person/name :person/age]))
 
 ;; Data manipulation without React
 (merge/merge-component! app Person {:person/id 1 :person/name "Bob"})
 
 ;; Query execution
-(comp/get-query Person) ; => [:person/id :person/name {:person/address [:address/id :address/street]}]
+(comp/get-query Person) ; => [:person/id :person/name {:person/address [...]}]
 ```
 
 ## Raw Applications
@@ -92,7 +98,8 @@ This generates **two** anonymous components with:
 The raw application constructor:
 - Disables Fulcro's React rendering by default
 - Provides pure data management capabilities
-- Supports custom rendering systems if needed
+- Supports transaction processing, mutations, and data loading
+- Does not include any rendering system
 
 ### Data Subscriptions
 
@@ -101,12 +108,21 @@ Raw applications provide `add-component!` and `remove-component!` for watching d
 ```clojure
 ;; Subscribe to component props changes
 (rapp/add-component! app Person {:person/id 42}
-  (fn [component props]
-    (println "Person data changed:" props)))
+  {:initialize?    true
+   :keep-existing? true
+   :receive-props  (fn [props]
+                     (println "Person data changed:" props))})
 
 ;; Cleanup subscription
 (rapp/remove-component! app Person {:person/id 42})
 ```
+
+The options map supports:
+- `:initialize?` - When true, runs the component's `:initial-state` function on mount
+- `:keep-existing?` - When true, preserves existing data in the database; when false, replaces it
+- `:receive-props` - A callback function invoked whenever the component's queried props change
+
+The callback receives the normalized props tree as defined by the component's query.
 
 ### Complete Example
 
@@ -114,7 +130,9 @@ Raw applications provide `add-component!` and `remove-component!` for watching d
 (ns my-app.raw-demo
   (:require [com.fulcrologic.fulcro.raw.application :as rapp]
             [com.fulcrologic.fulcro.raw.components :as rc]
-            [com.fulcrologic.fulcro.data-fetch :as df]))
+            [com.fulcrologic.fulcro.data-fetch :as df]
+            [com.fulcrologic.fulcro.algorithms.merge :as merge]
+            [com.fulcrologic.fulcro.networking.http-remote :as http-remote]))
 
 ;; Define data components
 (def User (rc/nc [:user/id :user/name :user/email]))
@@ -125,8 +143,10 @@ Raw applications provide `add-component!` and `remove-component!` for watching d
 
 ;; Subscribe to user data changes
 (rapp/add-component! app User {:user/id 1}
-  (fn [component props]
-    (println "User updated:" (:user/name props))))
+  {:initialize?    true
+   :keep-existing? false
+   :receive-props  (fn [props]
+                     (println "User updated:" (:user/name props)))})
 
 ;; Load data (will trigger subscription)
 (df/load! app [:user/id 1] User)
@@ -145,12 +165,12 @@ Most Fulcro namespaces work with raw applications:
 - `com.fulcrologic.fulcro.mutations` 
 - `com.fulcrologic.fulcro.algorithms.*`
 - `com.fulcrologic.fulcro.networking.*` (except file upload/url)
-- `com.fulcrologic.fulcro.ui-state-machines` (with `componentName` option)
+- `com.fulcrologic.fulcro.ui-state-machines` (actors must use `:componentName` option)
 - All raw versions of standard namespaces
 
 ### Incompatible Namespaces
 
-DOM and browser-specific namespaces don't work:
+DOM and browser-specific namespaces don't work in pure raw applications:
 
 - `com.fulcrologic.fulcro.dom*`
 - `com.fulcrologic.fulcro.routing.dynamic-routing`
@@ -158,19 +178,20 @@ DOM and browser-specific namespaces don't work:
 - `com.fulcrologic.fulcro.networking.file-url`
 - `com.fulcrologic.fulcro.react.*`
 - `com.fulcrologic.fulcro.rendering.*`
-- Standard `application` and `components` namespaces
+- Standard `application` and `components` namespaces (use raw versions instead)
 
 ## React Hooks Integration
 
 ### Using Raw APIs in Standard Fulcro
 
-Raw namespaces work perfectly in normal Fulcro applications, enabling hybrid approaches.
+Raw namespaces work perfectly in normal Fulcro applications, enabling hybrid approaches. This allows you to use raw components and data management alongside React components.
 
 ### Hooks Components
 
 ```clojure
 (ns my-app.hooks
-  (:require [com.fulcrologic.fulcro.react.hooks :as hooks]))
+  (:require [com.fulcrologic.fulcro.react.hooks :as hooks]
+            [com.fulcrologic.fulcro.dom :as dom]))
 
 (defn UserDisplay [props]
   (let [user-data (hooks/use-component app User {:user/id (:user-id props)})]
@@ -178,6 +199,8 @@ Raw namespaces work perfectly in normal Fulcro applications, enabling hybrid app
       (dom/h3 (:user/name user-data))
       (dom/p (:user/email user-data)))))
 ```
+
+The `hooks/use-component` hook connects your component to Fulcro's normalized database. It does not automatically load data—the data must already exist in the database or be loaded separately via `df/load!`.
 
 ### Complete Hooks Example
 
@@ -193,6 +216,8 @@ Raw namespaces work perfectly in normal Fulcro applications, enabling hybrid app
         (dom/h3 (:user/name user-data))
         (dom/p (:user/email user-data))))))
 ```
+
+The hook automatically updates when the subscribed props change, and the component will only re-render if the queried props actually differ from the previous render.
 
 ## Dynamic Lifecycle with Hooks
 
@@ -217,18 +242,20 @@ Raw namespaces work perfectly in normal Fulcro applications, enabling hybrid app
 ```
 
 The `use-generated-id` hook:
-- Creates a random UUID on mount
-- Cleans up associated state on unmount
-- Enables truly dynamic component lifecycles
+- Creates a random UUID on component mount
+- Cleans up associated state on unmount automatically via `hooks/use-gc`
+- Enables truly dynamic component lifecycles without manual cleanup
 
 ## UI State Machines with Raw/Hooks
 
 ### Raw UISM Usage
 
+<!-- TODO: Verify exact callback signature for uism/add-uism! -->
+
 ```clojure
 (def login-machine
-  (uism/state-machine
-    {::uism/actors #{:actor/login-form}
+  (uism/defstatemachine
+    {::uism/actor-names #{:actor/login-form}
      ::uism/states
      {:initial {:events {:event/submit {:handler submit-handler :target :authenticating}}}
       :authenticating {:events {:event/success {:target :authenticated}
@@ -244,6 +271,8 @@ The `use-generated-id` hook:
       (println "Login state:" current-state)
       (println "Form data:" login-form))))
 ```
+
+The callback receives the current state map of the state machine, including all actor data and the current state name.
 
 ### Hooks UISM Usage
 
@@ -261,6 +290,8 @@ The `use-generated-id` hook:
       (LoginFormComponent login-form))))
 ```
 
+The `hooks/use-uism` hook provides reactive state machine state to your React component. The component re-renders whenever the state machine state changes.
+
 ## Advanced Patterns
 
 ### Data-Only Processing
@@ -268,7 +299,8 @@ The `use-generated-id` hook:
 ```clojure
 (ns data-processor
   (:require [com.fulcrologic.fulcro.raw.application :as rapp]
-            [com.fulcrologic.fulcro.raw.components :as rc]))
+            [com.fulcrologic.fulcro.raw.components :as rc]
+            [com.fulcrologic.fulcro.algorithms.merge :as merge]))
 
 ;; Pure data processing with Fulcro normalization
 (def Product (rc/nc [:product/sku :product/name :product/price]))
@@ -293,6 +325,8 @@ The `use-generated-id` hook:
 ```clojure
 (ns desktop-app
   (:require [com.fulcrologic.fulcro.raw.application :as rapp]
+            [com.fulcrologic.fulcro.raw.components :as rc]
+            [com.fulcrologic.fulcro.data-fetch :as df]
             [seesaw.core :as seesaw]))
 
 (def app (rapp/fulcro-app {}))
@@ -300,9 +334,9 @@ The `use-generated-id` hook:
 
 ;; Subscribe to data changes and update Swing UI
 (rapp/add-component! app UserList {}
-  (fn [component users]
-    (seesaw/config! user-list-widget 
-                    :model (map :user/name users))))
+  {:receive-props (fn [users]
+                    (seesaw/config! user-list-widget 
+                                    :model (map :user/name users)))})
 
 ;; Load data (will update UI via subscription)
 (df/load! app :all-users UserList)
@@ -310,25 +344,27 @@ The `use-generated-id` hook:
 
 ## Best Practices
 
-1. **Use Consistent Namespaces**: Don't mix raw and standard namespaces
-2. **Component Names for Dynamic Queries**: Use `:componentName` option when needed
-3. **Subscription Cleanup**: Always clean up subscriptions to prevent memory leaks
-4. **Hook Dependencies**: Be careful with hook dependencies in React integration
-5. **State Management**: Use Fulcro's transaction system even in raw mode
-6. **Error Handling**: Raw applications still support Fulcro's error handling patterns
+1. **Use Consistent Namespaces**: Never mix raw and standard namespaces in the same application
+2. **Component Names for Dynamic Queries**: Always use `:componentName` option when your normalizing component needs to be looked up dynamically or used as a UISM actor
+3. **Subscription Cleanup**: Always clean up subscriptions via `remove-component!` to prevent memory leaks
+4. **Hook Dependencies**: When using hooks in React integration, be careful with dependency arrays
+5. **State Management**: Use Fulcro's transaction system (`transact!`, `merge-component!`) even in raw mode for consistency
+6. **Error Handling**: Raw applications fully support Fulcro's error handling patterns with remotes
+7. **Data Doesn't Auto-Load**: Using `hooks/use-component` does not automatically trigger data loads—load data separately with `df/load!`
 
 ## Use Cases
 
 ### Perfect For:
-- Data processing applications
-- Desktop UIs with JVM libraries
-- Alternative rendering systems
-- Microservices with shared data models
+- Data processing applications without UI rendering
+- Desktop UIs with JVM libraries (Swing, JavaFX, etc.)
+- Alternative rendering systems (Vue, Svelte, etc.)
+- Microservices with shared Fulcro data models
 - React integration where full Fulcro control isn't needed
+- Server-side data normalization and processing
 
 ### Not Ideal For:
-- Standard web applications (use regular Fulcro)
+- Standard web applications (use regular Fulcro with React)
 - Simple data transformation (native Clojure might be better)
-- Applications requiring DOM manipulation
+- Applications requiring DOM manipulation (use standard Fulcro)
 
 Fulcro Raw provides a powerful foundation for data-centric applications while maintaining all the benefits of Fulcro's normalized database, query system, and transaction processing.

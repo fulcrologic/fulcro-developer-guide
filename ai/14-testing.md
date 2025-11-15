@@ -1,362 +1,439 @@
+
 # Testing
 
 ## Overview
-Fulcro provides comprehensive testing capabilities for components, mutations, state machines, and full-stack integration testing.
+
+Fulcro provides comprehensive testing capabilities for components, mutations, state machines, and full-stack integration testing. The architecture naturally supports testing because state, logic, and UI are separated.
 
 ## Testing Philosophy
 
-### Testable Architecture
+### Why Fulcro Code is Testable
+
 Fulcro's architecture naturally supports testing:
-- **Pure functions**: Render functions are pure
-- **Immutable state**: Easy to set up test scenarios
-- **Normalized database**: Predictable state structure
-- **Separated concerns**: UI, logic, and networking are distinct
+- **Pure functions**: Components are pure functions of their props
+- **Immutable state**: Easy to set up and inspect test scenarios
+- **Normalized database**: Predictable and introspectable state structure
+- **Separated concerns**: Business logic, state mutations, and UI rendering are distinct
+- **State-driven**: All application behavior ultimately boils down to state mutations
 
-### Testing Levels
-1. **Unit tests**: Individual functions and mutations
-2. **Component tests**: UI component behavior
-3. **Integration tests**: State machines and workflows
-4. **End-to-end tests**: Full application scenarios
+### Testing Pyramid
 
-## Component Testing
+The recommended testing approach follows a test pyramid:
+1. **Unit tests**: Test individual mutations and state transitions (fast, deterministic)
+2. **Integration tests**: Test state machine behavior and multi-step workflows
+3. **Component/UI tests**: Test UI rendering and interaction (fewer, slower)
 
-### Basic Component Testing
-```clojure
-(ns app.ui-test
-  (:require
-    [cljs.test :refer [deftest is testing]]
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.dom :as dom]
-    [app.ui :as ui]))
+Most of your tests should be at the unit/integration level, testing the state model and business logic without requiring UI rendering.
 
-(deftest person-component-test
-  (testing "renders person data correctly"
-    (let [props {:person/id 1 :person/name "John" :person/age 30}
-          element (ui/ui-person props)]
-      ;; Test element structure
-      (is (= "div" (.-type element)))
-      ;; Test that name appears in output
-      (is (contains? (str element) "John")))))
-```
+## Unit Testing: Mutations and State
 
-### Testing with Fulcro Test Helpers
-```clojure
-(ns app.ui-test
-  (:require
-    [com.fulcrologic.fulcro.components :as comp]
-    [com.fulcrologic.fulcro.dom :as dom]
-    [fulcro-spec.core :refer [specification behavior component assertions]]))
+### Testing Mutation Actions
 
-(specification "Person Component"
-  (let [person {:person/id 1 :person/name "John" :person/age 30}]
-    (component ui/Person
-      (behavior "displays person information"
-        (assertions
-          "shows the person's name"
-          (comp/props (comp/factory ui/Person) person) => (contains {:person/name "John"})
-          "shows the person's age"
-          (comp/props (comp/factory ui/Person) person) => (contains {:person/age 30}))))))
-```
+Mutations are tested by directly calling their action handlers and verifying state changes:
 
-### Testing with React Testing Library
-```clojure
-(ns app.ui-test
-  (:require
-    ["@testing-library/react" :as rtl]
-    [com.fulcrologic.fulcro.dom :as dom]))
-
-(deftest person-display-test
-  (testing "Person component displays name and age"
-    (let [props {:person/name "John" :person/age 30}
-          container (rtl/render (ui/ui-person props))]
-      (is (rtl/getByText container "John"))
-      (is (rtl/getByText container "30")))))
-```
-
-## Mutation Testing
-
-### Testing Mutation Logic
 ```clojure
 (ns app.mutations-test
   (:require
     [cljs.test :refer [deftest is testing]]
-    [com.fulcrologic.fulcro.mutations :as m]
     [app.mutations :as mut]))
 
 (deftest update-person-test
   (testing "update-person mutation"
     (let [initial-state {:person/id {1 {:person/id 1 :person/name "John" :person/age 30}}}
-          env {:state (atom initial-state)}]
+          state-atom (atom initial-state)]
       
-      (testing "updates person name"
-        ;; Execute the action portion of the mutation
-        ((:action (m/mutate env 'mut/update-person {:person/id 1 :person/name "Jane"})) env)
+      (testing "updates person name in state"
+        ;; Simulate what the mutation's action block would do
+        (swap! state-atom assoc-in [:person/id 1 :person/name] "Jane")
         
-        (let [updated-state @(:state env)]
+        (let [updated-state @state-atom]
           (is (= "Jane" (get-in updated-state [:person/id 1 :person/name])))
           (is (= 30 (get-in updated-state [:person/id 1 :person/age]))))))))
 ```
 
-### Testing Mutation Remote Behavior
+### Testing Form State Mutations
+
+Form mutations are typically tested using Fulcro's form-state utilities:
+
 ```clojure
-(deftest update-person-remote-test
-  (testing "update-person sends to remote"
-    (let [env {:ast {:type :call :dispatch-key 'mut/update-person}
-               :state (atom {})}
-          remote-result ((:remote (m/mutate env 'mut/update-person {:person/id 1})) env)]
+(ns app.forms-test
+  (:require
+    [cljs.test :refer [deftest is testing]]
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.form-state :as fs]
+    [app.mutations :as mut]))
+
+(deftest form-submission-test
+  (testing "form submission"
+    (let [form-state {:phone/id 1
+                      :phone/number "555-1234"
+                      :phone/type "mobile"
+                      fs/form-config-join {}}
+          
+          ;; Mark field as dirty after user input
+          form-with-changes (assoc form-state 
+                               ::fs/fields {:phone/number {::fs/dirty? true}})
+          
+          ;; Check form state utilities
+          dirty? (fs/dirty? form-with-changes)
+          validity (fs/get-spec-validity form-with-changes)]
       
-      (testing "returns AST for remote"
-        (is (= true remote-result)) ; Simple true means send as-is
-        ; or test modified AST
-        ))))
+      (is dirty? "Form should be dirty after changes")
+      (is (some? validity) "Should have validity information"))))
 ```
 
-## State Machine Testing
+## Component Testing
 
-### Testing State Machine Logic
+### Testing Component Queries and Initial State
+
+Components are tested by verifying their declared requirements (queries, idents, initial-state):
+
+```clojure
+(ns app.components-test
+  (:require
+    [cljs.test :refer [deftest is testing]]
+    [com.fulcrologic.fulcro.components :as comp]
+    [app.ui :as ui]))
+
+(deftest person-component-test
+  (testing "Person component"
+    ;; Test that the component has required properties
+    (let [person-props {:person/id 1 :person/name "John" :person/age 30}
+          component-ident (comp/get-ident ui/Person person-props)]
+      
+      (is (some? component-ident) "Component should have an ident")
+      (is (= [:person/id 1] component-ident) "Ident should match expected format"))
+    
+    ;; Test initial state composition
+    (let [initial (comp/get-initial-state ui/Root {})]
+      (is (map? initial) "Should return a valid initial state")
+      (is (contains? initial :root/people) "Should have required root keys"))))
+```
+
+### Testing Component Behavior with State Machines
+
+For components that manage complex behavior, test via state transitions:
+
+```clojure
+(ns app.countdown-test
+  (:require
+    [cljs.test :refer [deftest is testing]]
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.components :as comp]
+    [app.ui :as ui]
+    [app.state-machines :as sm]))
+
+(deftest countdown-component-test
+  (testing "countdown component behavior"
+    ;; Use a headless synchronous app for component testing
+    (let [test-app (app/headless-synchronous-app ui/Root {})
+          initial-state (app/current-state test-app)
+          countdown-count (get-in initial-state [:ui/id :ui/countdown :ui/count])]
+      
+      (is (some? countdown-count) "Should have countdown initialized")
+      (is (> countdown-count 0) "Countdown should have positive value"))))
+```
+
+<!-- TODO: Verify this claim - React Testing Library integration for UI verification -->
+
+## State Machine (UISM) Testing
+
+### Testing State Machine Transitions
+
+State machines are tested using the headless synchronous app pattern:
+
 ```clojure
 (ns app.state-machines-test
   (:require
     [cljs.test :refer [deftest is testing]]
+    [com.fulcrologic.fulcro.application :as app]
     [com.fulcrologic.fulcro.ui-state-machines :as uism]
-    [app.state-machines :as sm]))
+    [app.state-machines :as sm]
+    [app.ui :as ui]))
 
 (deftest login-state-machine-test
   (testing "login state machine transitions"
-    (let [initial-env (uism/new-asm sm/login-machine ::login-sm
-                        {:session [:session/id :main]}
-                        {})
+    (let [app (app/headless-synchronous-app ui/Root {})
+          ;; Begin the state machine
+          _ (uism/begin! app sm/login-machine ::login-sm
+              {:actor/login-form ui/LoginForm}
+              {})
           
-          ;; Trigger login event
-          env-after-login (uism/trigger initial-env :event/attempt-login
-                            {:username "user" :password "pass"})]
+          ;; Verify initial state
+          initial-state (uism/get-active-state app ::login-sm)]
       
-      (testing "transitions to logging-in state"
-        (is (= :logging-in (uism/get-active-state env-after-login))))
+      (is (some? initial-state) "Should have initialized state machine")
       
-      (testing "stores login credentials"
-        (is (= "user" (uism/get-aliased-value env-after-login :username)))))))
+      ;; Trigger an event
+      (uism/trigger! app ::login-sm :event/attempt-login
+        {:username "user@example.com" :password "pass123"})
+      
+      ;; Verify state changed
+      (let [after-event-state (uism/get-active-state app ::login-sm)]
+        (is (= :state/logging-in after-event-state) 
+            "Should transition to logging-in state"))
+      
+      ;; Check state machine values
+      (let [state-tree (app/current-state app)]
+        (is (some? (get-in state-tree [::uism/asm-id ::login-sm]))
+            "Should have state machine in app state")))))
 ```
 
-### Testing State Machine Handlers
+### Advanced State Machine Testing
+
+For state machines with complex behavior, test specific event handlers:
+
 ```clojure
-(defn test-login-handler []
-  (let [env (uism/new-asm sm/login-machine ::login-sm
-              {:session [:session/id :main]}
-              {:username "test" :password "test123"})
-        result-env (sm/attempt-login-handler env)]
-    
-    (testing "login handler behavior"
-      (is (= :logging-in (uism/get-active-state result-env)))
-      (is (uism/get-aliased-value result-env :loading?)))))
+(deftest login-success-test
+  (testing "successful login flow"
+    (let [app (app/headless-synchronous-app ui/Root {})
+          _ (uism/begin! app sm/login-machine ::login-sm
+              {:actor/login-form ui/LoginForm}
+              {})]
+      
+      ;; Simulate successful login sequence
+      (uism/trigger! app ::login-sm :event/attempt-login
+        {:username "test@example.com" :password "test123"})
+      
+      ;; Wait for async completion (in real tests, mock the server)
+      (uism/trigger! app ::login-sm :event/login-success
+        {:account/id 42 :account/name "Test User"})
+      
+      ;; Verify final state
+      (let [state (app/current-state app)
+            active-state (uism/get-active-state app ::login-sm)]
+        (is (= :state/logged-in active-state)
+            "Should be in logged-in state")
+        (is (= 42 (get-in state [:account/id 42 :account/id]))
+            "Should have stored account data")))))
 ```
 
 ## Integration Testing
 
-### Testing Data Loading
+### Setting Up a Headless Test Application
+
+The recommended approach for integration testing is using a headless synchronous application:
+
 ```clojure
 (ns app.integration-test
   (:require
     [cljs.test :refer [deftest is testing async]]
     [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.data-fetch :as df]
-    [app.client :as client]))
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.ui-state-machines :as uism]
+    [app.client :as client]
+    [app.ui :as ui]
+    [app.state-machines :as sm]))
 
+(defn make-test-app []
+  "Create a test application with no remotes"
+  (app/headless-synchronous-app client/Root {}))
+
+(deftest integration-workflow-test
+  (testing "complete workflow: login → load data → display"
+    (let [test-app (make-test-app)]
+      
+      ;; Start a state machine
+      (uism/begin! test-app sm/login-machine ::login-sm
+        {:actor/login-form ui/LoginForm}
+        {})
+      
+      ;; Verify it started
+      (is (= :state/initial (uism/get-active-state test-app ::login-sm)))
+      
+      ;; Trigger events
+      (uism/trigger! test-app ::login-sm :event/login
+        {:email "user@example.com" :password "password"})
+      
+      ;; After login, verify state
+      (let [state (app/current-state test-app)]
+        (is (contains? state :current-user) "Should have user logged in")
+        (is (contains? state :people) "Should have loaded people data")))))
+```
+
+### Testing Data Loading
+
+Data loading is tested by verifying state updates after loads complete:
+
+```clojure
 (deftest data-loading-test
-  (async done
-    (let [app (app/fulcro-app {:remotes {:remote (mock-remote)}})
-          _ (app/mount! app client/Root "test-div")]
+  (testing "loading people data"
+    (let [app (make-test-app)
+          ;; Initial state should not have people
+          initial-state (app/current-state app)]
       
-      (testing "loads people data"
-        (df/load! app :people ui/Person
-          {:post-action
-           (fn [env]
-             (let [state @(::app/state-atom app)
-                   people (get state :people)]
-               (is (seq people))
-               (is (every? :person/id people))
-               (done)))})))))
+      (is (empty? (get initial-state :people)) 
+          "Should start with empty people")
+      
+      ;; Load people (with mock server, this would complete synchronously)
+      ;; This is pseudo-code; actual implementation depends on your server setup
+      (comp/transact! app 
+        [(list 'app.mutations/load-people {})])
+      
+      ;; Check that state was updated
+      (let [final-state (app/current-state app)]
+        (is (seq (get final-state :people))
+            "Should have people after load")))))
 ```
 
-### Testing with Mock Server
-```clojure
-(defn mock-remote []
-  (reify
-    fr/FulcroRemoteI
-    (transmit! [this {::ftx/keys [ast result-handler error-handler]}]
-      (case (:dispatch-key ast)
-        :people (result-handler {:transaction ast
-                                 :body [{:person/id 1 :person/name "John"}
-                                        {:person/id 2 :person/name "Jane"}]})
-        :default (error-handler {:error "Not found"})))))
-```
+## Testing with Pathom Mock Server
 
-## Full Application Testing
+For testing with server interactions, use Pathom's mock server infrastructure:
 
-### Setting Up Test Environment
 ```clojure
-(ns app.test-utils
+(ns app.server-test
   (:require
+    [cljs.test :refer [deftest is testing]]
     [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.fulcro.components :as comp]))
+    [com.fulcrologic.pathom.core :as pc]
+    [com.fulcrologic.fulcro.networking.mock-server :as mock]))
 
-(defn test-app
-  "Create a test application with mock remotes"
-  [& {:keys [initial-state remotes]}]
-  (let [test-app (app/fulcro-app
-                   {:remotes (or remotes {:remote (mock-remote)})
-                    :initial-db (or initial-state {})})]
-    test-app))
+;; Define resolvers for testing
+(pc/defresolver person-resolver [env {:person/keys [id]}]
+  {::pc/input #{:person/id}
+   ::pc/output [:person/name :person/age]}
+  (case id
+    1 {:person/name "John" :person/age 30}
+    2 {:person/name "Jane" :person/age 28}
+    nil))
 
-(defn with-test-app
-  "Helper for running tests with a mounted app"
-  [root-component test-fn]
-  (let [app (test-app)
-        container (js/document.createElement "div")]
-    (js/document.body.appendChild container)
-    (app/mount! app root-component container)
-    (try
-      (test-fn app)
-      (finally
-        (app/unmount! app)
-        (js/document.body.removeChild container)))))
+(pc/defresolver all-people-resolver [env _]
+  {::pc/output [{:people [:person/id]}]}
+  {:people [{:person/id 1} {:person/id 2}]})
+
+(def test-resolvers [person-resolver all-people-resolver])
+
+(deftest mock-server-test
+  (testing "resolvers return expected data"
+    (let [app (app/fulcro-app {:remotes {:remote (mock/mock-remote test-resolvers)}})]
+      ;; Tests would trigger transactions and verify state
+      )))
 ```
 
-### End-to-End Workflow Testing
+## Testing Best Practices
+
+### Design Principles
+
+**Test behavior, not implementation:**
+- Test that state changes correctly, not the specific code that changes it
+- Test that mutations produce expected side effects
+- Test that state machines transition correctly
+
+**Use predictable test data:**
+- Create helper functions for generating test data
+- Use the same test data across multiple tests
+- Avoid randomness (unless testing randomness)
+
+**Test edge cases and error conditions:**
+- Empty states, null values, missing data
+- Error responses from server
+- Invalid user input
+- Boundary conditions
+
+### Testing Structure
+
 ```clojure
-(deftest complete-user-workflow-test
-  (testing "complete user registration and login flow"
-    (with-test-app ui/Root
-      (fn [app]
-        ;; Test registration
-        (let [registration-data {:user/email "test@example.com"
-                                 :user/password "password123"}]
-          ;; Trigger registration
-          (comp/transact! app [(api/register-user registration-data)])
-          
-          ;; Wait for completion and verify state
-          (js/setTimeout
-            (fn []
-              (let [state @(::app/state-atom app)]
-                (is (contains? state :current-user))
-                (is (= "test@example.com" 
-                       (get-in state [:current-user :user/email])))
-                (done)))
-            100))))))
+;; Well-structured test with clear phases
+(deftest meaningful-test-name
+  (testing "user can update their profile"
+    ;; SETUP: Create the test environment
+    (let [test-app (make-test-app)
+          user {:user/id 1 :user/name "John"}]
+      
+      ;; EXECUTE: Perform the action
+      (comp/transact! test-app
+        [(mutations/update-user user)])
+      
+      ;; VERIFY: Check the result
+      (let [state (app/current-state test-app)
+            updated-user (get-in state [:user/id 1])]
+        (is (= user updated-user)
+            "User data should be updated in state")))))
 ```
 
-## Performance Testing
+### Keeping Tests Fast and Focused
 
-### Render Performance Testing
+- **One concept per test**: Test one behavior or state transition
+- **Fast execution**: Headless apps run synchronously and complete instantly
+- **No external dependencies**: Mock all server interactions
+- **Clear test names**: Describe what behavior is being tested
+- **DRY test code**: Extract common setup into helper functions
+
+## Testing State and Mutations
+
+### Example: Testing State Updates
+
 ```clojure
-(deftest render-performance-test
-  (testing "large list renders efficiently"
-    (let [large-dataset (vec (for [i (range 1000)]
-                               {:person/id i :person/name (str "Person " i)}))
-          start-time (js/performance.now)]
-      
-      ;; Render large list
-      (ui/ui-person-list {:people large-dataset})
-      
-      (let [render-time (- (js/performance.now) start-time)]
-        (is (< render-time 100) "Render should complete within 100ms")))))
+(ns app.state-mutations-test
+  (:require
+    [cljs.test :refer [deftest is testing]]
+    [app.mutations :as mut]))
+
+(deftest increment-counter-test
+  (testing "incrementing a counter in state"
+    (let [state {:counter 0}
+          new-state (-> state
+                      (assoc :counter (inc (:counter state))))]
+      (is (= 1 (:counter new-state)) "Counter should increment"))))
+
+(deftest list-operations-test
+  (testing "adding items to a list"
+    (let [state {:items [1 2 3]}
+          new-state (update state :items conj 4)]
+      (is (= [1 2 3 4] (:items new-state))
+          "Should append new item to list"))))
 ```
 
-### Memory Leak Testing
+## Debugging Tests
+
+### Inspecting Application State
+
 ```clojure
-(deftest memory-leak-test
-  (testing "components clean up properly"
-    (let [initial-memory (when (exists? js/performance.memory)
-                           (.-usedJSHeapSize js/performance.memory))]
-      
-      ;; Create and destroy many components
-      (dotimes [i 100]
-        (let [app (test-app)]
-          (app/mount! app ui/Root "test-div")
-          (app/unmount! app)))
-      
-      ;; Force garbage collection if available
-      (when (exists? js/gc) (js/gc))
-      
-      (let [final-memory (when (exists? js/performance.memory)
-                           (.-usedJSHeapSize js/performance.memory))
-            memory-increase (when (and initial-memory final-memory)
-                              (- final-memory initial-memory))]
-        (when memory-increase
-          (is (< memory-increase (* 10 1024 1024)) "Memory increase should be less than 10MB"))))))
+;; Print the entire app state for debugging
+(defn debug-state [app]
+  (js/console.log (clj->js (app/current-state app))))
+
+;; Use this in tests to inspect state at breakpoints
+(deftest debug-test
+  (let [app (make-test-app)]
+    ;; ... run some transactions ...
+    (debug-state app)  ;; prints state to console
+    ;; ... assert things ...
+    ))
 ```
 
-## Testing Utilities
+### Using Browser DevTools
 
-### Mock Data Helpers
-```clojure
-(ns app.test-data
-  (:require [com.fulcrologic.fulcro.algorithms.tempid :as tempid]))
+When testing in the browser:
+- Fulcro DevTools browser extension shows application state in real-time
+- Check the application state structure and trace mutations
+- Verify component queries match returned data
+- Step through state machine transitions
 
-(defn mock-person
-  [& {:keys [id name age] :or {id (tempid/tempid) name "Test Person" age 25}}]
-  {:person/id id :person/name name :person/age age})
+## Test File Organization
 
-(defn mock-app-state
-  [& {:keys [people current-user]}]
-  (merge
-    {:people (or people [(mock-person)])}
-    (when current-user
-      {:current-user current-user})))
-```
+A typical test organization looks like:
 
-### Assertion Helpers
-```clojure
-(defn contains-person? [state person-id]
-  (contains? (:person/id state) person-id))
-
-(defn has-validation-error? [form-state field]
-  (boolean (get-in form-state [::fs/fields field ::fs/validation-message])))
-
-(defn is-loading? [state marker]
-  (get-in state [::df/markers marker ::df/loading?]))
-```
-
-## Test Organization
-
-### Test Structure
 ```
 test/
 ├── app/
-│   ├── ui_test.cljs           # Component tests
-│   ├── mutations_test.cljs    # Mutation tests
-│   ├── state_machines_test.cljs # UISM tests
-│   └── integration_test.cljs  # Integration tests
-├── test_utils.cljs           # Test utilities
-└── test_data.cljs           # Mock data helpers
+│   ├── mutations_test.cljs      # Unit tests for mutations
+│   ├── state_test.cljs          # State computation tests
+│   ├── components_test.cljs     # Component query/ident tests
+│   ├── state_machines_test.cljs # UISM behavior tests
+│   └── integration_test.cljs    # Full workflow tests
+├── test_utils.cljs             # Shared test helpers
+└── test_data.cljs              # Test data factories
 ```
 
-### Test Configuration
-```clojure
-;; shadow-cljs.edn test configuration
-{:builds
- {:test
-  {:target    :node-test
-   :output-to "target/test.js"
-   :ns-regexp "-test$"}}}
-```
+## Summary
 
-## Best Practices
+Effective testing in Fulcro focuses on:
 
-### Test Design
-- **Test behavior, not implementation**: Focus on what components do
-- **Use realistic data**: Test with production-like data
-- **Test edge cases**: Empty states, error conditions, boundary values
-- **Keep tests focused**: One concept per test
+1. **Unit test mutations and state transitions** - Fast, deterministic, no UI
+2. **Integration test workflows** - Using headless synchronous apps
+3. **Test state machines separately** - Using UISM APIs with defined state machines
+4. **Keep UI testing minimal** - Only test complex UI interactions when necessary
+5. **Use test helpers** - Extract common patterns into reusable functions
 
-### Test Maintenance
-- **DRY principles**: Extract common test setup
-- **Clear test names**: Describe what is being tested
-- **Fast feedback**: Keep tests quick to run
-- **Deterministic tests**: Avoid flaky tests with timing issues
-
-### Testing Strategy
-- **Test pyramid**: More unit tests, fewer integration tests
-- **Mock external dependencies**: Control test environment
-- **Test critical paths**: Focus on important user workflows
-- **Continuous testing**: Run tests on every change
+The key insight is that Fulcro's architecture enables testing business logic independent of UI rendering, making tests faster and more reliable.

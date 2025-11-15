@@ -1,10 +1,11 @@
+
 # Dynamic Queries in Fulcro
 
 ## Overview
 
 Dynamic queries allow you to change a component's query at runtime. This feature is fully serializable (works with time-travel debugging) and essential for code splitting, where parent components can't compose child queries until they're loaded.
 
-## Query IDs
+## Query IDs and Qualified Factories
 
 ### Purpose and Structure
 
@@ -13,7 +14,9 @@ Dynamic queries are stored in the application database and must be serializable.
 - Component's fully-qualified class name
 - User-defined qualifier (defaults to empty string)
 
-### Creating Query IDs
+The qualifier mechanism allows you to create multiple independent query contexts for the same component, each with its own dynamic query state.
+
+### Creating Query IDs with Qualified Factories
 
 ```clojure
 (defsc Thing [this props]
@@ -22,23 +25,33 @@ Dynamic queries are stored in the application database and must be serializable.
   ...)
 
 ;; Different query instances of the same component
-(def ui-thing (comp/factory Thing))                    ; No qualifier
+(def ui-thing (comp/factory Thing))                    ; No qualifier (default)
 (def ui-thing-admin (comp/factory Thing {:qualifier :admin})) ; :admin qualifier
 (def ui-thing-public (comp/factory Thing {:qualifier :public})) ; :public qualifier
 ```
 
-### Using Qualified Factories
+Each factory creates a separate query identity in the dynamic query system. This means you can set different queries for "Thing with qualifier :admin" vs "Thing with qualifier :public" independently.
+
+### Using Qualified Factories in Parent Queries
 
 ```clojure
 (defsc Parent [this props]
-  {:query (fn [] [{:admin-thing (comp/get-query ui-thing-admin)}
-                  {:public-thing (comp/get-query ui-thing-public)}])}
+  {:query (fn [] [{:admin-thing (comp/get-query ui-thing-admin)
+                   :public-thing (comp/get-query ui-thing-public)}])}
   (dom/div
     (ui-thing-admin (:admin-thing props))
     (ui-thing-public (:public-thing props))))
 ```
 
-Now you can set different queries for "Thing with qualifier :admin" vs "Thing with qualifier :public".
+Now you can set different queries for each variant:
+
+```clojure
+(defmutation switch-admin-view [_]
+  (action [{:keys [state]}]
+    (swap! state comp/set-query* Thing 
+           {:query [:id :name :admin-notes :admin-email]
+            :qualifier :admin})))
+```
 
 ## Setting Dynamic Queries
 
@@ -52,7 +65,7 @@ Now you can set different queries for "Thing with qualifier :admin" vs "Thing wi
 
 ### Critical Normalization Requirement
 
-When changing queries with joins, you **must** use `get-query` to preserve normalization metadata:
+When changing queries with joins, you **must** use `get-query` to preserve normalization metadata. Queries in Fulcro are augmented with metadata that marks which component is responsible for normalizing (via idents) the entities in that portion of the query tree.
 
 ```clojure
 ;; WRONG - Missing normalization metadata
@@ -68,6 +81,27 @@ When changing queries with joins, you **must** use `get-query` to preserve norma
            {:query [:id {:child (comp/get-query Child)}]})))
 ```
 
+The top-level metadata will be added automatically, but any nested joins must preserve the component metadata.
+
+### Query Parameters
+
+Dynamic queries can also use query parameters (prefixed with `?`) to adjust which fields are included:
+
+```clojure
+(defsc Leaf [this {:keys [x y] :as props}]
+  {:query (fn [] '[:x ?additional-stuff])  ; Parameter starts as empty
+   :ident (fn [] [:leaf/id :id])}
+  (dom/div
+    (dom/button {:onClick (fn [] (comp/set-query! this Leaf 
+                                   {:params {:additional-stuff :y}}))} 
+      "Add :y to query")
+    (dom/button {:onClick (fn [] (comp/set-query! this Leaf 
+                                   {:params {}}))} 
+      "Drop :y from query")))
+```
+
+This allows toggling query fields based on runtime conditions without replacing the entire query.
+
 ### Complex Multi-Component Query Changes
 
 ```clojure
@@ -81,7 +115,7 @@ When changing queries with joins, you **must** use `get-query` to preserve norma
    :ident [:parent/id :parent/id]}
   ...)
 
-;; Change both parent and child queries
+;; Change both parent and child queries atomically
 (defmutation update-both-queries [_]
   (action [{:keys [state]}]
     (swap! state 
@@ -96,14 +130,47 @@ When changing queries with joins, you **must** use `get-query` to preserve norma
                                        {:parent/child (comp/get-query Child state-map)}]}))))))
 ```
 
+**Critical:** When using `get-query` to pull an updated child query, pass the current state map as a second argument. This ensures you get the latest dynamic query version.
+
 ### Top-Level API
 
 ```clojure
 ;; Outside of mutations
 (comp/set-query! app MyComponent {:query [:id :new-field]})
+
+;; With qualifier
+(comp/set-query! app MyComponent {:query [:id :new-field] :qualifier :admin})
 ```
 
-## Real-World Example
+## Real-World Examples
+
+### Working Example: Toggle Query Fields
+
+This example demonstrates switching between two different queries on the same component:
+
+```clojure
+(defsc Leaf [this {:keys [x y]}]
+  {:initial-state (fn [params] {:x 1 :y 42})
+   :query (fn [] [:x])  ; Query starts with :x field
+   :ident (fn [] [:LEAF :ID])}
+  (dom/div
+    (dom/button {:onClick (fn [] (comp/set-query! this ui-leaf {:query [:x]}))} 
+      "Set query to :x")
+    (dom/button {:onClick (fn [] (comp/set-query! this ui-leaf {:query [:y]}))} 
+      "Set query to :y")
+    (dom/button {:onClick (fn [e] (if x
+                                    (m/set-value! this :x (inc x))
+                                    (m/set-value! this :y (inc y))))}
+      (str "Count: " (or x y)))
+    " Leaf"))
+
+(def ui-leaf (comp/factory Leaf {:qualifier :x}))
+
+(defsc Root [this {:keys [root/leaf] :as props}]
+  {:initial-state (fn [p] {:root/leaf (comp/get-initial-state Leaf {})})
+   :query (fn [] [{:root/leaf (comp/get-query ui-leaf)}])}
+  (dom/div (ui-leaf leaf)))
+```
 
 ### Code Splitting Scenario
 
@@ -146,11 +213,11 @@ When changing queries with joins, you **must** use `get-query` to preserve norma
                    {:query [:id :basic-data]}))
 ```
 
-## Hot Code Reload Challenges
+## Hot Code Reload and Dynamic Queries
 
 ### The Problem
 
-Dynamic queries are stored in app state, so hot code reload doesn't automatically see static query changes in your code. This forces developers to either:
+Dynamic queries are stored in app state, so hot code reload doesn't automatically see static query changes in your code. You either need to:
 1. Manually reset queries with `set-query!` calls (tedious)
 2. Reload the entire page (poor dev experience)
 
@@ -158,7 +225,9 @@ Dynamic queries are stored in app state, so hot code reload doesn't automaticall
 
 1. Query children are normalized into app state
 2. Joins point to normalized child query values
-3. Fulcro closes over the entire query tree (even for local component changes)
+3. Fulcro maintains the entire query tree structure in app state (even for local component changes)
+
+When you change a component's query via `set-query*`, Fulcro must track all nested child queries as separate normalized values so that future changes to any child can be made independently.
 
 ### The Solution: Query Refresh
 
@@ -167,9 +236,11 @@ Fulcro 3.3.0+ provides `comp/refresh-dynamic-queries!` to refresh static queries
 ```clojure
 ;; In your hot reload function
 (defn ^:dev/after-load refresh []
-  (comp/refresh-dynamic-queries! app)  ; Refresh static queries
+  (comp/refresh-dynamic-queries! app)  ; Refresh static queries to code version
   (app/mount! app RootComponent "app")) ; Re-mount app
 ```
+
+This function scans the app state for dynamic queries and resets each to its static version defined in the source code.
 
 ### Preserving Dynamic Queries
 
@@ -183,6 +254,8 @@ Use `:preserve-dynamic-query? true` to prevent refresh of intentionally dynamic 
                    [:id :name]))}
   ...)
 ```
+
+Dynamic routers automatically set this option, so they won't be affected by query refresh.
 
 ### Typical Hot Reload Setup
 
@@ -217,14 +290,14 @@ Use `:preserve-dynamic-query? true` to prevent refresh of intentionally dynamic 
                 (= user-role :admin) (conj :admin-data)
                 (= user-role :premium) (conj :premium-features)
                 :always (conj {:items (comp/get-query Item)}))))
-   :preserve-dynamic-query? true}  ; Don't auto-refresh
+   :preserve-dynamic-query? true}  ; Don't auto-refresh during hot reload
   ...)
 
 ;; Update query when user role changes
 (defmutation user-role-changed [{:keys [new-role]}]
   (action [{:keys [state]}]
     (swap! state assoc-in [:current-user :role] new-role)
-    ;; Trigger query rebuild
+    ;; Trigger query rebuild by calling set-query with new computed query
     (comp/set-query! *app* AdaptiveComponent
                      (comp/get-query AdaptiveComponent @state))))
 ```
@@ -251,32 +324,36 @@ Use `:preserve-dynamic-query? true` to prevent refresh of intentionally dynamic 
 
 ## Best Practices
 
-1. **Always use `get-query`** for joins in dynamic query changes
+1. **Always use `get-query`** for joins in dynamic query changes to preserve normalization metadata
 2. **Use qualified factories** when you need multiple query variants of the same component  
 3. **Mark intentionally dynamic components** with `:preserve-dynamic-query? true`
-4. **Refresh queries during hot reload** for better dev experience
-5. **Test normalization** after dynamic query changes
+4. **Refresh queries during hot reload** with `refresh-dynamic-queries!` for better dev experience
+5. **Test normalization** after dynamic query changes by inspecting the app state
 6. **Consider query versioning** for gradual feature rollouts
 7. **Document query changes** in mutations for team understanding
+8. **Pass the final state map to `get-query`** when using it to build parent queries after modifying child queries
 
 ## Common Pitfalls
 
 ### Forgetting Normalization Metadata
 
 ```clojure
-;; BAD - Will break normalization
-(comp/set-query* state MyComponent {:query [:id {:items [:item/id :item/name]}]})
+;; BAD - Will break normalization for Item
+(comp/set-query* state MyComponent 
+  {:query [:id {:items [:item/id :item/name]}]})
 
-;; GOOD - Preserves normalization
-(comp/set-query* state MyComponent {:query [:id {:items (comp/get-query Item)}]})
+;; GOOD - Preserves normalization metadata
+(comp/set-query* state MyComponent 
+  {:query [:id {:items (comp/get-query Item)}]})
 ```
 
 ### Not Preserving Intentional Dynamic Queries
 
 ```clojure
 ;; Without preserve flag, hot reload will reset your dynamic query
+;; This is critical for routers and adaptive components
 (defsc Router [this props]
-  {:preserve-dynamic-query? true  ; Essential for routers!
+  {:preserve-dynamic-query? true  ; Essential!
    :query (fn [] (router-query this))}
   ...)
 ```
@@ -291,7 +368,20 @@ Use `:preserve-dynamic-query? true` to prevent refresh of intentionally dynamic 
            (fn [s]
              (-> s
                  (comp/set-query* Child {:query [:id :name :new-field]})
-                 (comp/set-query* Parent {:query [:id {:child (comp/get-query Child s)}]}))))))
+                 (comp/set-query* Parent 
+                   {:query [:id {:child (comp/get-query Child s)}]}))))))
+```
+
+### Not Passing State to `get-query`
+
+```clojure
+;; WRONG - get-query returns the *static* query from code
+(comp/set-query* state Parent 
+  {:query [:id {:child (comp/get-query Child)}]})
+
+;; CORRECT - get-query returns the current *dynamic* query from state
+(comp/set-query* state Parent 
+  {:query [:id {:child (comp/get-query Child state)}]})
 ```
 
 Dynamic queries provide powerful runtime flexibility while maintaining Fulcro's declarative query model, enabling sophisticated applications with code splitting, progressive enhancement, and adaptive UIs.

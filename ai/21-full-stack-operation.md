@@ -1,3 +1,4 @@
+
 # Full Stack Operation in Fulcro
 
 ## Overview
@@ -39,14 +40,14 @@ Fulcro's full-stack operation model unifies server interaction into a clean, dat
 
 ```clojure
 ;; ❌ WRONG: Using a keyword
-[(create-person {:name "Alice"})]  ; Won't work!
+[(create-person {:name "Alice"})]  ; This looks wrong and won't work!
 
-;; ✅ CORRECT: Using a symbol (no namespace colon)
-[(create-person {:name "Alice"})]  ; This is a symbol!
+;; ✅ CORRECT: Using a symbol (unquoted in transaction context)
+(comp/transact! this [(create-person {:name "Alice"})])
 
 ;; Server response is also keyed by SYMBOL
 {create-person {:person/id 42 :person/name "Alice"}}
-;  ^
+;  ^\
 ;  └─ Symbol as key, not :create-person keyword!
 ```
 
@@ -106,11 +107,53 @@ Components can have constant idents (singletons/panels), making them perfect loa
 ;; Now the idents are placed at the component's location
 ```
 
+## Data Fetch API Basics
+
+### df/load! Function Signature
+
+```clojure
+(df/load! component-or-app query-key-or-ident component-class optional-params-map)
+
+;; Key optional parameters:
+:target                  ; Where to place result: [:table-key id :field]
+:params                  ; Server params: {:search "text"}
+:marker                  ; Loading indicator: :loading or [:ident/id :field]
+:post-mutation          ; Symbol (quoted): `my-mutation - runs after load succeeds
+:post-mutation-params   ; Map passed to post-mutation
+:fallback               ; Symbol (quoted): `my-fallback - runs on error
+:parallel               ; Boolean: if true, load independently (default false)
+```
+
+### Basic Load Examples
+
+```clojure
+;; Load a list of people to root of database
+(df/load! this :people Person)
+
+;; Load with explicit targeting
+(df/load! this :people Person
+  {:target [:component/id :people-list :items]})
+
+;; Load with server parameters
+(df/load! this :autocomplete/results User
+  {:params {:search "alice"}
+   :target (autocomplete-ident search-id)})
+
+;; Load with post-mutation
+(df/load! this :users User
+  {:target [:users/list :items]
+   :post-mutation `users-loaded})
+
+;; Load with error fallback
+(df/load! this :data SomeComponent
+  {:fallback `load-failed})
+```
+
 ## Universal Data Integration Pattern
 
 ### The Core Secret
 
-All external data integration uses the same mechanism: **query-based merge**.
+All external data integration uses the same mechanism: **normalization via queries**.
 
 ### Standard Flow
 
@@ -124,46 +167,47 @@ Query → Server → Response + Original Query → Normalized Data → Database 
 External Data + Query → Normalized Data → Database Merge → New Database
 ```
 
-### Simplified with `merge!`
+### Merging with merge-component!
 
-```
-Tree of Data + Query → merge! → New Database
-```
-
-## Central Functions
-
-### Primary Operations
+For merging outside of mutations:
 
 ```clojure
-;; Run abstract (possibly full-stack) changes
-(comp/transact! this [(some-mutation {:param "value"})])
-(comp/transact! app [(some-mutation {:param "value"})])
+;; Basic merge-component! usage
+(merge/merge-component! app Component data-tree operation path)
 
-;; Merge tree of data via UI query
-(merge/merge! app tree-data query)
+;; Example: Merge a new counter to a list
+(merge/merge-component! app Counter 
+  {:counter/id 4 :counter/n 22}
+  :append [:panels/by-kw :counter :counters])
 
-;; Merge using component instead of query
-(merge/merge-component! app User user-data)
-
-;; Merge within a mutation (using swap!)
-(merge/merge* state tree-data query)
+;; Operations: :append, :prepend, :replace
 ```
 
-### Example Usage
+### Merging within Mutations
+
+Use `swap!` with the merge-component function:
 
 ```clojure
-;; In a component event handler
-(defn handle-create-user [this user-data]
-  (comp/transact! this [(api/create-user user-data)]))
+(defmutation create-item [item-data]
+  (action [{:keys [state ref]}]
+    ;; Merge item into items list, appending to collection
+    (swap! state merge/merge-component Item item-data 
+      :append [::all-items])
+    ;; Can chain multiple updates
+    (swap! state assoc-in ref :ui/creating? false)))
+```
 
-;; In a WebSocket message handler  
-(defn handle-user-update [app user-data]
-  (merge/merge-component! app User user-data))
+### Merging Tree Data with Query
 
-;; In a mutation
+For more complex scenarios where you have tree data matching a specific query structure:
+
+```clojure
 (defmutation update-local-data [new-data]
   (action [{:keys [state]}]
-    (merge/merge* state new-data [{:updated-items (comp/get-query Item)}])))
+    ;; state is an atom, use swap!
+    (swap! state (fn [db]
+      (merge/merge* db new-data 
+        [{:updated-items (comp/get-query Item)}])))))
 ```
 
 ## Query Mismatch Resolution
@@ -297,6 +341,64 @@ The merge algorithm can create states that never existed on the server:
 - **Con**: Potential for showing outdated information
 - **Solution**: Re-load entities when entering edit mode
 
+## Mutations: Local and Remote
+
+### Mutation Definition Blocks
+
+```clojure
+(defmutation my-mutation [params]
+  ;; action: Local optimistic update (runs immediately)
+  (action [{:keys [state app ref]}]
+    (swap! state update-in [:table :id] merge new-data))
+  
+  ;; remote: What to send to server (true = send mutation as-is, false = don't send)
+  (remote [env] true)
+  
+  ;; ok-action: Runs after successful server response
+  (ok-action [{:keys [state app ref result]}]
+    (log/info "Success:" result))
+  
+  ;; error-action: Runs on server error
+  (error-action [{:keys [state app ref result]}]
+    (log/error "Failed:" result))
+  
+  ;; refresh: Fields to re-query after mutation (vector of keywords)
+  (refresh [env] [:my/field :other/field]))
+```
+
+### Mutation Environment Variables
+
+Each block receives an environment map with:
+
+- **state**: Atom containing app database (dereference with `@state`)
+- **app**: Fulcro application instance
+- **ref**: Component's ident path `[:table :id]`
+- **result**: Server response (in `ok-action` and `error-action`)
+- **ast**: EQL query AST (in `remote` block)
+
+### Remote Block Capabilities
+
+The `remote` block can transform mutations before sending:
+
+```clojure
+(defmutation create-entity [{:keys [where?] :as params}]
+  (remote [{:keys [ast ref state] :as env}]
+    (let [path-to-target (conj ref :children)]
+      (cond-> (-> env
+              (m/returning Entity)               ; Declare response component type
+              (m/with-params (dissoc params where?))) ; Modify params
+        (= :append where?) (m/with-target (targeting/append-to path-to-target))
+        (= :prepend where?) (m/with-target (targeting/prepend-to path-to-target))))))
+
+;; Key functions:
+;; m/returning Component      - Component class for response normalization
+;; m/with-target path         - Where to place response in app state
+;; m/with-params params-map   - Params to send to server
+;; targeting/append-to path   - Append response to collection
+;; targeting/prepend-to path  - Prepend to collection
+;; targeting/replace-at path  - Replace at specific location
+```
+
 ## Error Handling
 
 ### Default Error Detection
@@ -311,16 +413,51 @@ The merge algorithm can create states that never existed on the server:
 ```clojure
 (def app 
   (app/fulcro-app 
-    {:remote-error? (fn [result] 
-                      (or (not= 200 (:status-code result))
-                          (contains? (:body result) :error)))}))
+    {:remote-error? (fn [{:keys [body status-code] :as result}] 
+                      (or (not= 200 status-code)
+                          (contains? body :error)))}))
 ```
 
 ### Error Handling Levels
 
 1. **Global Error Handling**: Application-wide error processing
-2. **Mutation-local Error Handling**: Per-mutation error logic
+2. **Mutation Error Handling**: Per-mutation `error-action` and `ok-action`
 3. **Load Error Handling**: Specific error handling for data loads
+
+### Load Error with Fallback
+
+```clojure
+;; Fallback mutation receives error info in params
+(defmutation read-error [params]
+  (action [env]
+    (let [{:keys [result load-params]} params]
+      (js/alert "Load failed!")
+      (log/info "Error:" result)
+      (log/info "Original load options:" load-params))))
+
+;; Use in load with :fallback option
+(df/load! this :data SomeComponent
+  {:fallback `read-error})
+```
+
+### Mutation Error Handling
+
+```clojure
+(defmutation risky-operation [params]
+  (action [{:keys [state]}]
+    ;; Optimistic update
+    (swap! state assoc-in [:ui :pending?] true))
+  
+  (ok-action [{:keys [state result]}]
+    ;; Handle success
+    (swap! state assoc-in [:ui :pending?] false))
+  
+  (error-action [{:keys [app ref result]}]
+    ;; Handle error - result contains error details
+    (js/alert (str "Operation failed: " result)))
+  
+  (remote [env] true))
+```
 
 ## User-Triggered Loading
 
@@ -364,9 +501,10 @@ The merge algorithm can create states that never existed on the server:
 
 (defmutation select-person [{:person/id id}]
   (action [{:keys [state app]}]
-    ;; Check state and conditionally load
+    ;; Update current selection
     (swap! state assoc-in [:component/id :main-panel :current-person]
       [:person/id id])
+    ;; Conditionally load details if missing
     (let [person (get-in @state [:person/id id])
           needs-details? (not (contains? person :person/age))]
       (when needs-details?
@@ -394,9 +532,9 @@ The merge algorithm can create states that never existed on the server:
     (merge/merge-component! app User (:user message))
     
     :new-notification
-    (merge/merge! app 
-                  {:new-notification (:notification message)}
-                  [{:new-notification (comp/get-query Notification)}])))
+    (merge/merge-component! app Notification (:notification message))
+    
+    :unknown nil))
 ```
 
 ### Complex Full-Stack Operation
@@ -409,13 +547,14 @@ The merge algorithm can create states that never existed on the server:
                            (merge user-params {:ui/creating? true})))
   (remote [env]
     ;; Server mutation
-    true)
-  (result-action [{:keys [state result]}]
+    (m/returning env User))
+  (ok-action [{:keys [state result]}]
     ;; Handle server response
-    (let [new-user (:create-user result)]
-      (merge/merge-component* state User new-user)
-      (targeting/integrate-ident* state [:user/id (:user/id new-user)] 
-                                 :append [:users/list]))))
+    (let [new-user (User result)]
+      (swap! state merge/merge-component User new-user 
+        :append [:users/list]))))
 ```
+
+## Summary
 
 This unified approach to full-stack operation makes Fulcro applications predictable, testable, and maintainable while handling the complexities of distributed systems transparently.

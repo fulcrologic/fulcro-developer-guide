@@ -1,3 +1,4 @@
+
 # Advanced Fulcro Internals
 
 ## Overview
@@ -28,17 +29,16 @@ Most operations in Fulcro flow through the transaction processing system:
 
 The built-in transaction processor (`tx_processing.cljc`) provides:
 
-- **Pessimistic transactions**: Wait for server responses before proceeding
+- **Optimistic execution**: Runs local mutations immediately (default behavior; use `{:optimistic? false}` for pessimistic)
 - **Ordered network operations**: Requests process sequentially by default
-- **Write-before-read**: Mutations sent before queries in the same transaction
-- **Parallel reads**: Optional concurrent query processing
-- **Read/write combining**: Batches compatible operations
+- **Render scheduling**: Coordinates UI updates with render tasks
+- **Result merging**: Integrates server responses into normalized database
 - **Multi-remote splitting**: Distributes operations across remotes
-- **Render scheduling**: Coordinates UI updates
-- **Optimistic execution**: Runs local mutations immediately
-- **Inspect integration**: Development tool connectivity
+- **Read/write combining**: Batches compatible operations
 
 ### Customizing Transaction Processing
+
+The primary customization point for transaction processing is the `submit-transaction!` algorithm:
 
 ```clojure
 (defn custom-tx-processor [app tx-data]
@@ -51,7 +51,7 @@ The built-in transaction processor (`tx_processing.cljc`) provides:
 
 (def app
   (app/fulcro-app
-    {:submit-transaction! custom-tx-processor}))
+    {:com.fulcrologic.fulcro.algorithm/tx! custom-tx-processor}))
 ```
 
 ### Safe Wrapper Pattern
@@ -152,7 +152,7 @@ Static configuration (no atom, immutable):
   (get-in app [::app/config :my-app/api-endpoint]))
 ```
 
-**Note**: Config structure may change between Fulcro versions. Use your own namespaced keys for stability.
+**Important**: The `::config` structure itself is **considered unstable and may change between Fulcro versions**. Always use your own namespaced keys for any configuration you want to preserve across version upgrades. Do not rely on the internal structure of `::config`.
 
 #### `::basis-t`
 Render time counter for targeted refresh:
@@ -163,7 +163,7 @@ Render time counter for targeted refresh:
   (log/debug "Current render generation:" basis-t))
 ```
 
-This enables Fulcro's targeted refresh system where components receive newer props via `setState` rather than full tree re-renders.
+This enables Fulcro's targeted refresh system where components receive newer props via `setState` rather than full tree re-renders. The counter increments with each render cycle.
 
 ## Algorithms Map
 
@@ -174,31 +174,48 @@ The algorithms map serves two functions:
 1. **Dependency resolution**: Core systems can reference each other without circular dependencies
 2. **User customization**: Override built-in behaviors
 
-### Customizable Algorithms
+### Available Algorithms
+
+Fulcro provides many customizable algorithms. Here are the most commonly overridden:
 
 ```clojure
 (def app
   (app/fulcro-app
     {;; Custom error detection
-     :remote-error? (fn [result] 
-                     (or (not= 200 (:status-code result))
-                         (contains? (:body result) :error)))
+     :com.fulcrologic.fulcro.algorithm/remote-error? 
+     (fn [result] 
+       (or (not= 200 (:status-code result))
+           (contains? (:body result) :error)))
      
      ;; Custom render scheduling
-     :schedule-render! (fn [app options]
-                        (js/setTimeout 
-                          #(default-render! app options) 16))
+     :com.fulcrologic.fulcro.algorithm/schedule-render! 
+     (fn [app options]
+       (js/setTimeout 
+         #(default-render! app options) 16))
      
      ;; Custom state initialization
-     :initialize-state! (fn [app root-class]
-                         (reset! (::app/state-atom app)
-                                (merge default-state custom-state)))
+     :com.fulcrologic.fulcro.algorithm/initialize-state! 
+     (fn [app root-class]
+       (reset! (::app/state-atom app)
+              (merge default-state custom-state)))
      
      ;; Custom global error handling
-     :global-error-action (fn [env]
-                           (log/error "Global error:" (:error env))
-                           (show-error-dialog (:error env)))}))
+     :com.fulcrologic.fulcro.algorithm/global-error-action 
+     (fn [env]
+       (log/error "Global error:" (:error env))
+       (show-error-dialog (:error env)))}))
 ```
+
+### Other Available Algorithms
+
+Additional customizable algorithms include:
+
+- `:com.fulcrologic.fulcro.algorithm/tx!` - Main transaction processor
+- `:com.fulcrologic.fulcro.algorithm/render!` - Rendering function
+- `:com.fulcrologic.fulcro.algorithm/default-result-action!` - Network result handling
+- `:com.fulcrologic.fulcro.algorithm/merge*` - State merging
+- `:com.fulcrologic.fulcro.algorithm/render-middleware` - Middleware for render lifecycle
+- `:com.fulcrologic.fulcro.algorithm/global-eql-transform` - Transform queries before sending
 
 ### Algorithm Access
 
@@ -305,7 +322,7 @@ The algorithms map serves two functions:
 1. **Fulcro db only**: Component-local state is not tracked
 2. **Serialization requirements**: All data must survive serialize/deserialize
 3. **UI-only time travel**: Not full distributed system time travel
-4. **Development/debugging focus**: Not production feature
+4. **Development/debugging focus**: Not a production feature
 
 ### Basic Time Travel
 
@@ -389,8 +406,8 @@ The algorithms map serves two functions:
      :remotes {}
      
      ;; No-op transaction processing
-     :submit-transaction! (fn [app tx] 
-                           (log/debug "Replay app ignoring tx:" tx))
+     :com.fulcrologic.fulcro.algorithm/tx! (fn [app tx] 
+                                             (log/debug "Replay app ignoring tx:" tx))
      
      ;; No-op loads
      :load-mutation (fn [env] 
@@ -444,7 +461,7 @@ The algorithms map serves two functions:
 
 (def app
   (app/fulcro-app
-    {:render! timed-render!}))
+    {:com.fulcrologic.fulcro.algorithm/render! timed-render!}))
 ```
 
 ### Transaction Performance
@@ -501,8 +518,7 @@ The algorithms map serves two functions:
 (def app
   (app/fulcro-app
     (cond-> base-config
-      development? (assoc :audit-enabled? true
-                         :submit-transaction! audited-tx-processor)
+      development? (assoc :com.fulcrologic.fulcro.algorithm/submit-transaction! audited-tx-processor)
       production?  (assoc :error-reporting error-service))))
 ```
 

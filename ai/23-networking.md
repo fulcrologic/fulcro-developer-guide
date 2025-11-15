@@ -1,3 +1,4 @@
+
 # Client Networking with Fulcro HTTP Remote
 
 ## Overview
@@ -76,6 +77,7 @@ Fulcro provides middleware with:
     (handler request)))
 
 ;; Compose middleware (right to left evaluation)
+;; IMPORTANT: Must include wrap-fulcro-request in the chain
 (def request-middleware
   (-> http-remote/wrap-fulcro-request
       add-auth-header
@@ -85,19 +87,17 @@ Fulcro provides middleware with:
 ### Advanced Request Modification
 
 ```clojure
-(defn route-by-mutation [handler]
-  (fn [request]
-    (let [tx (:body request)
-          has-mutation? (some symbol? (flatten tx))
-          url (if has-mutation? "/mutations" "/queries")]
-      (handler (assoc request :url url)))))
-
 (defn add-csrf-token [handler]
   (fn [request]
     (handler
       (-> request
           (update :headers assoc "X-CSRF-Token" (get-csrf-token))
           (update :headers assoc "X-Requested-With" "XMLHttpRequest")))))
+
+(defn custom-url-logic [handler]
+  (fn [request]
+    ;; Modify URL based on request characteristics
+    (handler (assoc request :url (determine-url request)))))
 ```
 
 ### Final Request Format
@@ -107,7 +107,7 @@ Middleware output is used as:
 - `:body` → Raw data for XhrIO send
 - `:headers` → Map converted to JS object for request headers
 - `:url` → Network target (relative or absolute)
-- `:method` → Converted to uppercase HTTP verb string
+- `:method` → Converted to uppercase HTTP verb string (e.g., "POST")
 
 ## Response Middleware
 
@@ -117,17 +117,19 @@ The default middleware `wrap-fulcro-response` handles Transit decoding and stand
 
 ### Response Structure
 
-Raw responses include:
+Raw responses from the HTTP remote include:
 
 ```clojure
-{:body                ; Server response data
- :original-transaction ; Original query/mutation sent
- :status-code         ; HTTP status code  
- :status-text         ; HTTP status text
- :error              ; Error code (:network-error, :http-error, :timeout)
- :error-text         ; Error description string
- :outgoing-request}  ; Original request that triggered this response
+{:body                  ; Server response data
+ :original-transaction  ; Original query/mutation sent (in Fulcro 3.1+)
+ :status-code          ; HTTP status code  
+ :status-text          ; HTTP status text
+ :error                ; Error code (:network-error, :http-error, :timeout)
+ :error-text           ; Error description string
+ :outgoing-request}    ; Original request that triggered this response
 ```
+
+<!-- TODO: Verify the exact keys in earlier Fulcro 3.x versions before 3.1 -->
 
 ### Custom Response Middleware
 
@@ -155,9 +157,11 @@ Raw responses include:
       (handler
         (if (not= 200 status-code)
           ;; Rewrite error as successful data merge
+          ;; WARNING: Only use this if you understand how normalization works
+          ;; The :transaction value should be a proper query for correct normalization
           (-> response
               (assoc :body {:app/error {:code status-code :message error}}
-                     :transaction [:app/error]
+                     :original-transaction [:app/error]
                      :status-code 200)
               (dissoc :error))
           response)))))
@@ -166,11 +170,11 @@ Raw responses include:
 ### Response Rewriting
 
 Middleware can modify:
-- `:transaction` key → Changes merge behavior
+- `:original-transaction` key → Changes how data is merged into state
 - `:body` key → Modifies data being merged
 - Error fields → Can convert errors to successful merges
 
-**Warning**: Rewriting transactions affects normalization. Use component queries for proper normalization.
+**Warning**: Rewriting transactions affects normalization and merge behavior. Use component queries for proper normalization, and be careful with the `:transaction` key - it should match an actual query shape to ensure data is normalized correctly.
 
 ## Advanced Response Processing
 
@@ -191,21 +195,21 @@ Middleware can modify:
           (= :timeout error)
           (assoc response 
                  :body {:app/network-status {:status :timeout}}
-                 :transaction [:app/network-status]
+                 :original-transaction [:app/network-status]
                  :status-code 200)
           
           ;; Server error  
           (>= status-code 500)
           (assoc response
                  :body {:app/network-status {:status :server-error}}
-                 :transaction [:app/network-status] 
+                 :original-transaction [:app/network-status] 
                  :status-code 200)
           
           ;; Client error
           (>= status-code 400)
           (assoc response
                  :body {:app/network-status {:status :client-error}}
-                 :transaction [:app/network-status]
+                 :original-transaction [:app/network-status]
                  :status-code 200)
           
           :else response)))))
@@ -218,16 +222,18 @@ Middleware can modify:
 A remote is a map that **must** contain:
 - `:transmit!` key with function `(fn [remote send-node] ...)`
 
+The remote implementation must call the `result-handler` from the send-node exactly once per request, with a result map.
+
 ### Send Node Specification
 
 ```clojure
-{:com.fulcrologic.fulcro.algorithms.tx-processing/id            ; Unique ID
- :com.fulcrologic.fulcro.algorithms.tx-processing/idx           ; Index 
- :com.fulcrologic.fulcro.algorithms.tx-processing/ast           ; Request AST
- :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler ; Result callback
- :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler ; Progress callback
- :com.fulcrologic.fulcro.algorithms.tx-processing/active?       ; Active status
- :com.fulcrologic.fulcro.algorithms.tx-processing/options}      ; Options (optional)
+{:com.fulcrologic.fulcro.algorithms.tx-processing/id            ; Unique ID for this request
+ :com.fulcrologic.fulcro.algorithms.tx-processing/idx           ; Index in the batch
+ :com.fulcrologic.fulcro.algorithms.tx-processing/ast           ; Request AST (the query/mutation structure)
+ :com.fulcrologic.fulcro.algorithms.tx-processing/result-handler ; (fn [result]) - call once with result
+ :com.fulcrologic.fulcro.algorithms.tx-processing/update-handler ; (fn [progress-report]) - call for progress updates
+ :com.fulcrologic.fulcro.algorithms.tx-processing/active?       ; Atom indicating if this request is active
+ :com.fulcrologic.fulcro.algorithms.tx-processing/options}      ; Options map (e.g., contains :abort-id)
 ```
 
 ### Example: Local Storage Remote
@@ -270,47 +276,19 @@ A remote is a map that **must** contain:
 
 ## Interfacing with External APIs
 
-### REST API Integration
+### Standard Result Format for Custom Remotes
 
-Using Pathom for REST integration:
-
-```clojure
-(ns app.rest-remote
-  (:require [com.wsscode.pathom.connect :as pc]
-            [com.wsscode.pathom.core :as p]))
-
-(defmulti resolver-fn pc/resolver-dispatch)
-(defonce indexes (atom {}))
-(defonce defresolver (pc/resolver-factory resolver-fn indexes))
-
-;; Define REST resolver
-(defresolver `users-by-company
-  {::pc/output [{:company/users [:user/id :user/name :user/email]}]}
-  (fn [env {:keys [company/id]}]
-    (go
-      (let [response (<! (http/get (str "/api/companies/" id "/users")))]
-        {:company/users (:body response)}))))
-
-;; Create REST remote
-(defn rest-remote []
-  (pathom-remote 
-    (p/async-parser
-      {::p/plugins [(p/env-plugin
-                      {::p/reader [p/map-reader pc/all-async-readers]
-                       ::pc/resolver-dispatch resolver-fn
-                       ::pc/indexes @indexes})]})))
-```
-
-### GraphQL Integration
-
-Pathom also provides GraphQL remotes:
+When writing a custom remote, the result passed to `result-handler` should follow this standard format:
 
 ```clojure
-(defn graphql-remote [endpoint]
-  (pathom-graphql-remote
-    {:url endpoint
-     :headers {"Authorization" (get-auth-token)}}))
+{:body some-edn                    ; The response data to merge
+ :original-transaction original-tx ; The query/mutation that prompted this response
+ :status-code n}                   ; HTTP status code (200 for success)
 ```
+
+Following this format ensures compatibility with Fulcro's default merge, error handling, and ok/result-action processing. If you deviate from this format, you'll need to handle merging and error processing yourself.
+
+<!-- TODO: Note about Pathom integration - the REST and GraphQL examples in older Fulcro docs are for Fulcro 2.x. For Fulcro 3.x, consult Pathom's current documentation for the proper integration approach. -->
 
 ## Error Handling Strategies
 
@@ -354,20 +332,21 @@ Pathom also provides GraphQL remotes:
           (assoc response
                  :body {:app/notifications [{:type :error 
                                              :message "Network operation failed"}]}
-                 :transaction [{:app/notifications (comp/get-query Notification)}]
+                 :original-transaction [{:app/notifications (comp/get-query Notification)}]
                  :status-code 200)))
       (handler response))))
 ```
 
 ## Best Practices
 
-1. **Compose Middleware Carefully**: Always include default Fulcro middleware in your stack
-2. **Handle Errors Gracefully**: Convert errors to data when appropriate
+1. **Compose Middleware Carefully**: Always include default Fulcro middleware in your stack (e.g., `wrap-fulcro-request`, `wrap-fulcro-response`)
+2. **Handle Errors Gracefully**: Convert errors to data when appropriate, but understand the implications for merge and normalization
 3. **Log for Debugging**: Add logging middleware for development
-4. **Secure Headers**: Add authentication and CSRF tokens
+4. **Secure Headers**: Add authentication and CSRF tokens via request middleware
 5. **Progress Indication**: Use update handlers for long operations
 6. **Timeout Handling**: Implement reasonable timeout strategies
 7. **Retry Logic**: Add retry middleware for transient failures
+8. **Result Handler**: Custom remotes must call `result-handler` exactly once per request
 
 ## Complete Example
 
@@ -391,7 +370,7 @@ Pathom also provides GraphQL remotes:
         (= 403 status-code)
         (handler (assoc response
                         :body {:app/error "Access denied"}
-                        :transaction [:app/error]
+                        :original-transaction [:app/error]
                         :status-code 200))
         
         :else (handler response)))))

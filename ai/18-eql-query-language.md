@@ -1,3 +1,4 @@
+
 # EQL - The Query and Mutation Language
 
 ## Overview
@@ -92,6 +93,8 @@ Unions represent a map of queries where only one applies at a given graph edge. 
 
 ### Union Ident Function
 
+The union component must have an `:ident` function that can generate the correct ident for all possible data types:
+
 ```clojure
 (defsc PersonPlaceOrThingUnion [this props]
   {:ident (fn []
@@ -102,18 +105,25 @@ Unions represent a map of queries where only one applies at a given graph edge. 
   ...)
 ```
 
+The ident function receives no arguments and accesses `props` through closure. The function is called during normalization to determine the correct ident for the component's data.
+
 ### Union Rendering
 
 The union component must detect the data type and render the appropriate child:
 
 ```clojure
-(let [page (first (comp/get-ident this))]
-  (case page
-    :person/id ((comp/factory PersonDetail) (comp/props this))
-    :place/id ((comp/factory PlaceDetail) (comp/props this))
-    :thing/id ((comp/factory ThingDetail) (comp/props this))
-    (dom/div (str "Cannot route: Unknown Screen " page))))
+(defsc PersonPlaceOrThingUnion [this props]
+  {:ident (fn [] ...)
+   :query (fn [] ...)}
+  (let [[ident-type _] (comp/get-ident this)]
+    (case ident-type
+      :person/id ((comp/factory PersonDetail) props)
+      :place/id ((comp/factory PlaceDetail) props)
+      :thing/id ((comp/factory ThingDetail) props)
+      (dom/div (str "Cannot render: Unknown type " ident-type)))))
 ```
+
+Use `comp/get-ident` to determine which type of data you have, then render the appropriate child component.
 
 ## Mutations
 
@@ -137,6 +147,13 @@ Mutations are data representations of abstract actions on the data model. They l
 (ns app.mutations)
 
 (defmutation do-something [params] 
+  (action [env] ...))
+```
+
+For mutations that interact with a remote server:
+
+```clojure
+(defmutation do-something [params] 
   (action [env] ...)
   (remote [env] ...))
 ```
@@ -155,7 +172,7 @@ Mutations are data representations of abstract actions on the data model. They l
 
 - In Fulcro 3, mutations return themselves as data, eliminating most quoting requirements
 - Use syntax quoting when circular references prevent namespace requiring
-- The parameter map is optional but recommended for IDE support
+- The parameter map is optional but recommended for IDE support and clarity
 
 ## Parameters
 
@@ -201,6 +218,8 @@ This pulls a table entry without normalization or following subqueries:
         ; person contains {:id 1 :person/phone [:phone/id 4]}
 ```
 
+The denormalized value still contains ident "pointers" rather than full objects.
+
 ### Ident as Join
 
 ```clojure
@@ -211,7 +230,7 @@ This pulls a table entry without normalization or following subqueries:
         ; person contains {:id 1 :person/phone {:phone/id 4 :phone/number "555-1212"}}
 ```
 
-This re-roots the graph walk at the ident's table entry and continues the subtree traversal.
+This re-roots the graph walk at the ident's table entry and continues the subtree traversal, fully denormalizing the person and their phone.
 
 ## Link Queries
 
@@ -235,12 +254,12 @@ Pulls `:current-user` with continued graph traversal.
 
 ### Important Warning
 
-Components using only ident/link queries need database presence:
+Components using only ident/link queries **require** an `:initial-state`:
 
 ```clojure
 (defsc LocaleSwitcher [this {:keys [ui/locale]}]
   {:query [[:ui/locale '_]]
-   :initial-state {}} ; Required: empty map for database presence
+   :initial-state {}} ; REQUIRED: empty map ensures component has database presence
   (dom/div ...))
 
 (defsc Root [this {:keys [locale-switcher]}]
@@ -248,6 +267,8 @@ Components using only ident/link queries need database presence:
    :initial-state (fn [params] {:locale-switcher (comp/get-initial-state LocaleSwitcher)})}
   (ui-locale-switcher locale-switcher))
 ```
+
+The `:initial-state` is required because Fulcro needs to create a database entry for the component so that link queries can find it. Without it, the query has nowhere to "land" in the database.
 
 ## Shared State
 
@@ -285,29 +306,48 @@ EQL supports recursive queries for self-referential data structures.
 
 ### Recursion Notations
 - `...` - Recurse until no more links (with circular detection)
-- Number - Recursion depth limit
+- Number - Recursion depth limit during normalization
 
 ### Basic Recursive Query
 
 ```clojure
 (defsc Person [this props]
-  {:query (fn [] [:person/id :person/name {:person/friends ...}])}
+  {:query (fn [] [:person/id :person/name {:person/friends '...}])}
   ...)
 ```
 
+The `...` notation tells Fulcro to keep traversing the graph along that edge indefinitely (until no more data is found or a circular reference is detected).
+
 ### Circular Recursion Handling
 
-For circular relationships, calculate depth to prevent rendering issues:
+For circular relationships, numeric depth limits prevent infinite normalization traversal:
 
 ```clojure
 (defsc Person [this {:keys [person/name spouse] :as props}]
   {:query (fn [] [:person/id :person/name {:spouse 1}])}
-  (let [depth (or (comp/get-computed this :depth) 0)]
-    (dom/div
-      (dom/p name)
-      (when (and spouse (< depth 1))
-        (ui-person (comp/computed spouse {:depth (inc depth)}))))))
+  ...)
 ```
+
+The numeric `1` limit means Fulcro will only traverse the `:spouse` edge once during normalization, preventing infinite traversal of the circular reference.
+
+However, rendering circular structures still requires depth tracking because the numeric limit only prevents normalization from looping—it doesn't prevent your component from rendering infinitely:
+
+```clojure
+(defsc Person [this
+               {:keys [db/id person/name person/spouse person/age]}
+               {:keys [render-depth] :or {render-depth 0}}]
+  {:query (fn [] [:db/id :person/name :person/age {:person/spouse 1}])}
+  (dom/div
+    (dom/div "Name:" name)
+    (dom/div "Age:" age)
+    (when (and (= 0 render-depth) spouse)
+      (dom/ul
+        (dom/div "Spouse:"
+          ; Use comp/computed to pass render-depth to child
+          (ui-person (comp/computed spouse {:render-depth (inc render-depth)})))))))
+```
+
+Use `comp/computed` to pass depth information to child components and prevent render cycles.
 
 ### Duplicates in Recursive Structures
 
@@ -355,6 +395,7 @@ EQL expressions can be converted to/from AST for complex query manipulation.
 4. **Use unions for polymorphic data** where different types need different queries
 5. **Namespace mutations** and use syntax quoting for clean expressions
 6. **Leverage AST** for complex query transformations and server processing
+7. **Remember auto-normalization limits**: Use vectors for to-many relationships; lists/seqs won't auto-normalize
 
 ## Query Composition Examples
 

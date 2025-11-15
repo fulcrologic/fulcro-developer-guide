@@ -1,8 +1,11 @@
+
 # Custom Type Support in Fulcro
 
 ## Overview
 
 Fulcro 3.3.6+ provides centralized custom type support through a global type registry, making it easier to work with complex data types across the entire application stack. This eliminates the need to manually pass Transit options throughout your codebase.
+
+**Important Note**: Custom type support is API stable and definitely usable as parameters for mutations. However, it still needs more testing with respect to usage in the state database. Fulcro intends to support custom types everywhere, but you should test your use of them carefully in state management contexts.
 
 ## Evolution from Per-Function to Global Registry
 
@@ -201,6 +204,8 @@ Custom types work automatically with:
   (app/mount! app Root "app"))
 ```
 
+**Important for WebSocket Support**: WebSocket support specifically requires you install these handlers before you create a client or server instance.
+
 ### Startup Configuration
 
 ```clojure
@@ -228,7 +233,7 @@ Custom types work automatically with:
 (deftype Point [x y])
 
 ;; AVOID: defrecord (can lose type information)
-(defrecord Point [x y])  ; Looks like map to Fulcro internals
+(defrecord Point [x y])  ; When used in queries, can lose its type and turn into a plain persistent map
 ```
 
 ### 2. Globally Unique Tags
@@ -357,4 +362,4 @@ Custom types work automatically with:
     (is (instance? ProductId (get-in @app-state [:product/id "test-123" :product/id])))))
 ```
 
-Custom types in Fulcro provide a powerful way to maintain type safety and semantic meaning throughout your application stack while working seamlessly with the framework's data-driven architecture.
+Custom types in Fulcro provide a powerful way to maintain type safety and semantic meaning throughout your application stack while working seamlessly with the framework's data-driven architecture. Remember to install them early in your application lifecycle, especially if you're using WebSocket communication.

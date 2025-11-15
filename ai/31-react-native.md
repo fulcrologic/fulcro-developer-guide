@@ -1,3 +1,4 @@
+
 # React Native Integration
 
 ## Overview
@@ -8,26 +9,32 @@ Fulcro works excellently with React Native for building mobile applications. The
 
 ### Recommended Setup
 
-**Use Expo**: Currently recommended approach for React Native development
-**Fulcro Native Library**: Provides essential setup utilities
+**Use Expo**: Currently recommended approach for React Native development with Fulcro
+**Fulcro Native Library**: Provides essential setup utilities and helpers
 
 ```clojure
 ;; Add to deps.edn
-{:deps {com.fulcrologic/fulcro-native {:mvn/version "1.0.0"}}}
+{:deps {com.fulcrologic/fulcro {:mvn/version "3.7.0"}}}
 ```
+
+<!-- TODO: Verify fulcro-native library existence and version -->
 
 ### Template Project
 
-Start with the official template:
+Start with building from examples. The Fulcro ecosystem provides resources for React Native integration:
+
 ```bash
-git clone https://github.com/fulcrologic/fulcro-native-template
+# Refer to Fulcro documentation for current template recommendations
+# React Native setup via Expo:
+npx create-expo-app your-app-name
 ```
 
 ### Basic Setup Steps
 
 1. **Configure package.json** with React Native dependencies
-2. **Modify Fulcro rendering** to initialize React Native
-3. **Wrap native UI components** for Fulcro compatibility
+2. **Set up Shadow-cljs build** targeting React Native (separate from web build)
+3. **Wrap native UI components** for Fulcro component integration
+4. **Initialize Fulcro app** with React Native renderer
 
 ## Core Integration Requirements
 
@@ -36,10 +43,10 @@ git clone https://github.com/fulcrologic/fulcro-native-template
 ```json
 {
   "dependencies": {
-    "react": "17.x.x",
-    "react-native": "0.64.x",
-    "expo": "^42.0.0",
-    "@react-native-async-storage/async-storage": "^1.15.0"
+    "react": "^18.2.0",
+    "react-native": "^0.73.0",
+    "expo": "^51.0.0",
+    "@react-native-async-storage/async-storage": "^1.23.0"
   }
 }
 ```
@@ -55,38 +62,45 @@ git clone https://github.com/fulcrologic/fulcro-native-template
     ["react-native" :as rn]))
 
 ;; Configure for React Native
-(def app
+(def mobile-app
   (app/fulcro-app
     {:optimistic? true
-     :root-class Root
-     :render-middleware (fn [this real-root]
-                         ;; React Native root wrapper
-                         (rn/createElement rn/View #js {} real-root))}))
+     :root-class Root}))
 ```
 
+<!-- TODO: Verify render-middleware approach for React Native mounting -->
+
 ### Native Component Wrappers
+
+React Native components need to be wrapped for use with Fulcro's component system. Use `createElement` directly from React Native:
 
 ```clojure
 (ns mobile-app.ui.native
   (:require
-    [com.fulcrologic.fulcro.dom :as dom]
+    [com.fulcrologic.fulcro.components :as comp]
     ["react-native" :as rn]))
 
-;; Wrap React Native components for Fulcro
-(def ui-view (dom/native-element rn/View))
-(def ui-text (dom/native-element rn/Text))
-(def ui-touchable (dom/native-element rn/TouchableOpacity))
-(def ui-text-input (dom/native-element rn/TextInput))
-(def ui-scroll-view (dom/native-element rn/ScrollView))
-(def ui-flat-list (dom/native-element rn/FlatList))
-
-;; Alternative: Create factory functions
-(defn view [props & children]
+;; Create factory functions for React Native components
+(defn ui-view [props & children]
   (apply rn/createElement rn/View (clj->js props) children))
 
-(defn text [props & children]
+(defn ui-text [props & children]
   (apply rn/createElement rn/Text (clj->js props) children))
+
+(defn ui-touchable [props & children]
+  (apply rn/createElement rn/TouchableOpacity (clj->js props) children))
+
+(defn ui-text-input [props & children]
+  (apply rn/createElement rn/TextInput (clj->js props) children))
+
+(defn ui-scroll-view [props & children]
+  (apply rn/createElement rn/ScrollView (clj->js props) children))
+
+(defn ui-flat-list [props & children]
+  (apply rn/createElement rn/FlatList (clj->js props) children))
 ```
+
+<!-- NOTE: `dom/native-element` is not a standard Fulcro API. Use direct `createElement` as shown above. -->
 
 ## Source Code Sharing
 
@@ -103,6 +117,8 @@ Sharing code between web and mobile platforms requires careful management of pla
 4. Trace the require chain causing the leak
 
 ### Protocol-Based Platform Abstraction
+
+The recommended pattern for sharing code between web and mobile is using Clojure protocols to abstract platform-specific implementations:
 
 #### Step 1: Runtime Environment
 
@@ -238,11 +254,12 @@ Sharing code between web and mobile platforms requires careful management of pla
 (ns app.browser.main
   (:require
     [app.targets.browser :as browser]
+    [app.core :as core]
     [com.fulcrologic.fulcro.application :as app]))
 
 (defn init []
   (browser/init!)  ; Initialize browser implementations
-  (app/mount! app Root "app"))
+  (app/mount! core/mobile-app core/Root "app"))
 ```
 
 **Native Entry:**
@@ -250,12 +267,13 @@ Sharing code between web and mobile platforms requires careful management of pla
 (ns app.native.main
   (:require
     [app.targets.native :as native]
+    [app.core :as core]
     [com.fulcrologic.fulcro.application :as app]
     ["expo" :as Expo]))
 
 (defn init []
   (native/init!)  ; Initialize native implementations
-  (app/mount! app Root "app"))
+  (app/mount! core/mobile-app core/Root "app"))
 
 ;; Register with Expo
 (.registerRootComponent Expo (fn [] (init)))
@@ -276,14 +294,14 @@ Sharing code between web and mobile platforms requires careful management of pla
 
 (dr/defrouter MainRouter [this {:keys [current-route route-props]}]
   {:router-targets {:home home/HomeScreen
-                   :profile profile/ProfileScreen}})
+                    :profile profile/ProfileScreen}})
 
 (defsc Root [this {:keys [main-router]}]
   {:query [{:main-router (comp/get-query MainRouter)}]
    :initial-state {:main-router {}}}
-  (n/view
+  (n/ui-view
     {:style {:flex 1 :backgroundColor "#fff"}}
-    (comp/factory MainRouter main-router)))
+    ((comp/factory MainRouter) main-router)))
 ```
 
 ### Home Screen
@@ -301,18 +319,18 @@ Sharing code between web and mobile platforms requires careful management of pla
    :initial-state {:home/title "Welcome!"
                   :home/message "This is a Fulcro Native app"}
    :route-segment ["home"]}
-  (n/view
+  (n/ui-view
     {:style {:flex 1 :justifyContent "center" :alignItems "center" :padding 20}}
-    (n/text
+    (n/ui-text
       {:style {:fontSize 24 :fontWeight "bold" :marginBottom 20}}
       title)
-    (n/text
+    (n/ui-text
       {:style {:fontSize 16 :textAlign "center" :marginBottom 30}}
       message)
-    (n/touchable
+    (n/ui-touchable
       {:style {:backgroundColor "#007AFF" :padding 15 :borderRadius 8}
        :onPress #(dr/change-route! this ["profile"])}
-      (n/text
+      (n/ui-text
         {:style {:color "white" :fontWeight "bold"}}
         "Go to Profile"))))
 ```
@@ -327,35 +345,41 @@ Sharing code between web and mobile platforms requires careful management of pla
     [com.fulcrologic.fulcro.mutations :as m]
     [mobile-app.ui.native :as n]))
 
+(m/defmutation logout [_]
+  (action [{:keys [state]}]
+    (swap! state dissoc :user/name :user/email)))
+
 (defsc ProfileScreen [this {:keys [user/name user/email ui/loading?] :as props}]
   {:query [:user/name :user/email :ui/loading?]
    :ident (fn [] [:screen/id :profile])
    :initial-state {:ui/loading? false}
    :route-segment ["profile"]
    :will-enter (fn [app route-params]
-                 (df/load! app :current-user User)
+                 (df/load! app :current-user nil)
                  (dr/route-immediate [:screen/id :profile]))}
-  (n/view
+  (n/ui-view
     {:style {:flex 1 :padding 20}}
-    (n/text
+    (n/ui-text
       {:style {:fontSize 20 :fontWeight "bold" :marginBottom 20}}
       "Profile")
     (if loading?
-      (n/text "Loading...")
-      (n/view
-        (n/text
+      (n/ui-text "Loading...")
+      (n/ui-view
+        (n/ui-text
           {:style {:fontSize 16 :marginBottom 10}}
           (str "Name: " (or name "Unknown")))
-        (n/text
+        (n/ui-text
           {:style {:fontSize 16 :marginBottom 20}}
           (str "Email: " (or email "No email")))
-        (n/touchable
+        (n/ui-touchable
           {:style {:backgroundColor "#FF3B30" :padding 15 :borderRadius 8}
-           :onPress #(comp/transact! this [(logout!)])}
-          (n/text
+           :onPress #(comp/transact! this [(logout {})])}
+          (n/ui-text
             {:style {:color "white" :fontWeight "bold"}}
             "Logout"))))))
 ```
+
+<!-- TODO: Verify that `df/load!` with nil for query-class is valid or if component class must be provided -->
 
 ## Platform-Specific Styling
 
@@ -398,7 +422,7 @@ Sharing code between web and mobile platforms requires careful management of pla
 
 ### 1. Component Organization
 
-```clojure
+```
 src/
   shared/           ; Shared business logic
     mutations/
@@ -408,23 +432,44 @@ src/
       native/      ; Native component wrappers
       screens/     ; Screen components
       styles/      ; Style definitions
-  browser/         ; Web-specific UI
+  browser/         ; Web-specific UI (if applicable)
     ui/
 ```
 
 ### 2. Navigation Integration
 
+Fulcro's dynamic routing integrates seamlessly with React Native:
+
 ```clojure
-;; Use Fulcro's dynamic routing with React Navigation
-(defn setup-navigation []
-  (dr/change-route-relative! this :home))
+;; Navigate to a route
+(dr/change-route! this ["home"])
+
+;; Navigate with parameters
+(dr/change-route! this ["profile" user-id])
+
+;; Use will-enter for deferred/async navigation
+(defsc ProfileScreen [this props]
+  {...
+   :will-enter (fn [app {:keys [user-id]}]
+                 (df/load! app [:user/id user-id] User)
+                 (dr/route-deferred [:screen/id :profile]
+                   #(df/load! app [:user/id user-id] User
+                      {:post-mutation `dr/target-ready
+                       :post-mutation-params {:target [:screen/id :profile]}})))}
+  ...)
 ```
 
 ### 3. State Management
 
+Leverage Fulcro's normalized database for effective state management:
+
 ```clojure
-;; Leverage Fulcro's normalized database for offline-first apps
-(defmutation cache-user-data [user-data]
+(ns mobile-app.mutations.cache
+  (:require
+    [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]))
+
+(m/defmutation cache-user-data [user-data]
   (action [{:keys [state]}]
     (swap! state merge/merge-component User user-data)
     ;; Persist to native storage
@@ -433,26 +478,37 @@ src/
 
 ### 4. Performance Optimization
 
+React Native has specific performance considerations:
+
 ```clojure
-;; Use React Native's performance tools
 (defsc OptimizedList [this {:keys [items]}]
   {:shouldComponentUpdate (fn [next-props next-state]
-                           ;; Custom optimization logic
-                           (not= (:items next-props) items))}
-  (n/flat-list
+                            ;; Custom optimization logic
+                            (not= (:items next-props) items))}
+  (n/ui-flat-list
     {:data items
      :keyExtractor #(str (:id %))
-     :renderItem (fn [item] (ui-item-row item))
+     :renderItem (fn [item] ((comp/factory ItemRow {:keyfn :id}) item))
      :removeClippedSubviews true
      :maxToRenderPerBatch 10}))
 ```
 
+<!-- TODO: Verify shouldComponentUpdate is still the recommended approach vs newer React lifecycle methods -->
+
 ### 5. Testing Strategy
 
+Test business logic independently of the UI:
+
 ```clojure
-;; Test business logic independently of UI
+(ns mobile-app.mutations-test
+  (:require
+    [cljs.test :refer [deftest is]]
+    [com.fulcrologic.fulcro.algorithms.merge :as merge]
+    [mobile-app.models.user :refer [User]]))
+
 (deftest user-profile-test
-  (let [state-map (merge/merge-component {} User test-user-data)]
+  (let [test-user {:user/id 1 :user/name "Test User" :user/email "test@example.com"}
+        state-map (merge/merge-component {} User test-user)]
     (is (= "Test User" (get-in state-map [:user/id 1 :user/name])))))
 ```
 
@@ -460,8 +516,15 @@ src/
 
 ### Offline Data Synchronization
 
+Fulcro's normalized database supports offline-first patterns:
+
 ```clojure
-(defmutation sync-offline-data [_]
+(ns mobile-app.mutations.sync
+  (:require
+    [com.fulcrologic.fulcro.mutations :as m]
+    [com.fulcrologic.fulcro.components :as comp]))
+
+(m/defmutation sync-offline-data [_]
   (action [{:keys [state]}]
     (let [offline-mutations (get @state :offline/pending-mutations [])]
       (doseq [mutation offline-mutations]
@@ -471,17 +534,27 @@ src/
 
 ### Push Notifications
 
+Integrate Expo notifications for mobile alerts:
+
 ```clojure
 (ns mobile-app.notifications
   (:require ["expo-notifications" :as Notifications]))
 
 (defn setup-notifications! []
   (-> (Notifications/requestPermissionsAsync)
-      (.then #(when (:granted (:permissions %))
+      (.then #(when (get-in % [:permissions :granted])
                 (register-notification-handlers!)))))
+
+(defn register-notification-handlers! []
+  (Notifications/addNotificationReceivedListener
+    (fn [notification]
+      ;; Handle notification received while app is open
+      (js/console.log notification))))
 ```
 
 ### File Management
+
+Access the file system for persisting application data:
 
 ```clojure
 (ns mobile-app.files
@@ -490,6 +563,12 @@ src/
 (defn save-file! [filename data]
   (let [file-uri (str (.-documentDirectory FileSystem) filename)]
     (FileSystem/writeAsStringAsync file-uri data)))
+
+(defn read-file! [filename]
+  (let [file-uri (str (.-documentDirectory FileSystem) filename)]
+    (FileSystem/readAsStringAsync file-uri)))
 ```
 
-Fulcro's React Native integration provides a robust foundation for building sophisticated mobile applications while maintaining excellent code reuse with web applications.
+## Summary
+
+Fulcro's React Native integration provides a robust foundation for building sophisticated mobile applications while maintaining excellent code reuse with web applications. The protocol-based abstraction pattern allows you to share your core business logic, mutations, and state management across web and mobile platforms, while keeping platform-specific UI implementations cleanly separated.
