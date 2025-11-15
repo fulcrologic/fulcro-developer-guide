@@ -1,8 +1,11 @@
+
 # Code Splitting and Modules
 
 ## Overview
 
 Code splitting allows you to break your application into smaller modules that load on demand, improving initial load times and reducing bundle size. Fulcro's data-driven architecture and dynamic queries make code splitting particularly straightforward.
+
+**Note:** This chapter covers code splitting using `com.fulcrologic.fulcro.routing.legacy-ui-routers`. While this works correctly, the Developer's Guide notes this could use updates for newer patterns.
 
 ## Core Requirements for Code Splitting
 
@@ -17,7 +20,7 @@ The main application must not directly reference code in split modules:
 
 ;; DO: Use dynamic loading mechanisms
 (ns main.app
-  (:require [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]))
+  (:require [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]))
 ```
 
 ### 2. Self-Installation Mechanism
@@ -90,7 +93,9 @@ Loaded code must register itself with the application:
 {:builds
  {:main
   {:target :browser
-   :modules {:app {:init-fn main.core/init}
+   :module-loader true
+   :modules {:app {:init-fn main.core/init
+                   :entries [main.core]}
              :main-screen {:entries [split.main-screen]
                           :depends-on #{:app}}}
    :output-dir "resources/public/js"}}}
@@ -109,7 +114,8 @@ Loaded code must register itself with the application:
 ```clojure
 (ns main.root
   (:require 
-    [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]))
+    [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]
+    [com.fulcrologic.fulcro.components :as comp]))
 
 (defsc Root [this {:keys [main-router]}]
   {:initial-state (fn [params]
@@ -186,19 +192,19 @@ Some routes may be available at startup but still use the dynamic router pattern
   (dom/div
     (dom/h1 "Home")
     (dom/p message)
-    (dom/button {:onClick #(r/route-to! this :dashboard)} "Go to Dashboard")
-    (dom/button {:onClick #(r/route-to! this :settings)} "Go to Settings")))
+    (dom/button {:onClick #(comp/transact! this [(r/route-to {:handler :dashboard})])} "Go to Dashboard")
+    (dom/button {:onClick #(comp/transact! this [(r/route-to {:handler :settings})])} "Go to Settings")))
 
 (defsc Root [this {:keys [app-router]}]
   {:initial-state (fn [_] 
                     (merge routing-tree
                            {:app-router (comp/get-initial-state r/DynamicRouter {:id :app-router})}))
-   :query [{:app-router (r/get-dynamic-router-query :app-router)}]}
+   :query [{:app-router (r/get-dynamic-router-query :app-router)} r/routing-tree-key]}
   (dom/div
     (dom/nav
-      (dom/a {:href "#" :onClick #(r/route-to! this :home)} "Home")
-      (dom/a {:href "#" :onClick #(r/route-to! this :dashboard)} "Dashboard") 
-      (dom/a {:href "#" :onClick #(r/route-to! this :settings)} "Settings"))
+      (dom/a {:href "#" :onClick #(comp/transact! this [(r/route-to {:handler :home})])} "Home")
+      (dom/a {:href "#" :onClick #(comp/transact! this [(r/route-to {:handler :dashboard})])} "Dashboard") 
+      (dom/a {:href "#" :onClick #(comp/transact! this [(r/route-to {:handler :settings})])} "Settings"))
     (r/ui-dynamic-router app-router)))
 
 ;; Install pre-loaded routes
@@ -277,27 +283,9 @@ Some routes may be available at startup but still use the dynamic router pattern
 (cljs.loader/set-loaded! :settings)
 ```
 
-## Modern Dynamic Routing (Fulcro 3.5+)
+## Code Splitting and Server-Side Rendering
 
-For newer applications, use the modern dynamic routing system:
-
-```clojure
-(ns modern.routing
-  (:require [com.fulcrologic.fulcro.routing.dynamic-routing :as dr]))
-
-(dr/defrouter MainRouter [this {:keys [current-route route-props]}]
-  {:router-targets 
-   {:home HomeScreen
-    :dashboard DashboardScreen  ; Will be loaded dynamically
-    :settings SettingsScreen}}) ; Will be loaded dynamically
-
-;; Navigate with modern router
-(dr/change-route! this [:dashboard])
-```
-
-## Server-Side Rendering with Code Splitting
-
-**Note**: This section may need updates for Fulcro 3.x.
+**Note**: This section has not been fully updated for Fulcro 3.x. The basic approach should work but may need adjustments.
 
 ### Multi-Module SSR Setup
 
@@ -306,17 +294,20 @@ For newer applications, use the modern dynamic routing system:
   (:require 
     [com.fulcrologic.fulcro.server-render :as ssr]
     [split.dashboard :as dashboard]
-    [split.settings :as settings]))
+    [split.settings :as settings]
+    [com.fulcrologic.fulcro.components :as comp]
+    [com.fulcrologic.fulcro.algorithms.denormalize :as fdn]
+    [com.fulcrologic.fulcro.routing.legacy-ui-routers :as r]))
 
 (defn build-ui-tree [route-match]
   (let [client-db (ssr/build-initial-state (comp/get-initial-state Root {}) Root)
         final-db (-> client-db
-                     ;; Install all routes for SSR
+                     ;; CRITICAL: Install all routes for SSR
                      (r/install-route* :home HomeScreen)
                      (r/install-route* :dashboard dashboard/DashboardScreen)
                      (r/install-route* :settings settings/SettingsScreen)
                      (r/route-to* route-match))]
-    ;; Use final DB state for query to get updated dynamic queries
+    ;; CRITICAL: Pass the final DB to get-query to get updated dynamic queries
     (fdn/db->tree (comp/get-query Root final-db) final-db final-db)))
 
 (defn render-page [route-match]
@@ -380,7 +371,8 @@ src/
 ```clojure
 ;; In shadow-cljs.edn
 {:modules
- {:app {:init-fn main.core/init}
+ {:app {:init-fn main.core/init
+        :entries [main.core]}
   :shared {:entries [shared.components]} ; Common components
   :dashboard {:entries [split.dashboard]
              :depends-on #{:app :shared}}
@@ -421,4 +413,24 @@ src/
 (cljs.loader/set-loaded! :dashboard) ; Module name
 ```
 
-Code splitting in Fulcro applications provides significant performance benefits while maintaining the framework's data-driven architecture and component co-location principles.
+### 4. Missing routing-tree-key in Query
+
+```clojure
+;; When merging routing-tree into initial state, include r/routing-tree-key in query
+(defsc Root [this props]
+  {:initial-state (fn [_] (merge routing-tree {...}))
+   :query [{:app-router ...} r/routing-tree-key]} ; Don't forget this!
+  ...)
+```
+
+### 5. Incorrect Navigation Syntax
+
+```clojure
+;; DON'T: This function doesn't exist
+(r/route-to! this :dashboard)
+
+;; DO: Use the mutation form
+(comp/transact! this [(r/route-to {:handler :dashboard})])
+```
+
+Code splitting in Fulcro applications provides significant performance benefits while maintaining the framework's data-driven architecture and component co-location principles. By following the DynamicRouter pattern, modules are automatically loaded when routes are accessed, creating a seamless user experience with improved initial load times.

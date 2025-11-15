@@ -1,3 +1,4 @@
+
 # Data Loading
 
 ## Loading Overview
@@ -131,8 +132,9 @@ Because of normalization, targeting NEVER requires deep paths. Maximum depth is 
 ### Multiple Targets
 ```clojure
 (df/load! this [:person/id 3] Person
-  {:target [(targeting/append-to [:list/id :friends :list/people])
-            [:current-selection]]})
+  {:target (targeting/multiple-targets
+             (targeting/append-to [:list/id :friends :list/people])
+             [:current-selection])})
 ```
 
 ## Loading Parameters
@@ -160,32 +162,45 @@ Server receives: `[(:all-people {:limit 10 :offset 20})]`
 
 ### Marker Configuration
 
-Load markers require a link query in the component to work properly:
+Load markers require a link query in the component to work properly. The query must use lambda form for link queries:
 
 ```clojure
-(defsc PersonList [this {:keys [people] :as props}]
-  {:query [{:people (comp/get-query Person)}
-           [df/marker-table '_]]  ; ← Required for load markers!
-   :ident (fn [] [:component/id :person-list])}
+(defsc Item [this {:keys [db/id item/label] :as props}]
+  ;; Use lambda form for link queries
+  {:query (fn [] [:db/id :item/label [df/marker-table '_]])
+   :ident (fn [] [:lazy-load.items/by-id id])}
+  
+  (let [marker-id (keyword "item-marker" (str id))
+        ;; Access the marker table from props, then get specific marker
+        marker    (get-in props [df/marker-table marker-id])]
+    (dom/div label
+      (if (df/loading? marker)
+        (dom/span " (reloading...)")
+        (dom/button {:onClick #(df/refresh! this {:marker marker-id})} "Refresh")))))
+```
 
-  (let [marker (get props [df/marker-table :people-loading])
-        loading? (df/loading? marker)]
+**Alternative pattern for accessing markers:**
+```clojure
+(defsc Panel [this {:keys [ui/loading-data child] :as props}]
+  {:query (fn [] [[:ui/loading-data '_] [df/marker-table '_] {:child (comp/get-query Child)}])}
+  
+  (let [markers (get props df/marker-table)
+        marker  (get markers :child-marker)]
     (dom/div
-      (when loading?
-        (dom/div "Loading..."))
-      (if (seq people)
-        (map ui-person people)
-        (dom/button
-          {:onClick #(df/load! this :people Person
-                       {:marker :people-loading
-                        :target [:component/id :person-list :people]})}
-          "Load People")))))
+      (if marker
+        (dom/h4 "Loading child...")
+        (if child
+          (ui-child child)
+          (dom/button {:onClick #(df/load-field! this :child {:marker :child-marker})} 
+            "Load Child"))))))
 ```
 
 **Key Points**:
-- Link query `[df/marker-table '_]` must be in component query
-- Marker is accessed from props: `(get props [df/marker-table :marker-name])`
+- Link queries like `[df/marker-table '_]` MUST use lambda form: `{:query (fn [] [... [df/marker-table '_] ...])}`
+- Marker is accessed from props: `(get props df/marker-table)` returns the marker table
+- Then get specific marker: `(get marker-table :marker-name)` or use `get-in` with ident
 - Pass marker to `df/loading?` to check state
+- Marker will be `nil` if no load is in progress
 
 ## Error Handling
 
@@ -212,30 +227,36 @@ Load markers require a link query in the component to work properly:
   (remote [env] (m/returning Person)))
 ```
 
-### User-Triggered Loading
+### Lazy Loading with load-field!
 
-**IMPORTANT**: Do not use React lifecycle methods (like `componentDidMount`) to trigger loads. Instead, trigger loads in response to user events:
+You can load specific fields on demand using `df/load-field!`:
 
 ```clojure
-(defsc PersonList [this {:keys [people]}]
-  {:query [{:people (comp/get-query Person)}]
-   :ident (fn [] [:component/id :person-list])}
-
+(defsc Child [this {:keys [child/label items] :as props}]
+  {:query [:child/label {:items (comp/get-query Item)}]
+   :ident (fn [] [:lazy-load/ui :child])}
+  
   (dom/div
-    (if (seq people)
-      (map ui-person people)
-      (dom/button
-        {:onClick #(df/load! this :people Person
-                     {:target [:component/id :person-list :people]})}
-        "Load People"))))
+    (dom/p "Child Label: " label)
+    (if (seq items)
+      (mapv ui-item items)
+      (dom/button 
+        {:onClick #(df/load-field! this :items {:marker :child-marker})} 
+        "Load Items"))))
+```
 
 ### Parallel Loading
 ```clojure
-;; Multiple loads execute in parallel
+;; Multiple loads execute in parallel when :parallel true
 (df/load! app :friends PersonList)
 (df/load! app :enemies PersonList)
 (df/load! app :current-user Person)
+
+;; Or explicitly enable parallel execution
+(df/load-field! this :background/long-query {:parallel true})
 ```
+
+By default, loads execute sequentially to maintain ordering guarantees. Use `:parallel true` to bypass the sequential network queue when ordering doesn't matter.
 
 ## Load State Management
 
@@ -261,9 +282,9 @@ When data arrives, Fulcro automatically:
 
 ## Loading Best Practices
 
-### User-Triggered Lazy Loading
+### Conditional Loading with Mutations
 
-Load additional data in response to user actions, not lifecycle events:
+Load additional data in response to user actions through mutations:
 
 ```clojure
 (defsc PersonRow [this {:person/keys [id name]}]

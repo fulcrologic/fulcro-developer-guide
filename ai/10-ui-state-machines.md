@@ -1,3 +1,4 @@
+
 # UI State Machines
 
 ## Overview
@@ -24,86 +25,106 @@ UI State Machines (UISM) provide a powerful way to organize complex UI logic and
 ### Machine Structure
 ```clojure
 (defstatemachine session-machine
-  {::uism/actors
-   #{:current-session}
+  {::uism/actor-names
+   #{:actor/current-session}
 
    ::uism/aliases
    {:logged-in? [::session :logged-in?]}
 
    ::uism/states
    {:initial
-    {::uism/events
-     {:event/check-session {:handler check-session-handler}}}
+    {::uism/handler
+     (fn [env]
+       ;; Initial state handler runs on ::uism/started event
+       (-> env
+         (uism/assoc-aliased :logged-in? false)
+         (uism/activate :state/checking-session)))}
 
-    :checking-session
+    :state/checking-session
     {::uism/events
-     {:event/session-valid   {:target :logged-in}
-      :event/session-invalid {:target :logged-out}}}
+     {:event/session-valid   {::uism/target-state :state/logged-in}
+      :event/session-invalid {::uism/target-state :state/logged-out}}}
 
-    :logged-in
+    :state/logged-in
     {::uism/events
-     {:event/logout {:handler logout-handler :target :logged-out}}}
+     {:event/logout {:handler logout-handler}}}
 
-    :logged-out
+    :state/logged-out
     {::uism/events
      {:event/login {:handler login-handler}}}}})
 ```
 
 ### Key Elements
-- **Actors**: Components that participate in the machine
-- **Aliases**: Convenient paths to machine state
+- **Actor names**: Declared with `::uism/actor-names` as a set of keywords representing component roles
+- **Aliases**: Convenient paths to data in actor entities
 - **States**: Discrete phases of the workflow
 - **Events**: Triggers that cause transitions
 - **Handlers**: Functions that execute during transitions
 
 ## Working with Actors
 
-### Actor Assignment
+### Actor Declaration
 ```clojure
-;; Start machine with actors
-(uism/begin! this session-machine ::session-sm
-  {:current-session current-session-ident})
+;; Declare actor names in the machine definition
+(defstatemachine session-machine
+  {::uism/actor-names #{:actor/current-session :actor/login-form}
+   ...})
+```
 
-;; Actors are component idents
-{:current-session [:session/id :main]}
+### Actor Assignment at Runtime
+```clojure
+;; Start machine with actual actors (idents or component classes)
+(uism/begin! this session-machine ::session-sm
+  {:actor/current-session (uism/with-actor-class [:session/id :main] Session)
+   :actor/login-form      LoginForm})
 ```
 
 ### Actor Communication
 ```clojure
 ;; In event handler
 (defn login-handler [env]
-  (let [session-ident (uism/actor->ident env :current-session)]
+  (let [session-ident (uism/actor->ident env :actor/current-session)]
     (-> env
-      (uism/apply-action merge/merge-component! Session updated-session)
-      (uism/activate :logged-in))))
+      (uism/reset-actor-ident :actor/current-session updated-ident)
+      (uism/activate :state/logged-in))))
 ```
 
 ## Event Handling
 
 ### Event Structure
 ```clojure
-;; Basic event
-{:event/login {:handler login-handler :target :logged-in}}
+;; Simple event with target state (no handler needed)
+{:event/cancel {::uism/target-state :state/idle}}
 
-;; Event with guards
+;; Event with handler
 {:event/submit
- {:handler   submit-handler
-  :guard     (fn [env] (uism/get-aliased-value env :form-valid?))
-  :target    :submitting}}
+ {::uism/handler submit-handler}}
+
+;; Event with handler and target state (handler runs first)
+{:event/save
+ {::uism/handler   save-handler
+  ::uism/target-state :state/saving}}
+
+;; Event with predicate (gate condition)
+{:event/submit
+ {::uism/event-predicate (fn [env] (uism/alias-value env :form-valid?))
+  ::uism/handler         submit-handler
+  ::uism/target-state    :state/submitting}}
 ```
 
 ### Event Handlers
 ```clojure
 (defn login-handler [env]
   (-> env
-    ;; Update application state
-    (uism/apply-action merge/merge-component! Session {...})
-    ;; Set machine data
+    ;; Update application state via aliases
     (uism/assoc-aliased :logged-in? true)
     ;; Trigger remote operation
-    (uism/trigger-remote-mutation 'api/authenticate
-      {:onOk   :event/login-ok
-       :onErr  :event/login-failed})))
+    (uism/trigger-remote-mutation :actor/login-form 'api/authenticate
+      {:credentials       (uism/alias-value env :credentials)
+       ::uism/ok-event    :event/login-ok
+       ::uism/error-event :event/login-failed})
+    ;; Transition to next state
+    (uism/activate :state/checking)))
 ```
 
 ## Triggering Events
@@ -134,43 +155,61 @@ UI State Machines (UISM) provide a powerful way to organize complex UI logic and
 (uism/update-aliased env :error-count inc)
 
 ;; Get machine data
-(uism/get-aliased-value env :current-step)
+(uism/alias-value env :current-step)
 ```
 
 ### Alias Configuration
 ```clojure
 ::uism/aliases
-{:logged-in?    [::session :logged-in?]
- :current-user  [::session :current-user]
- :loading?      [::session :loading?]}
+{:logged-in?    [:actor/current-session :session/logged-in?]
+ :current-user  [:actor/current-session :session/current-user]
+ :loading?      [:actor/current-session :ui/loading?]}
 ```
 
 ## Remote Operations
 
-### Triggering Remote Calls
+### Triggering Remote Mutations
 ```clojure
 (defn save-handler [env]
   (-> env
-    (uism/activate :saving)
-    (uism/trigger-remote-mutation 'api/save-item
-      {:item-data (uism/get-aliased-value env :form-data)
-       :onOk      :event/save-ok
-       :onErr     :event/save-failed})))
+    (uism/activate :state/saving)
+    (uism/trigger-remote-mutation :actor/form 'api/save-item
+      {:item-data       (uism/alias-value env :form-data)
+       ::m/returning    (uism/actor-class env :actor/form)
+       ::uism/ok-event  :event/save-ok
+       ::uism/error-event :event/save-failed})))
 ```
 
 ### Handling Results
 ```clojure
-:saving
+:state/saving
 {::uism/events
  {:event/save-ok
-  {:handler (fn [env] (uism/activate env :saved))
-   :target  :idle}
+  {::uism/handler (fn [env] (uism/activate env :state/saved))
+   ::uism/target-state :state/idle}
 
   :event/save-failed
-  {:handler (fn [env]
-             (-> env
-               (uism/assoc-aliased :error "Save failed")
-               (uism/activate :error)))}}}
+  {::uism/handler (fn [env]
+                   (-> env
+                     (uism/assoc-aliased :error "Save failed")
+                     (uism/activate :state/error)))}}}
+```
+
+### Triggering Remote Loads
+```clojure
+(defn load-handler [env]
+  (-> env
+    (uism/load :current-session :actor/current-session 
+      {::uism/ok-event    :event/loaded
+       ::uism/error-event :event/failed})
+    (uism/activate :state/loading)))
+
+;; Or reload an actor
+(defn refresh-handler [env]
+  (-> env
+    (uism/load-actor :actor/current-account 
+      {::uism/ok-event :event/refreshed})
+    (uism/activate :state/refreshing)))
 ```
 
 ## Common Patterns
@@ -178,98 +217,124 @@ UI State Machines (UISM) provide a powerful way to organize complex UI logic and
 ### Loading Pattern
 ```clojure
 (defstatemachine loading-machine
-  {::uism/states
+  {::uism/actor-names #{:actor/data}
+   
+   ::uism/states
    {:initial
     {::uism/events
-     {:event/load {:handler load-handler :target :loading}}}
+     {:event/load {::uism/handler load-handler}}}
 
-    :loading
+    :state/loading
     {::uism/events
-     {:event/loaded {:target :ready}
-      :event/failed {:target :error}}}
+     {:event/loaded {::uism/target-state :state/ready}
+      :event/failed {::uism/target-state :state/error}}}
 
-    :ready
+    :state/ready
     {::uism/events
-     {:event/refresh {:handler load-handler :target :loading}}}
+     {:event/refresh {::uism/handler load-handler}}}
 
-    :error
+    :state/error
     {::uism/events
-     {:event/retry {:handler load-handler :target :loading}}}}})
+     {:event/retry {::uism/handler load-handler}}}}})
 ```
 
 ### Form Editing Pattern
 ```clojure
 (defstatemachine form-machine
-  {::uism/states
-   {:viewing
+  {::uism/actor-names #{:actor/form}
+   
+   ::uism/states
+   {:state/viewing
     {::uism/events
-     {:event/edit {:handler start-edit-handler :target :editing}}}
+     {:event/edit {::uism/handler start-edit-handler
+                   ::uism/target-state :state/editing}}}
 
-    :editing
+    :state/editing
     {::uism/events
-     {:event/save   {:handler save-handler}
-      :event/cancel {:handler cancel-handler :target :viewing}}}
+     {:event/save   {::uism/handler save-handler}
+      :event/cancel {::uism/handler cancel-handler
+                     ::uism/target-state :state/viewing}}}
 
-    :saving
+    :state/saving
     {::uism/events
-     {:event/save-ok     {:target :viewing}
-      :event/save-failed {:target :editing}}}}})
+     {:event/save-ok     {::uism/target-state :state/viewing}
+      :event/save-failed {::uism/target-state :state/editing}}}}})
 ```
 
 ### Modal Dialog Pattern
 ```clojure
 (defstatemachine modal-machine
-  {::uism/states
-   {:closed
+  {::uism/actor-names #{:actor/modal}
+   
+   ::uism/states
+   {:state/closed
     {::uism/events
-     {:event/open {:handler open-handler :target :open}}}
+     {:event/open {::uism/handler open-handler
+                   ::uism/target-state :state/open}}}
 
-    :open
+    :state/open
     {::uism/events
-     {:event/close  {:target :closed}
-      :event/submit {:handler submit-handler :target :submitting}}}
+     {:event/close  {::uism/target-state :state/closed}
+      :event/submit {::uism/handler submit-handler
+                     ::uism/target-state :state/submitting}}}
 
-    :submitting
+    :state/submitting
     {::uism/events
-     {:event/submit-ok     {:target :closed}
-      :event/submit-failed {:target :open}}}}})
+     {:event/submit-ok     {::uism/target-state :state/closed}
+      :event/submit-failed {::uism/target-state :state/open}}}}})
 ```
 
 ## Machine Lifecycle
 
 ### Starting Machines
 ```clojure
-;; Component did mount
+;; From component lifecycle (e.g., componentDidMount)
 (uism/begin! this form-machine ::form-sm
-  {:form-actor [:item/id item-id]})
+  {:actor/form [:item/id item-id]})
 
 ;; From mutation
 (uism/begin! env login-machine ::login-sm
-  {:session [:session/id :main]})
+  {:actor/session (uism/with-actor-class [:session/id :main] Session)})
+
+;; With singleton component classes
+(uism/begin! this dialog-machine ::dialog-sm
+  {:actor/dialog Dialog  ; Class with constant ident
+   :actor/form   LoginForm})
 ```
 
 ### Stopping Machines
 ```clojure
-;; Component will unmount
+;; From component lifecycle (e.g., componentWillUnmount)
 (uism/exit! this ::form-sm)
 
-;; From handler
-(uism/exit env)
+;; From handler (machine exits itself)
+(defn complete-handler [env]
+  (uism/exit env))
 ```
 
 ## Debugging and Inspection
 
 ### Fulcro Inspect Integration
-- **State visualization**: Current state and data visible
+- **State visualization**: Current state and data visible in `::uism/asm-id` table
 - **Event history**: See all events that occurred
 - **Actor tracking**: Monitor component participation
 - **Data inspection**: Examine machine state and aliases
+
+### Querying Machine State from UI
+```clojure
+;; To use get-active-state, you must query for the machine's ident
+(defsc Component [this props]
+  {:query (fn [] [(uism/asm-ident ::my-machine) ...])}
+  (let [current-state (uism/get-active-state this ::my-machine)]
+    (dom/div
+      (str "Current state: " current-state))))
+```
 
 ### Logging Events
 ```clojure
 ;; Add to event handlers
 (defn login-handler [env]
-  (log/info "Login attempted for" (uism/actor->ident env :current-session))
+  (log/info "Login attempted for" (uism/actor->ident env :actor/current-session))
   (-> env ...))
 ```
 
@@ -277,23 +342,31 @@ UI State Machines (UISM) provide a powerful way to organize complex UI logic and
 
 ### Machine Design
 - **Keep machines focused**: One concern per machine
-- **Use descriptive state names**: `:loading` vs `:state-2`
+- **Use descriptive state names**: `:state/loading` vs `:state-2`
 - **Define clear events**: `:event/submit` vs `:event/do-thing`
 - **Document transitions**: Comment complex logic
 
 ### Actor Management
-- **Use stable idents**: Don't change actor identity mid-flow
+- **Use stable idents**: Don't change actor identity unexpectedly
 - **Minimize actors**: Only include what's needed
 - **Clean up**: Exit machines when components unmount
+- **Use `with-actor-class`**: When passing raw idents, wrap them with `(uism/with-actor-class ident Class)` for proper load/mutation support
 
 ### Event Handling
-- **Pure handlers**: Avoid side effects outside of `apply-action`
-- **Use aliases**: Abstract machine data access
-- **Handle errors**: Always plan for failure cases
-- **Keep handlers simple**: Complex logic in separate functions
+- **Pure handlers**: Avoid side effects outside of `uism/apply-action`
+- **Use aliases**: Abstract machine data access for reusability
+- **Handle errors**: Always plan for failure cases with error events
+- **Keep handlers simple**: Extract complex logic into separate functions
+- **Use `::uism/target-state` for simple transitions**: When an event only changes state, use the shorthand
+- **Use event predicates sparingly**: For conditions that affect multiple events
 
 ### Integration with Components
-- **Query machine state**: Include UISM queries in components
+- **Query machine state**: Include UISM idents in component queries if you use `get-active-state`
 - **Use computed props**: Pass event triggers as callbacks
 - **Conditional rendering**: Show UI based on machine state
 - **Avoid direct manipulation**: Always go through machine events
+
+### State Machine Reusability
+- **Use derived machines**: State machine definitions are just maps - use `assoc-in`, `merge`, etc. to customize
+- **Parameterize via local storage**: Use `::uism/started` event to store configuration in machine local storage
+- **Leverage actors and aliases**: Keep machine logic decoupled from specific component structure

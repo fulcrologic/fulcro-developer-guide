@@ -1,3 +1,4 @@
+
 # Normalization in Fulcro
 
 ## Overview
@@ -17,6 +18,8 @@ Normalization is a central mechanism in Fulcro that transforms data trees (recei
 
 The function `fnorm/tree->db` is the workhorse that turns an incoming tree of data into normalized data, which can then be merged into the overall database.
 
+**IMPORTANT**: `tree->db` takes a **component class** as its first parameter, not a raw query. The component class provides both the query (with metadata) and the ident function needed for normalization.
+
 ### Step-by-Step Process
 
 Given incoming tree data:
@@ -26,13 +29,18 @@ Given incoming tree data:
           {:db/id 2 :person/name "Sally" ...}]}
 ```
 
-And the query:
+And a component:
 
 ```clojure
-[{:people (comp/get-query Person)}]
+(defsc Person [this props]
+  {:query [:db/id :person/name]
+   :ident :db/id})
+
+(defsc Root [this props]
+  {:query [{:people (comp/get-query Person)}]})
 ```
 
-Which expands to:
+When `comp/get-query` is called, it adds metadata to the query:
 
 ```clojure
 [{:people [:db/id :person/name]}]
@@ -90,15 +98,25 @@ Idents are two-element vectors that uniquely identify entities in the normalized
 
 ```clojure
 (defsc Person [this props]
-  {:ident :person/id  ; Simple keyword ident
+  {:ident :person/id  ; Simple keyword ident (most common)
+   :query [:person/id :person/name]}
+  ...)
+
+(defsc Person [this props]
+  {:ident [:person/id :person/id]  ; Template form
    :query [:person/id :person/name]}
   ...)
 
 (defsc Product [this props]
-  {:ident (fn [] [:product/sku (:product/sku props)])  ; Computed ident
+  {:ident (fn [] [:product/sku (:product/sku props)])  ; Lambda form
    :query [:product/sku :product/name]}
   ...)
 ```
+
+All three forms are supported by `defsc`:
+- Keyword form (`:person/id`) - uses the keyword as both table name and property to extract from props
+- Template vector form (`[:person/id :person/id]`) - first element is literal table name, second is property key
+- Lambda form - fully custom, can close over `this` and `props` parameters
 
 ## Critical Importance of Query Composition
 
@@ -108,7 +126,7 @@ If metadata is missing from queries, normalization won't occur:
 
 ```clojure
 ;; WRONG - Missing component metadata
-[:people [:db/id :person/name]]
+[{:people [:db/id :person/name]}]
 
 ;; CORRECT - Has component metadata from get-query
 [{:people (comp/get-query Person)}]
@@ -150,36 +168,36 @@ At startup, `:initial-state` supplies data that matches the UI tree structure:
   ...)
 ```
 
-Fulcro automatically detects and normalizes this initial tree structure.
+During app initialization, Fulcro calls `tree->db` with the root component class and the initial state tree to normalize it into the client database.
 
 ### 2. Server Interaction Normalization
 
 Network interactions send UI-based queries with component annotations:
 
 ```clojure
-;; Query sent to server
+;; Query sent to server (automatically composed from components)
 [{:people (comp/get-query Person)}]
 
 ;; Response data (tree structure matching query)
 {:people [{:person/id 1 :person/name "Alice"}
           {:person/id 2 :person/name "Bob"}]}
 
-;; Automatic normalization and merge into database
+;; Automatic normalization and merge into database happens via the
+;; component-annotated query
 ```
 
-### 3. WebSocket Data Normalization
+### 3. Integrating External Data
 
-Server push data can be normalized using client-side queries:
+For server push data or other external sources, you can normalize using merge functions with component classes:
 
 ```clojure
 ;; Incoming WebSocket data
 {:new-message {:message/id 123 :message/text "Hello"}}
 
-;; Generate client-side query
-[{:new-message (comp/get-query Message)}]
-
-;; Use fnorm/tree->db to normalize
-(fnorm/tree->db query incoming-data true)
+;; Use merge-component! to normalize and merge
+(merge/merge-component! app Message 
+  {:message/id 123 :message/text "Hello"}
+  :append [:root/messages])
 ```
 
 ### 4. Mutation Data Normalization
@@ -189,11 +207,9 @@ Mutations can normalize new entity data within the action:
 ```clojure
 (defmutation create-user [user-data]
   (action [{:keys [state]}]
-    (let [normalized-user (fnorm/tree->db 
-                            [{:new-user (comp/get-query User)}]
-                            {:new-user user-data}
-                            true)]
-      (swap! state merge normalized-user))))
+    ;; Use merge-component* (the swap! version) in mutations
+    (swap! state merge/merge-component* User user-data
+      :append [:root/users])))
 ```
 
 ## Useful Normalization Functions
@@ -201,9 +217,11 @@ Mutations can normalize new entity data within the action:
 ### Merge Functions
 
 ```clojure
-;; Merge new component instances
+;; Merge new component instances (app version - triggers render)
 (merge/merge-component! app User new-user-data)
-(merge/merge-component state User new-user-data)
+
+;; Merge new component instances (state-map version for mutations)
+(merge/merge-component* state User new-user-data)
 
 ;; Merge root-level data
 (merge/merge! app {:global-settings {...}})
@@ -213,15 +231,16 @@ Mutations can normalize new entity data within the action:
 ### Core Normalization
 
 ```clojure
-;; General normalization utility
-(fnorm/tree->db query data-tree include-root?)
+;; Low-level normalization utility - takes a COMPONENT CLASS
+(fnorm/tree->db ComponentClass data-tree include-root?)
 
 ;; Example usage
-(fnorm/tree->db 
-  [{:users (comp/get-query User)}]
+(fnorm/tree->db Root 
   {:users [{:user/id 1 :user/name "Alice"}]}
   true)
 ```
+
+**Note**: In practice, you'll typically use `merge/merge-component!` and `merge/merge-component*` rather than calling `tree->db` directly. The `tree->db` function has a quirky interface for internal reasons.
 
 ### Integration Utilities
 
@@ -244,24 +263,26 @@ The `:remove-missing?` option controls cleanup behavior:
 
 When `true`:
 - Items in query but not in data are removed from state database
-- Useful for server load cleanups
+- Useful for server load cleanups where you want to ensure removed server-side data is also removed client-side
 - Defaults to `false` to preserve UI-only attributes
 
 ### Deep Merge Behavior
 
 The deep merge used by merge routines:
-- Does not overwrite existing entity versions by default
-- Preserves UI-only attributes that incoming trees don't know about
-- Maintains data integrity across partial updates
+- Merges incoming data into existing entities
+- Preserves UI-only attributes that incoming trees don't include
+- Maintains data integrity across partial updates by not removing properties that weren't queried
+
+For example, if an entity has `:user/id`, `:user/name`, and `:ui/selected?`, and you merge in data with only `:user/id` and `:user/name`, the `:ui/selected?` property is preserved.
 
 ## Best Practices
 
 1. **Always use `comp/get-query`** in parent component queries to ensure proper metadata
 2. **Maintain parallel structure** between queries, data, and UI components
 3. **Use consistent ident patterns** across your application
-4. **Leverage normalization in mutations** for efficient state updates
+4. **Use merge-component! rather than tree->db directly** for better ergonomics
 5. **Consider `:remove-missing?`** carefully based on your data update patterns
-6. **Test normalization** by examining the resulting database structure
+6. **Test normalization** by examining the resulting database structure in Fulcro Inspect
 
 ## Common Patterns
 

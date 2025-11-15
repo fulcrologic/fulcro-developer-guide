@@ -1,8 +1,9 @@
+
 # Logging in Fulcro
 
 ## Overview
 
-Fulcro 3 uses [Timbre](https://github.com/ptaoussanis/timbre) for logging. Timbre provides comprehensive logging capabilities with configurable levels, appenders, and output formatting.
+Fulcro 3 uses [Timbre](https://github.com/ptaoussanis/timbre) for logging. Read the Timbre documentation for detailed information about changing logging levels, eliding logging statements, and configuration options.
 
 ## Basic Timbre Usage
 
@@ -28,30 +29,17 @@ Fulcro 3 uses [Timbre](https://github.com/ptaoussanis/timbre) for logging. Timbr
 (log/set-level! :debug)    ; Show debug and above
 (log/set-level! :info)     ; Show info and above (default)
 (log/set-level! :warn)     ; Show warnings and above only
-
-;; Check current level
-(log/get-level)            ; => :info
-
-;; Conditional logging
-(when (log/may-log? :debug)
-  (log/debug "Expensive debug calculation:" (expensive-fn)))
-```
-
-### Basic Configuration
-
-```clojure
-(log/merge-config! 
-  {:level :debug
-   :appenders {:console {:enabled? true}}})
 ```
 
 ## Fulcro Logging Helpers
 
 ### The Problem with CLJS Error Messages
 
-Stock Timbre in ClojureScript often produces poorly formatted error messages, especially when using tools like [Ghostwheel](https://github.com/gnl/ghostwheel) for spec instrumentation.
+The logging output of errors in ClojureScript leaves something to be desired when used with stock Timbre. The js console error messages can be poorly formatted, especially when using tools like [Ghostwheel](https://github.com/gnl/ghostwheel) for spec instrumentation, or [expound](https://github.com/bhb/expound) for better spec error messages.
 
 ### Enhanced Console Output
+
+Fulcro provides helpers in the `com.fulcrologic.fulcro.algorithms.timbre-support` namespace to improve error message formatting.
 
 ```clojure
 (ns app.development-preload
@@ -69,8 +57,8 @@ Stock Timbre in ClojureScript often produces poorly formatted error messages, es
 ### Prerequisites for Enhanced Logging
 
 1. **Binaryage DevTools**: Add to dependencies (Shadow-cljs auto-includes when detected)
-2. **Chrome Custom Formatters**: Enable in Chrome DevTools Console settings
-3. **Development Preload**: Configure Shadow-cljs to preload logging setup
+2. **Chrome Custom Formatters**: Enable in Chrome DevTools Console settings - this will print ClojureScript data as ClojureScript instead of raw JavaScript
+3. **Development Preload**: Configure Shadow-cljs to preload your logging setup
 
 ### Shadow-cljs Configuration
 
@@ -79,15 +67,14 @@ Stock Timbre in ClojureScript often produces poorly formatted error messages, es
 {:builds
  {:app
   {:target :browser
-   :devtools {:preloads [app.development-preload]} ; Preload logging config
-   :dev {:compiler-options {:closure-defines {goog.DEBUG true}}}}}}
+   :devtools {:preloads [app.development-preload]}}}}
 ```
 
 ## Logging Best Practices
 
 ### Exception Logging
 
-**Important**: Log the exception object first for proper formatting:
+**Important**: Log the exception object first for proper formatting. This is documented in Timbre but easy to miss:
 
 ```clojure
 ;; CORRECT: Exception first
@@ -116,184 +103,20 @@ Stock Timbre in ClojureScript often produces poorly formatted error messages, es
 (log/info (str "User " (:id user) " logged in"))
 ```
 
-### Performance Considerations
-
-```clojure
-;; Use conditional logging for expensive operations
-(when (log/may-log? :debug)
-  (log/debug "Expensive data dump:" (expensive-data-transform)))
-
-;; Or use delay for lazy evaluation
-(log/debug "Data:" (delay (expensive-operation)))
-```
-
 ## Production Logging Configuration
 
-### Level-based Elision
+### Compile-Time Elision
+
+Fulcro uses Timbre for logging. Several namespaces include high levels of debug or trace logging to help you debug development-time issues. Timbre uses macros for logging such that all performance overhead of logging under a certain level can be completely removed from the code on a release build.
+
+See [compile time elision](https://github.com/ptaoussanis/timbre#log-levels-and-ns-filters-compile-time-elision) in the Timbre docs.
+
+**WARNING**: Elision can be done via an ENVIRONMENT variable that must be set *before* the compiler runs. Environment variables cannot be changed by the running VM. Thus if you are running `shadow-cljs server`, you cannot set the env variable in another terminal and run a release build and expect it to work! If the server is running, then the command `shadow-cljs release X` just sends a command to the already-running server, which will *not* have the environment variable.
+
+### Development vs Production
 
 ```clojure
-;; Production config - remove debug/trace statements entirely
-(log/merge-config!
-  {:level :info
-   :middleware [(fn [data]
-                  (when (>= (log/level-int (:level data))
-                            (log/level-int :info))
-                    data))]})
-```
-
-### Custom Appenders
-
-```clojure
-;; Send errors to external service
-(defn error-service-appender []
-  {:enabled? true
-   :async? true
-   :min-level :error
-   :fn (fn [data]
-         (when-let [error (:?err data)]
-           (send-to-error-service
-             {:message (:msg_ data)
-              :error error
-              :context (:context data)})))})
-
-(log/merge-config!
-  {:appenders {:error-service (error-service-appender)}})
-```
-
-### Browser vs Server Configuration
-
-```clojure
-;; Conditional configuration
-#?(:cljs
-   (log/merge-config!
-     {:appenders {:console (console-appender)}})
-   :clj
-   (log/merge-config!
-     {:appenders {:spit {:spit-filename "app.log"}}}))
-```
-
-## Fulcro-Specific Logging
-
-### Transaction Logging
-
-```clojure
-(defn log-transaction-middleware [tx]
-  (fn [result]
-    (log/debug "Transaction completed:" 
-               {:tx tx 
-                :result (dissoc result :com.fulcrologic.fulcro.algorithms.tx-processing/id)})
-    result))
-
-;; Add to app configuration
-(app/fulcro-app
-  {:tx-processing-middleware [log-transaction-middleware]})
-```
-
-### Network Request Logging
-
-```clojure
-(defn logging-request-middleware [handler]
-  (fn [request]
-    (log/debug "Sending request:" (dissoc request :body))
-    (handler request)))
-
-(defn logging-response-middleware [handler]
-  (fn [response]
-    (log/debug "Received response:" 
-               {:status (:status-code response)
-                :body-keys (when (map? (:body response)) 
-                            (keys (:body response)))})
-    (handler response)))
-
-;; Add to remote configuration
-(http-remote/fulcro-http-remote
-  {:request-middleware (-> http-remote/wrap-fulcro-request
-                           logging-request-middleware)
-   :response-middleware (-> http-remote/wrap-fulcro-response
-                            logging-response-middleware)})
-```
-
-### Component Lifecycle Logging
-
-```clojure
-(defsc MyComponent [this props]
-  {:componentDidMount
-   (fn [this]
-     (log/debug "Component mounted:" {:component (comp/component-name this)
-                                     :props (comp/props this)}))
-   :componentWillUnmount
-   (fn [this]
-     (log/debug "Component unmounting:" {:component (comp/component-name this)}))}
-  ...)
-```
-
-## Advanced Logging Patterns
-
-### Contextual Logging
-
-```clojure
-;; Add context to all logs in a scope
-(log/with-context {:user-id current-user-id}
-  (log/info "Processing request")
-  (process-request)
-  (log/info "Request completed"))
-```
-
-### Conditional Debug Features
-
-```clojure
-(def debug-enabled? 
-  ^boolean goog.DEBUG) ; Closure define for debug builds
-
-(defn debug-log [& args]
-  (when debug-enabled?
-    (apply log/debug args)))
-
-;; Usage
-(debug-log "Debug info:" data)
-```
-
-### Log Filtering
-
-```clojure
-;; Filter out noisy logs
-(defn filter-middleware [data]
-  (when-not (and (= :debug (:level data))
-                 (re-find #"noisy-component" (str (:msg_ data))))
-    data))
-
-(log/merge-config!
-  {:middleware [filter-middleware]})
-```
-
-### Performance Monitoring
-
-```clojure
-(defn timed-operation [operation-name f]
-  (let [start (js/performance.now)]
-    (try
-      (let [result (f)]
-        (log/info "Operation completed:"
-                  {:operation operation-name
-                   :duration-ms (- (js/performance.now) start)})
-        result)
-      (catch :default e
-        (log/error e "Operation failed:"
-                   {:operation operation-name
-                    :duration-ms (- (js/performance.now) start)})
-        (throw e)))))
-
-;; Usage
-(timed-operation "user-save"
-  #(save-user user-data))
-```
-
-## Development vs Production
-
-### Development Configuration
-
-```clojure
-;; development-preload.cljs
+;; Development - in your preload file
 (ns app.development-preload
   (:require
     [taoensso.timbre :as log]
@@ -307,67 +130,78 @@ Stock Timbre in ClojureScript often produces poorly formatted error messages, es
 (log/info "Development logging initialized")
 ```
 
-### Production Configuration
-
 ```clojure
-;; production-config.cljs
-(ns app.production-config
-  (:require [taoensso.timbre :as log]))
-
+;; Production - set higher log level, disable console
 (log/set-level! :warn)
 (log/merge-config!
-  {:appenders 
-   {:console {:enabled? false}  ; Disable console logging
-    :remote {:enabled? true
-             :min-level :error
-             :fn (fn [data]
-                   (when-let [error (:?err data)]
-                     (send-error-to-service data)))}}})
+  {:appenders {:console {:enabled? false}}})
 ```
 
-### Build-time Configuration
+## Fulcro-Specific Logging Examples
 
-```clojure
-;; Use closure defines for build-time configuration
-(def log-level 
-  #?(:cljs goog.LOG_LEVEL
-     :clj "info"))
-
-(defn configure-logging! []
-  (log/set-level! (keyword log-level))
-  #?(:cljs
-     (when goog.DEBUG
-       (log/merge-config! {:appenders {:console (console-appender)}}))))
-```
-
-## Common Patterns
-
-### Error Boundaries with Logging
-
-```clojure
-(defn error-boundary-logger [error error-info component]
-  (log/error error "React error boundary triggered:"
-             {:component (comp/component-name component)
-              :error-info error-info}))
-
-(app/fulcro-app
-  {:render-error error-boundary-logger})
-```
-
-### Mutation Logging
+### Mutation Error Handling
 
 ```clojure
 (defmutation save-user [user-data]
   (action [{:keys [state]}]
     (log/info "Saving user:" {:user-id (:user/id user-data)})
     (swap! state update-user user-data))
-  (remote [env] 
-    (log/debug "Sending user save to server")
-    true)
-  (ok-action [env]
-    (log/info "User saved successfully"))
+  (remote [env] true)
   (error-action [{:keys [result]}]
     (log/error "User save failed:" result)))
 ```
 
-Effective logging is crucial for debugging, monitoring, and maintaining Fulcro applications. The enhanced Timbre support in Fulcro provides excellent development experience while maintaining production performance.
+### Load Error Handling
+
+```clojure
+;; Mutation used as a fallback for load error
+(defmutation read-error [params]
+  (action [env]
+    (log/info "Result from server:" (:result params))
+    (log/info "Original load params:" (:load-params params))))
+
+;; In component
+(df/load! this :some-data SomeComponent 
+  {:fallback `read-error})
+```
+
+### Component Lifecycle Logging
+
+```clojure
+(defsc MyComponent [this props]
+  {:componentDidMount
+   (fn [this]
+     (log/debug "Component mounted"))
+   :componentWillUnmount
+   (fn [this]
+     (log/debug "Component unmounting"))}
+  ...)
+```
+
+## Common Configuration Patterns
+
+### Application-Level Error Handling
+
+You can define custom error detection for your application:
+
+```clojure
+(def app 
+  (app/fulcro-app 
+    {:remote-error? (fn [{:keys [body] :as result}]
+                      (or
+                        (app/default-remote-error? result)
+                        (contains-custom-error? body)))}))
+```
+
+When a remote result is considered an error, the `error-action` section of mutations will be called, allowing you to log or handle the error appropriately.
+
+## Summary
+
+Effective logging is crucial for debugging and maintaining Fulcro applications. The key points are:
+
+- Use Timbre's standard logging functions (`log/debug`, `log/info`, `log/error`, etc.)
+- Configure enhanced console output using Fulcro's `console-appender` and `prefix-output-fn` helpers in development
+- Enable Chrome custom formatters for better ClojureScript data visualization
+- Log exceptions first when using `log/error` 
+- Use compile-time elision to remove debug logging from production builds
+- Structure log messages with data maps for better searchability

@@ -1,3 +1,4 @@
+
 # Initial Application State in Fulcro
 
 ## Overview
@@ -11,7 +12,7 @@ Initial application state in Fulcro is the process of establishing a starting no
 - **Normalized Database**: Fulcro applications maintain state as a normalized graph database on the client
 - **Co-location**: Initial state is co-located with components, similar to queries
 - **Composition**: Initial state composes from child to parent components, mirroring the UI tree structure
-- **Tree-to-Graph Transformation**: Fulcro automatically normalizes the tree structure into a graph database
+- **Tree-to-Graph Transformation**: Fulcro automatically normalizes the tree structure into a graph database using queries and ident functions
 
 ### Why Co-location Matters
 
@@ -28,7 +29,7 @@ Every component that needs initial state follows this pattern:
 ```clojure
 (defsc ComponentName [this props]
   {:initial-state (fn [params] {...})  ; Function that returns initial state map
-   :ident         :component/id        ; How to identify this component in normalized DB
+   :ident         [:component/id :component/id]  ; How to identify this component in normalized DB
    :query         [:component/id ...]} ; What data this component needs
   ...)
 ```
@@ -38,7 +39,7 @@ Every component that needs initial state follows this pattern:
 ```clojure
 (defsc Child [this props]
   {:initial-state (fn [params] {:child/id 1})
-   :ident         :child/id
+   :ident         [:child/id :child/id]
    :query         [:child/id]}
   ...)
 ```
@@ -50,7 +51,7 @@ Every component that needs initial state follows this pattern:
   {:initial-state (fn [params] 
                     {:parent/id 1 
                      :parent/child (comp/get-initial-state Child)})
-   :ident         :parent/id
+   :ident         [:parent/id :parent/id]
    :query         [:parent/id {:parent/child (comp/get-query Child)}]}
   ...)
 ```
@@ -89,6 +90,8 @@ Fulcro automatically detects initial state on the root component and uses it to 
 3. Normalizes the tree into tables based on component idents
 4. Creates a graph database with proper references
 
+**Important**: Only components with `:ident` functions get normalized into tables. Components without idents remain as nested data in their parent's properties.
+
 ### Root Component Setup
 
 ```clojure
@@ -123,7 +126,7 @@ Union queries represent "this could be one of several component types." For to-o
                     (comp/get-initial-state Person {:id 1 :name "Joe"}))
    :query (fn [] {:person (comp/get-query Person) 
                   :place  (comp/get-query Place)})
-   :ident (fn [] [type id])}
+   :ident (fn [] [(:type props) (:id props)])}
   ...)
 ```
 
@@ -194,22 +197,23 @@ Union components should be pure routing components with no state or rendering of
     (dom/p "Unknown route")))
 ```
 
-### 4. Ident Functions
+### 4. Ident Patterns
 
 Use consistent ident patterns:
 
 ```clojure
-;; For components with ID from props
+;; For components with ID property - template form (most common)
 :ident :component/id
+;; Expands to: (fn [] [:component/id (:component/id props)])
 
-;; For components with computed idents
+;; For components with computed idents - lambda form
 :ident (fn [] [:component/by-id (:component/id props)])
 
 ;; For singleton components
 :ident (fn [] [:component :singleton])
 
-;; For union components (determined at runtime)
-:ident (fn [] [type id])
+;; For union components (determined at runtime from props)
+:ident (fn [] [(:type props) (:id props)])
 ```
 
 ## Practical Examples
@@ -227,11 +231,13 @@ Use consistent ident patterns:
                     {:user/id    id
                      :user/name  name  
                      :user/email email})
-   :ident         :user/id
+   :ident         [:user/id :user/id]
    :query         [:user/id :user/name :user/email]}
   (dom/div
     (dom/h3 name)
     (dom/p email)))
+
+(def ui-user (comp/factory User {:keyfn :user/id}))
 
 ;; Collection component
 (defsc UserList [this {:keys [user-list/id user-list/users]}]
@@ -239,12 +245,14 @@ Use consistent ident patterns:
                     {:user-list/id    :main
                      :user-list/users [(comp/get-initial-state User {:id 1 :name "Alice" :email "alice@example.com"})
                                        (comp/get-initial-state User {:id 2 :name "Bob" :email "bob@example.com"})]})
-   :ident         :user-list/id
+   :ident         [:user-list/id :user-list/id]
    :query         [:user-list/id {:user-list/users (comp/get-query User)}]}
   (dom/div
     (dom/h2 "Users")
     (dom/ul
-      (map (comp/factory User {:keyfn :user/id}) users))))
+      (map ui-user users))))
+
+(def ui-user-list (comp/factory UserList))
 
 ;; Settings page (union branch)
 (defsc SettingsPage [this {:keys [settings/title]}]
@@ -257,6 +265,8 @@ Use consistent ident patterns:
     (dom/h1 title)
     (dom/p "Settings content here...")))
 
+(def ui-settings (comp/factory SettingsPage))
+
 ;; Main page (union branch)  
 (defsc MainPage [this {:keys [main/user-list]}]
   {:initial-state (fn [params]
@@ -266,18 +276,22 @@ Use consistent ident patterns:
    :query         [:page/type :page/id {:main/user-list (comp/get-query UserList)}]}
   (dom/div
     (dom/h1 "Main Page")
-    (comp/factory UserList user-list)))
+    (ui-user-list user-list)))
+
+(def ui-main (comp/factory MainPage))
 
 ;; Page router (union component)
 (defsc PageRouter [this {:keys [page/type] :as props}]
   {:initial-state (fn [params] (comp/get-initial-state MainPage))
    :query         (fn [] {:main     (comp/get-query MainPage)
                           :settings (comp/get-query SettingsPage)})
-   :ident         (fn [] [:page/type type])}
+   :ident         (fn [] [type (:page/id props)])}
   (case type
-    :main     ((comp/factory MainPage) props)
-    :settings ((comp/factory SettingsPage) props)
+    :main     (ui-main props)
+    :settings (ui-settings props)
     (dom/p "Unknown page")))
+
+(def ui-page-router (comp/factory PageRouter))
 
 ;; Root component
 (defsc Root [this {:keys [current-page]}]
@@ -288,7 +302,7 @@ Use consistent ident patterns:
     (dom/nav
       (dom/button {:onClick #(comp/transact! this '[(navigate {:page :main})])} "Main")
       (dom/button {:onClick #(comp/transact! this '[(navigate {:page :settings})])} "Settings"))
-    ((comp/factory PageRouter) current-page)))
+    (ui-page-router current-page)))
 ```
 
 ### Resulting Normalized Database
@@ -300,12 +314,14 @@ The above example creates this normalized structure:
                      2 {:user/id 2 :user/name "Bob" :user/email "bob@example.com"}}
  :user-list/id      {:main {:user-list/id :main 
                             :user-list/users [[:user/id 1] [:user/id 2]]}}
- :page/type         {:main     {:page/type :main :page/id :singleton 
-                                :main/user-list [:user-list/id :main]}
-                     :settings {:page/type :settings :page/id :singleton
-                                :settings/title "Application Settings"}}
- :current-page      [:page/type :main]}
+ [:main :singleton] {:page/type :main :page/id :singleton 
+                     :main/user-list [:user-list/id :main]}
+ [:settings :singleton] {:page/type :settings :page/id :singleton
+                         :settings/title "Application Settings"}
+ :current-page      [:main :singleton]}
 ```
+
+<!-- TODO: Verify this claim - the actual table keys for union branches might be different -->
 
 ## State Progressions and Testing
 
@@ -326,26 +342,14 @@ Since rendering is a pure function of state, you can:
 3. **Record and Replay**: Capture mutation sequences for debugging/demos
 4. **Teleport Development**: Jump to specific application states during development
 
-### Example Testing Pattern
-
-```clojure
-(deftest user-creation-test
-  (let [initial-state (comp/get-initial-state Root)
-        ;; Apply mutations to reach desired state
-        final-state   (-> initial-state
-                          (app/apply-mutation `create-user {:id 3 :name "Charlie"})
-                          (app/apply-mutation `select-user {:id 3}))]
-    ;; Test the resulting state
-    (is (= 3 (count (get-in final-state [:user/id]))))
-    (is (= [:user/id 3] (get final-state :selected-user)))))
-```
+<!-- TODO: Verify this claim - need to check actual testing patterns for mutations -->
 
 ## Key Takeaways
 
 1. **Co-locate state with components** for maintainability and refactoring safety
 2. **Use the same composition pattern** for both queries and initial state  
 3. **Design for parameters** to make components flexible and reusable
-4. **Let Fulcro handle normalization** - focus on the tree structure
+4. **Let Fulcro handle normalization** - focus on the tree structure, provide idents for components that need normalization
 5. **Union components are routers** - they coordinate but don't own state
 6. **Think in state progressions** for testing and debugging
 7. **Initial state enables powerful development workflows** like state teleportation and mutation replay

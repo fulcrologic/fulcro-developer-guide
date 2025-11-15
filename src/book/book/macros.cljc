@@ -111,12 +111,9 @@
 (defonce app-registry (atom {}))
 
 (defmacro defexample [title root-class id & {:as args}]
-  (let [app       (with-meta (symbol (str "fulcroapp-" id)) {:extern true})
-        batchexpr `(fn [notify-all#]
-                     (js/ReactDOM.unstable_batchedUpdates notify-all#))]
+  (let [app (with-meta (symbol (str "fulcroapp-" id)) {:extern true})]
     `(try
-       (defonce ~app (app/fulcro-app ~(merge {:id                  (name app)
-                                              :batch-notifications batchexpr} args)))
+       (defonce ~app (app/fulcro-app ~(merge {:id (name app)} args)))
        (swap! app-registry assoc ~id ~app)
        (it/add-fulcro-inspect! ~app)
        (app/mount! ~app ~root-class ~id)

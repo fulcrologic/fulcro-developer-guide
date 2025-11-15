@@ -8,18 +8,21 @@
     "codemirror": "^5.42.2",
     "d3": "^5.7.0",
     "google-maps-react": "^2.0.2",
-    "react": "17.0.2",
-    "react-dom": "17.0.2",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "react-motion": "^0.5.2",
     "react-stripe-elements": "^4.0.1",
-    "semantic-ui-react": "^2.0.1",
+    "semantic-ui-react": "^2.1.5",
     "shadow-cljs": "2.28.20",
-    "victory": "^31.1.0"
+    "victory": "^37.3.6"
   },
   "repository": {
     "type": "git",
     "url": "git@github.com:fulcrologic/fulcro-developer-guide.git"
   },
   "author": "Tony Kay",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "create-react-class": "15.6.3"
+  }
 }

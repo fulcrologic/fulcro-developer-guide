@@ -1,3 +1,4 @@
+
 # Core Concepts
 
 ## Immutable Data Structures
@@ -6,23 +7,23 @@
 Fulcro's compelling features are enabled by persistent data structures being first-class in the language.
 
 ### Problems with Mutable State
-```java
-Person p = new Person();
-doSomethingOnAnotherThread(p);
-p.fumble(); // Did p change? Race condition?
+```clojure
+(def person (->Person))
+(do-something-on-another-thread person)
+(.fumble person) ; Did person change? Race condition?
 ```
 
 ### Immutable Solution
-```java
-Person p = new Person();
-doSomethingOnAnotherThread(p);
-Person q = p.fumble(); // p unchanged, q could be different
+```clojure
+(def person (->Person))
+(do-something-on-another-thread person)
+(def modified-person (.fumble person)) ; person unchanged, modified-person could be different
 ```
 
 ### Key Advantages
 - **Reasoning**: Other threads see data exactly as when locally reasoned about
 - **Structural sharing**: New versions reference unchanged parts of old versions
-- **Performance**: Adding to 1M item list is still constant time
+- **Performance**: Adding to 1M item list is still constant time (via structural sharing)
 - **Fulcro benefits**:
   - Time-travel UI history with minimal space
   - Efficient change detection (ref comparison vs data comparison)
@@ -38,7 +39,7 @@ Person q = p.fumble(); // p unchanged, q could be different
 ### Pure Rendering Concept
 Complete snapshot of application state → function → screen "looks right"
 
-Like 2D game: redraw screen based on "state of the world"
+Like a 2D game: redraw screen based on "state of the world"
 
 ### Example: Nested Checkboxes
 
@@ -52,7 +53,7 @@ Like 2D game: redraw screen based on "state of the world"
 ```clojure
 (def state {:items [{:id :a :checked? true} {:id :b :checked? false}]})
 
-;; Check-all state is computed
+;; Check-all state is computed, not stored
 (let [all-checked (every? :checked? (get state :items))]
   (dom/input {:checked all-checked}))
 
@@ -64,7 +65,7 @@ Like 2D game: redraw screen based on "state of the world"
 - No mutable state in UI components
 - React enforces correct display
 - Simple logic for both directions
-- Entire UI re-renders, React optimizes
+- Entire UI re-renders, React optimizes (via VDOM diffing)
 
 ## Data-Driven Architecture
 
@@ -93,7 +94,7 @@ Instead of `/person/3`, say:
 
 ### Structure
 The client-side database is a persistent map representing a graph:
-- **Root node**: Top-level map
+- **Root node**: Top-level map (stores both root properties and table references)
 - **Tables**: Hold component/entity data
 - **Naming convention**: Namespaced keywords (`:person/id`, `:account/email`)
 
@@ -103,7 +104,7 @@ The client-side database is a persistent map representing a graph:
 ```
 
 ### Idents
-**Definition**: Tuples `[TABLE ID]` that uniquely identify graph nodes
+**Definition**: 2-tuples `[TABLE ID]` that uniquely identify graph nodes
 
 **Example**: `[:person/id 4]`
 
@@ -117,9 +118,9 @@ The client-side database is a persistent map representing a graph:
 ```clojure
 {:person/id
  {1 {:person/id 1 :person/name "Joe"
-     :person/spouse [:person/id 2]           ; to-one
+     :person/spouse [:person/id 2]           ; to-one relation
      :person/children [[:person/id 3]
-                       [:person/id 4]]}      ; to-many
+                       [:person/id 4]]}      ; to-many relation
   2 {:person/id 2 :person/name "Julie"
      :person/spouse [:person/id 1]}}}
 ```
@@ -127,12 +128,12 @@ The client-side database is a persistent map representing a graph:
 ### Graph Capabilities
 - **Loops supported**: Joe and Julie can point to each other
 - **Compact representation**: Arbitrary nodes and edges
-- **Root properties**: Special storage at top level
+- **Root properties**: Special storage at top level (e.g., `:root/people`)
 
 ### Naming Conventions
 - **UI-only Properties**: `:ui/name` (ignored by server queries)
 - **Tables**: `:entity-type/index-indicator` (e.g., `:person/id`)
-- **Root properties**: `:root/prop-name`
+- **Root properties**: `:root/prop-name` (e.g., `:root/people`)
 - **Node properties**: `:entity-type/property-name`
 - **Singleton Components**: `[:component/id ::Component]`
 
@@ -144,7 +145,7 @@ The graph database is central to Fulcro operation:
 - **Simplicity**: Properties/nodes at most 2-3 levels deep
 
 ```clojure
-;; Example manipulation
+;; Example manipulation - using swap! with a function
 (swap! state (fn [s]
               (-> s
                 (assoc :root/people [[:person/id 1] [:person/id 2]])

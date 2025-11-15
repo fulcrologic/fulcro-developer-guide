@@ -1,3 +1,4 @@
+
 # Fulcro Cheat Sheet
 
 ## Core Philosophy
@@ -75,7 +76,7 @@ Because data is normalized, you NEVER need deep paths. To target any depth:
 
 **The Rule**: Maximum targeting depth is 3: `[table-name id field]`
 
-**IMPORTANT**: `load!` has NO auto-targeting. It writes to ROOT by default or only normalizes (for idents). You MUST use `:target` to place idents in the tree.
+**CRITICAL**: `load!` with a keyword normalizes data into tables but does NOT automatically create edges in the tree. The data won't appear in your UI unless you either (1) use `:target` to place it in the tree, or (2) query it directly from the root. Loading by ident also only normalizes without placing the ident in the tree.
 
 ## Components with Idents
 
@@ -85,7 +86,7 @@ Because data is normalized, you NEVER need deep paths. To target any depth:
 ;; Entity component (ident based on data)
 (defsc Person [this {:person/keys [id name]}]
   {:query [:person/id :person/name]
-   :ident :person/id}  ; Dynamic: [:person/id <id from props>]
+   :ident :person/id}  ; Keyword shorthand: [:person/id <id from props>]
   (dom/div name))
 
 ;; Singleton/Panel component (constant ident)
@@ -106,11 +107,11 @@ Because data is normalized, you NEVER need deep paths. To target any depth:
 ### Component Ident Patterns
 
 ```clojure
-;; 1. Dynamic ident (entity data)
+;; 1. Keyword shorthand (most common for entity data)
 :ident :person/id
 ;; Becomes: [:person/id <value-of-:person/id-in-props>]
 
-;; 2. Constant ident (UI component)
+;; 2. Constant ident (UI component/singleton)
 :ident (fn [] [:component/id :my-panel])
 ;; Always: [:component/id :my-panel]
 
@@ -207,20 +208,26 @@ Because data is normalized, you NEVER need deep paths. To target any depth:
 ### Load Behavior Without :target
 
 ```clojure
-;; ❌ COMMON MISTAKE: Expecting auto-targeting
+;; ❌ COMMON MISTAKE: Expecting data to automatically appear in UI
 (df/load! this :friends Person)
-;; This writes to ROOT: {:friends [[:person/id 1] [:person/id 2]]}
-;; NOT to the component's location!
+;; This normalizes: {:person/id {1 {...} 2 {...}}}
+;; AND creates: {:friends [[:person/id 1] [:person/id 2]]} AT ROOT
+;; But the :friends edge at root won't show in your UI unless your
+;; Root component queries for it! The data is normalized but has
+;; NO CONNECTION to any component that's currently rendering.
 
 ;; ✅ CORRECT: Explicit targeting to place in tree
 (df/load! this :friends Person
   {:target [:component/id :friends-list :friends]})
 ;; This normalizes AND places idents at the target location
+;; Now the FriendsList component will see the data!
 
 ;; Loading by ident - only normalizes, doesn't place in tree
 (df/load! this [:person/id 42] Person)
 ;; Result: {:person/id {42 {...}}}
-;; The ident is NOT placed anywhere in the tree!
+;; The ident [:person/id 42] is NOT placed anywhere in the tree!
+;; If a component already has [:person/id 42] as a prop, it will
+;; see the updated data. Otherwise, you need :target.
 
 ;; To place the ident in the tree, use :target
 (df/load! this [:person/id 42] Person
@@ -263,19 +270,19 @@ Because data is normalized, you NEVER need deep paths. To target any depth:
 │   ^                                                           │
 │   └─ Symbol (no namespace colon)                             │
 │                                                               │
-│ With return value:                                           │
+│ With return value (mutation join):                           │
 │ [{(create-person {:name "Alice" :age 30})                    │
 │   [:person/id :person/name :person/age]}]                    │
 └─────────────────────────────────────────────────────────────┘
                            ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ Server Response (keyed by SYMBOL)                            │
+│ Server Response (keyed by SYMBOL for mutation joins)         │
 ├─────────────────────────────────────────────────────────────┤
 │ {create-person {:person/id 42                                │
 │                 :person/name "Alice"                          │
 │                 :person/age 30}}                              │
 │  ^                                                            │
-│  └─ SYMBOL as key, not keyword!                              │
+│  └─ SYMBOL as key (only when using mutation join/returning)  │
 └─────────────────────────────────────────────────────────────┘
                            ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -295,7 +302,7 @@ Because data is normalized, you NEVER need deep paths. To target any depth:
     ;; Optimistic: create temp ID
     (let [temp-id (tempid/tempid)
           person (assoc person-data :person/id temp-id)]
-      (swap! state merge/merge-component Person person
+      (merge/merge-component! state Person person
         :append [:component/id :friends-list :friends])))
 
   (remote [env]
@@ -305,7 +312,7 @@ Because data is normalized, you NEVER need deep paths. To target any depth:
       (m/with-target (targeting/append-to
                        [:component/id :friends-list :friends])))))
 
-;; EQL sent:
+;; EQL sent (mutation join):
 [{(create-person {:name "Alice"})
   [:person/id :person/name]}]
 
@@ -371,6 +378,22 @@ The metadata includes:
        {:user/avatar [:avatar/url]}]}]}]}]
 ```
 
+### When Lambda Query Form is Required
+
+```clojure
+;; Union queries MUST use lambda form
+(defsc UnionComponent [this props]
+  {:query (fn [] {:person (comp/get-query Person)
+                  :place (comp/get-query Place)})
+   :ident (fn [this props] ...)}
+  ...)
+
+;; Link queries MUST use lambda form
+(defsc Component [this props]
+  {:query (fn [] [:some/field [df/marker-table '_]])}
+  ...)
+```
+
 ## Targeting Deep Structures
 
 ### The Three-Element Rule
@@ -398,7 +421,8 @@ Root → MainPanel → UserProfile → FriendsList → Person
 ;; 1. Load to ROOT (default behavior with keyword)
 (df/load! app :all-people Person)
 ;; Result: {:all-people [[:person/id 1] [:person/id 2]]} at ROOT
-;; Normalized but NOT placed in component tree
+;; Data is normalized in tables, but edge at root won't show
+;; unless Root component queries for :all-people
 
 ;; 2. Load with explicit target into component field
 (df/load! app :friends Person
@@ -431,7 +455,7 @@ Root → MainPanel → UserProfile → FriendsList → Person
 
 ### The `tree->db` Function
 
-From `normalize.cljc` (lines 158-174):
+From `normalize.cljc`:
 
 ```clojure
 (fnorm/tree->db query data-tree merge-tables?)
@@ -544,7 +568,7 @@ Transform data before normalization:
 
 ### Write-Before-Read Optimization
 
-From `tx_processing.cljc` (lines 67-86):
+From `tx_processing.cljc`:
 
 ```clojure
 ;; You write:
@@ -610,9 +634,9 @@ From `tx_processing.cljc` (lines 67-86):
 
 ```clojure
 (defsc Person [this {:person/keys [id name addresses] :as props}]
-  {:query [:person/id :person/name
-           {:person/addresses (comp/get-query Address)}
-           [df/marker-table '_]]  ; ← Required for load markers!
+  {:query (fn [] [:person/id :person/name
+                  {:person/addresses (comp/get-query Address)}
+                  [df/marker-table '_]])  ; ← Required for load markers!
    :ident :person/id}
 
   (let [marker (get props [df/marker-table :person-addresses])
@@ -634,10 +658,23 @@ From `tx_processing.cljc` (lines 67-86):
 ```
 
 **Key Points**:
-- Link query `[df/marker-table '_]` is required for load markers
+- Link query `[df/marker-table '_]` is required for load markers and MUST use lambda query form
 - Marker is accessed from props: `(get props [df/marker-table :person-addresses])`
 - `df/loading?` checks the marker state
+- `df/load-field!` is a helper equivalent to loading by the component's ident with a specific field
 - No custom mutation needed - load markers handle state automatically
+
+### Helper: `refresh!`
+
+```clojure
+;; refresh! is a shorthand for reloading a component's data
+(df/refresh! this)
+
+;; It's equivalent to:
+(df/load! this (comp/get-ident this) ComponentClass)
+
+;; Useful for refreshing entity data after server changes
+```
 
 ## Key Namespaces
 
@@ -704,3 +741,5 @@ From `tx_processing.cljc` (lines 67-86):
 7. **Single Transaction Model**: `transact!` for everything
 
 **The Power**: You load into a specific subtree of a deeply nested UI with a simple 3-element target, because normalization flattens everything. The UI nesting doesn't require deep paths in the database.
+
+**The Gotcha**: Data normalization is automatic, but edge creation is NOT. Without `:target`, your data goes into tables but won't appear in UI unless a rendered component already queries for it.

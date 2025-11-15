@@ -130,7 +130,7 @@
    :initial-state {:root/phonebook {}
                    :root/phone     {}}}
   (ele/ui-iframe {:frameBorder 0 :width 500 :height 400}
-    (dom/div
+    (dom/div {}
       (dom/link {:rel "stylesheet" :href "https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css"})
       (if (contains? phone :phone/number)
         (ui-phone-form phone)

@@ -1,3 +1,4 @@
+
 # Core API
 
 ## Overview
@@ -112,8 +113,11 @@ Components provide ident functions that specify where data should be stored:
 ### Example
 ```clojure
 (fnorm/tree->db Root {:root/people {:person/id 1 :person/name "Bob"}} true)
-=> {:root/people [:person/id 1], :person/id {1 #:person{:id 1, :name "Bob"}}}
+=> {:root/people [:person/id 1] 
+    :person/id {1 {:person/id 1 :person/name "Bob"}}}
 ```
+
+The root property references the normalized person at `[:person/id 1]`.
 
 ## Initial State
 
@@ -142,9 +146,11 @@ Solves the "empty database" problem at application startup.
   {:query         [{:root/people (comp/get-query Person)}]
    :initial-state (fn [_] {:root/people [(comp/get-initial-state Person {:id 1 :name "Bob"})]})})
 
-(comp/get-initial-state Root)
+(comp/get-initial-state Root {})
 => #:root{:people [#:person{:id 1, :name "Bob"}]}
 ```
+
+Note: When composing initial state, call `get-initial-state` for each component with appropriate parameters.
 
 ### Template vs Lambda Forms
 
@@ -153,15 +159,19 @@ Solves the "empty database" problem at application startup.
 {:initial-state {:person/id :param/id :person/name :param/name}}
 ```
 
+When using template form, parameters passed to `get-initial-state` are matched to `:param/key` placeholders. For example, calling `(comp/get-initial-state Person {:id 1 :name "Bob"})` will substitute `:param/id` with `1` and `:param/name` with `"Bob"`.
+
 **Lambda (flexible):**
 ```clojure
 {:initial-state (fn [{:keys [id name]}] {:person/id id :person/name name})}
 ```
 
+Lambda form provides full control: parameters arrive as a map that you can destructure and transform.
+
 ### Application Initialization
 Fulcro initialization is essentially:
 ```clojure
-(let [data-tree (comp/get-initial-state Root)
+(let [data-tree (comp/get-initial-state Root {})
       normalized-tree (fnorm/tree->db Root data-tree true)]
   ;; Reset app state to normalized-tree
   )
@@ -176,6 +186,15 @@ Fulcro's rendering is surprisingly simple:
       denormalized-tree (fdn/db->tree (comp/get-query Root) current-state current-state)
       root-factory (comp/factory Root)]
   (js/ReactDOM.render (root-factory denormalized-tree) dom-node))
+```
+
+For React 18+, use the new API:
+```clojure
+(let [current-state   {...normalized-database...}
+      denormalized-tree (fdn/db->tree (comp/get-query Root) current-state current-state)
+      root-factory (comp/factory Root)
+      root (dom-client/createRoot dom-node)]
+  (.render root (root-factory denormalized-tree)))
 ```
 
 ### Key Insight
@@ -195,10 +214,12 @@ Update state database so next render frame shows desired UI.
 ;; Add data to normalized database
 (merge/merge-component! app Person {:person/id 3 :person/name "Sally"})
 
-;; With targeting
-(merge/merge-component! app Person person-data
+;; With targeting to append to a vector
+(merge/merge-component! app Person {:person/id 3 :person/name "Sally"}
   :append [:root/people])
 ```
+
+The first argument (`app`) is the Fulcro application instance, typically obtained via `(comp/any->app this)` within a component.
 
 ### Targeting Options
 ```clojure
@@ -218,10 +239,12 @@ Update state database so next render frame shows desired UI.
 ```
 
 ### Database Paths
-Remember: any node reachable in ≤3 levels:
-- `[:table id field]` - Entity property
-- `[:table id]` - Entire entity  
-- `[:root-prop]` - Root property
+Database paths reference locations in the normalized graph using path vectors up to 3 levels deep:
+- `[:table id field]` - Entity property (e.g., `[:person/by-id 1 :person/name]`)
+- `[:table id]` - Entire entity (e.g., `[:person/by-id 1]`)
+- `[:root-prop]` - Root property (e.g., `[:root/current-user]`)
+
+These paths are used consistently across targeting, mutations, and database manipulation.
 
 ### Development Pattern
 1. **Understand current data shape** (via Fulcro Inspect)

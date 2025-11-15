@@ -1,6 +1,7 @@
 (ns book.main
   (:require
     ["react" :as react]
+    [com.fulcrologic.devtools.chrome-preload] ; always have inspect preload
     [book.database :as db]
     [book.demos.autocomplete :as autocomplete]
     [book.demos.cascading-dropdowns]
@@ -72,7 +73,6 @@
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
     [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.mutations :as m :refer [defmutation]]
-    [com.fulcrologic.fulcro.rendering.ident-optimized-render :as ior]
     [fulcro.inspect.tool :as inspect]
     [taoensso.encore :as encore]))
 
@@ -143,11 +143,10 @@
 (defexample "Sample Example" ex1/Root "example-1")
 (defexample "D3" d3-example/Root "ui-d3")
 (defexample "Input Focus and React Refs/Lifecycle" focus-example/Root "focus-example")
-(defexample "Google Maps Example" book.react-interop.google-maps-example/Root "google-maps-example")
-(defexample "Stripe Example" book.react-interop.stripe-example/Root "stripe-example")
 (defexample "Drawing in a Canvas" hover-example/Root "hover-example")
 (defexample "React Motion Example" book.react-interop.react-motion-example/Root "motion-example")
-(defexample "Using External React Libraries" victory-example/Root "victory-example")
+(defexample "Google Maps Example" book.react-interop.google-maps-example/Root "google-maps-example")
+(defexample "Stripe Example" book.react-interop.stripe-example/Root "stripe-example")
 (defexample "Unions to Select Type" union-example-1/Root "union-example-1")
 (defexample "UI Blocking" ui-blocking/Root "ui-blocking-example" :remotes book.main/example-server)
 (defexample "Network Activity" book.server.network-activity/Root "network-activity" :remotes book.main/example-server)
@@ -179,7 +178,7 @@
   :client-did-mount book.demos.dynamic-ui-routing/application-loaded
   :remotes book.main/example-server)
 (defexample "Recursive Demo 1" book.queries.recursive-demo-1/Root "recursive-demo-1")
-(defexample "Recursive Demo 2" book.queries.recursive-demo-2/Root "recursive-demo-2" :optimized-render! ior/render!)
+(defexample "Recursive Demo 2" book.queries.recursive-demo-2/Root "recursive-demo-2")
 (defexample "Recursive Demo 3" book.queries.recursive-demo-3/Root "recursive-demo-3")
 (defexample "Recursive Demo 4" book.queries.recursive-demo-bullets/Root "recursive-demo-bullets")
 ;
@@ -220,6 +219,9 @@
 ;           :mutation-merge book.demos.server-return-values-manually-merging/merge-return-value
 ;           :remotes book.main/example-server))
 (defexample "Targeting Mutation Return Values" book.demos.server-targeting-return-values-into-app-state/Root "server-targeting-return-values-into-app-state" :remotes book.main/example-server)
+(comment
+  (defexample "Using External React Libraries" victory-example/Root "victory-example") ; BROKEN!
+  )
 
 (defonce server-control-app
   (app/fulcro-app

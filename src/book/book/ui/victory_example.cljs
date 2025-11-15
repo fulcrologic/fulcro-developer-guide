@@ -3,10 +3,9 @@
     [cljs.pprint :refer [cl-format]]
     ;; REQUIRES shadow-cljs, with "victory" in package.json
     ["victory" :refer [VictoryChart VictoryAxis VictoryLine]]
-    [com.fulcrologic.fulcro.dom :as dom]
     [com.fulcrologic.fulcro.algorithms.react-interop :as interop]
     [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [taoensso.timbre :as log]))
+    [com.fulcrologic.fulcro.dom :as dom]))
 
 (defn us-dollars [n]
   (str "$" (cl-format nil "~:d" n)))

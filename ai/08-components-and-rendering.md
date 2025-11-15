@@ -1,3 +1,4 @@
+
 # Components and Rendering
 
 ## HTML5 Element Factories
@@ -27,7 +28,7 @@ For files that run on both client and server:
 **Basic forms:**
 ```clojure
 (dom/div "Hello")                    ; no props
-(dom/div nil "Hello")                ; explicit nil props (slight performance benefit)
+(dom/div nil "Hello")                ; explicit nil props
 (dom/div #js {:data-x 1} ...)        ; JavaScript objects allowed
 ```
 
@@ -54,15 +55,20 @@ For files that run on both client and server:
 ```
 
 **Optimal performance:**
+
+The DOM macros can be nearly as fast as calling raw React `createElement` directly. The macros turn into low-level `js/createElement` calls with compile-time conversion of CLJS props to JavaScript. However, there can be ambiguity:
+
 ```clojure
-(dom/div :.a {} (f))         ; no ambiguity - fastest compile-time conversion
+(dom/div :.a {} (f))         ; no ambiguity - props to js at compile-time
 (dom/div :.a (f))            ; ambiguous - runtime checks required
 ```
+
+When there's ambiguity (like `(dom/div :.a (f))`), the macro must add runtime code to check if `(f)` returns a props map or a React element. Including an explicit props map (even empty `{}`) eliminates this ambiguity and allows full compile-time optimization.
 
 ## The `defsc` Macro
 
 ### Purpose
-Main macro for creating stateful components with sanity checking.
+Main macro for creating stateful components with sanity checking. This macro emits class-based React components augmented with Fulcro's data management and render refresh.
 
 ### Basic Structure
 ```clojure
@@ -94,7 +100,7 @@ Main macro for creating stateful components with sanity checking.
 
 **Keyword form (recommended):**
 ```clojure
-{:ident :person/id}  ; table name = ID key name
+{:ident :person/id}  ; shorthand when table name and ID key are the same keyword
 ```
 
 **Template form:**
@@ -114,9 +120,9 @@ Main macro for creating stateful components with sanity checking.
 {:query [:person/id :person/name {:person/address (comp/get-query Address)}]}
 ```
 
-**Lambda form (for complex queries):**
+**Lambda form (required for unions):**
 ```clojure
-{:query (fn [] [:person/id :person/name])}  ; Required for unions, wildcards
+{:query (fn [] [:person/id :person/name])}  ; Required for unions
 ```
 
 ### Initial State
@@ -124,9 +130,10 @@ Main macro for creating stateful components with sanity checking.
 **Template form:**
 ```clojure
 {:initial-state {:person/id :param/id
-                 :person/name :param/name
-                 :person/address {:address/street "123 Main St"}}}
+                 :person/name :param/name}}
 ```
+
+Template mode converts incoming parameters (which must use simple keywords) into `:param/X` keys. So `:param/id` means "take the `:id` key from the params map passed to `get-initial-state`".
 
 **Lambda form:**
 ```clojure
@@ -134,16 +141,26 @@ Main macro for creating stateful components with sanity checking.
                   {:person/id id :person/name name})}
 ```
 
-**Auto-composition in template:**
+**Relations in template mode:**
+
+For to-one and to-many relations, you provide the literal initial state data:
+
 ```clojure
 ;; To-one relation
 {:query [{:person/address (comp/get-query Address)}]
- :initial-state {:person/address {:address/street "123 Main St"}}}
+ :initial-state {:person/address {:address/id 1 :address/street "123 Main St"}}}
 
 ;; To-many relation  
 {:query [{:person/phones (comp/get-query Phone)}]
  :initial-state {:person/phones [{:phone/number "555-1234"}
                                  {:phone/number "555-5678"}]}}
+```
+
+When composing with lambda mode, use `comp/get-initial-state`:
+
+```clojure
+{:initial-state (fn [params]
+                  {:person/address (comp/get-initial-state Address {:id 42})})}
 ```
 
 ## Pre-Merge Hook
@@ -155,8 +172,11 @@ Manipulate data entering the app at component level.
 ```clojure
 (defsc Person [this props]
   {:pre-merge (fn [{:keys [data-tree current-normalized state-map query]}]
-                ;; Return modified data
-                (assoc data-tree :ui/expanded false))}
+                ;; Merge order matters: current-normalized first, then data-tree
+                (merge
+                  {:ui/expanded false}  ; defaults
+                  current-normalized    ; existing entity data
+                  data-tree))}          ; new data coming in
   ...)
 ```
 
@@ -172,7 +192,7 @@ Manipulate data entering the app at component level.
 Always provide `:key` for collections:
 ```clojure
 (map (fn [person] 
-       (ui-person (assoc person :react-key (:person/id person))))
+       (ui-person (comp/computed person {:react-key (:person/id person)})))
      people)
 
 ;; Or use factory keyfn
@@ -204,10 +224,10 @@ Follow React conventions:
 ;; Basic usage
 (ui-person {:person/name "Joe" :person/age 30})
 
-;; With computed props
+;; With computed props (nested notation)
 (ui-person (comp/computed person-data {:onClick delete-fn}))
 
-;; Computed factory (two arguments)
+;; Computed factory (two separate arguments)
 (ui-person person-data {:onClick delete-fn})
 ```
 

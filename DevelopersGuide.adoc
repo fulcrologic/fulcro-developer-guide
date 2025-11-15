@@ -4826,25 +4826,6 @@ The `react-interop` namespace includes a pre-written function for generating fac
 -----
 
 Now that we have some background on creating React Elements it's pretty simple to implement something.
-Let' look at making a chart using Victory.
-We are going to make a simple line chart, with an X axis that contains years, and a Y axis that contains dollar amounts.
-Really the data is irrelevant, it's the implementation we care about.
-
-The running code and source are below:
-
-.[[UsingExternalReactLibraries]]<<UsingExternalReactLibraries,Using External React Libraries>>
-====
-++++
-<button class="inspector" onClick="book.main.focus('victory-example')">Focus Inspector</button>
-<div class="short narrow example" id="victory-example"></div>
-<br/>
-++++
-
-[source,clojure,role="source"]
-----
-include::src/book/book/ui/victory_example.cljs[]
-----
-====
 
 === The Function-As-a-Child Pattern
 

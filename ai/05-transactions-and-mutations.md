@@ -1,3 +1,4 @@
+
 # Transactions and Mutations
 
 ## Transaction System Overview
@@ -35,17 +36,19 @@ With local variables:
 ```
 
 ### Mutation Sections
-- **`action`**: Local/optimistic changes to client database
-- **`remote`**: How mutation interacts with server
-- **`ok-action`**: Handles successful network results
-- **`error-action`**: Handles network errors
+- **`action`**: Optimistic local changes to client database (runs immediately before any network activity)
+- **`remote`**: How mutation interacts with server (return value determines what is sent to remote)
+- **`result-action`**: Optional. Custom handler for network results. Defaults to calling `ok-action` or `error-action`
+- **`ok-action`**: Optional. Called when remote result is successful (requires default `result-action`)
+- **`error-action`**: Optional. Called when remote result is an error (requires default `result-action`)
+- **`refresh`**: Optional. Declares which parts of the query to refresh after mutation completes
 
 ### Full-Stack Mutations
 ```clojure
-(defmutation delete-person [{:keys [list/id person/id]}]
+(defmutation delete-person [{:keys [list-id person-id]}]
   (action [{:keys [state]}]
     (swap! state merge/remove-ident* [:person/id person-id] [:list/id list-id :list/people]))
-  (remote [env] true)) ; Send to server
+  (remote [env] true))
 ```
 
 ## Using Mutations in UI
@@ -86,7 +89,7 @@ user=> (app.mutations/delete-person {:name "Joe"})
 ### Solution: Normalized Operations
 ```clojure
 ;; GOOD: Works on normalized tables
-(defmutation delete-person [{list-id :list/id person-id :person/id}]
+(defmutation delete-person [{:keys [list-id person-id]}]
   (action [{:keys [state]}]
     (swap! state merge/remove-ident* [:person/id person-id] [:list/id list-id :list/people])))
 ```
@@ -156,11 +159,11 @@ user=> (app.mutations/delete-person {:name "Joe"})
 
 ### Remote Configuration
 ```clojure
-(defmutation delete-person [{:keys [list/id person/id]}]
+(defmutation delete-person [{:keys [list-id person-id]}]
   (action [{:keys [state]}]
     ;; Local optimistic update
     (swap! state merge/remove-ident* [:person/id person-id] [:list/id list-id :list/people]))
-  (remote [env] true)) ;; Send to server
+  (remote [env] true))
 ```
 
 ## Transaction Processing Flow
@@ -168,9 +171,9 @@ user=> (app.mutations/delete-person {:name "Joe"})
 1. **UI calls `transact!`** with mutation data
 2. **Local `action`** runs immediately (optimistic update)
 3. **Remote section** determines if/how to send to server
-4. **Network request** sent if remote returns truthy
-5. **Result handling** via `ok-action` or `error-action`
-6. **UI refresh** triggered automatically
+4. **Network request** sent if remote returns truthy value
+5. **Result handling** via `ok-action` or `error-action` (if using default `result-action`)
+6. **UI refresh** triggered based on `refresh` declaration or automatic re-render
 
 ### Advanced Remote Handling
 ```clojure
@@ -184,4 +187,18 @@ user=> (app.mutations/delete-person {:name "Joe"})
     (log/info "Save successful" result))
   (error-action [{:keys [error]}]
     (log/error "Save failed" error)))
+```
+
+### Declarative UI Refresh
+<!-- NOTE: refresh is an optional section that declares which parts of the query need to be refreshed after a mutation completes -->
+```clojure
+(defmutation ping-left [params]
+  (action [{:keys [state]}]
+    (swap! state update-in [:left/by-id 5 :left/value] inc))
+  (refresh [env] [:left/value]))
+
+(defmutation ping-right [params]
+  (remote [env]
+    (m/returning Right))
+  (refresh [env] [:right/value]))
 ```

@@ -1,3 +1,4 @@
+
 # Getting Started
 
 ## Prerequisites
@@ -50,11 +51,15 @@ npm install shadow-cljs react react-dom --save
  :builds   {:main {:target     :browser
                    :output-dir "resources/public/js/main"
                    :asset-path "/js/main"
+                   :dev        {:compiler-options {:external-config {:fulcro {:html-source-annotations? true}}}}
                    :modules    {:main {:init-fn app.client/init
                                        :entries [app.client]}}
                    :devtools   {:after-load app.client/refresh
-                                :preloads   [com.fulcrologic.fulcro.inspect.preload]}}}}
+                                :preloads   [com.fulcrologic.fulcro.inspect.preload
+                                             com.fulcrologic.fulcro.inspect.dom-picker-preload]}}}}
 ```
+
+Note: The `:dev` compiler option enables source annotations that add `data-fulcro-source` attributes to DOM elements, making it easier to trace UI back to source code during development.
 
 ### HTML File (`resources/public/index.html`)
 ```html
@@ -102,13 +107,15 @@ npm install shadow-cljs react react-dom --save
   (:require
     [app.application :refer [app]]
     [app.ui :as ui]
-    [com.fulcrologic.fulcro.application :as app]))
+    [com.fulcrologic.fulcro.application :as app]
+    [com.fulcrologic.fulcro.components :as comp]))
 
 (defn ^:export init []
   (app/mount! app ui/Root "app"))
 
 (defn ^:export refresh []
-  (app/mount! app ui/Root "app"))
+  (app/mount! app ui/Root "app")
+  (comp/refresh-dynamic-queries! app))
 ```
 
 ## Building and Running
@@ -142,9 +149,15 @@ cljs.user=> (js/alert "Hi")
     (dom/p "Hello")))
 ```
 
+The `defsc` macro creates a React component with Fulcro's data management. The three main parameters are:
+1. **Component name** - The class name
+2. **`[this props]`** - `this` is the component instance, `props` is the data from the database
+3. **Options map** (optional) - Contains `:query`, `:ident`, `:initial-state`, etc.
+4. **Render body** - Returns React elements
+
 ### DOM Element Factories
 ```clojure
-;; Various syntax forms
+;; Various syntax forms - all equivalent:
 (dom/div {:id "id" :className "x y z"} ...)
 (dom/div :.x#id {:className "y z"} ...)
 (dom/div :.x.y.z#id ...)
@@ -152,12 +165,16 @@ cljs.user=> (js/alert "Hi")
 ```
 
 ### Factory Functions
+Factory functions let you use components within your React tree. They wrap the component class and are conventionally prefixed with `ui-`:
+
 ```clojure
 (def ui-person (comp/factory Person {:keyfn :person/id}))
 
 ;; Usage
 (ui-person {:person/name "Joe" :person/age 22})
 ```
+
+The `:keyfn` option is important for React reconciliation - it tells React how to identify elements in lists by specifying which prop/key to use as the React key.
 
 ## Data Flow Basics
 
@@ -167,10 +184,12 @@ cljs.user=> (js/alert "Hi")
   {:initial-state (fn [{:keys [name age]}] {:person/name name :person/age age})}
   (dom/div ...))
 
-(defsc Root [this {:keys [friends enemies]}]
-  {:initial-state (fn [_] {:friends (comp/get-initial-state Person {:name "Joe" :age 22})})
+(defsc Root [this {:keys [friends]}]
+  {:initial-state (fn [_] {:friends (comp/get-initial-state Person {:name "Joe" :age 22})})}
   (dom/div (ui-person friends)))
 ```
+
+Initial state functions allow components to compose their initial state with their parent's state, enabling the state tree to mirror the UI tree structure.
 
 ### Queries
 ```clojure
@@ -184,23 +203,43 @@ cljs.user=> (js/alert "Hi")
   (dom/div (ui-person friends)))
 ```
 
-### Passing Callbacks
-**Incorrect:**
+Queries describe what data the component needs from the database. Parent queries join child queries, building a tree that mirrors your component structure.
+
+### Passing Callbacks and Computed Data
+
+When you need to pass callbacks or other computed data from parent to child, you must use `comp/computed` and accept a third parameter in `defsc`.
+
+**Incorrect Pattern:**
 ```clojure
-(ui-person (assoc props :onDelete delete-fn)) ; Lost on refresh
+;; DON'T DO THIS - callbacks will be lost on optimized refresh
+(ui-person (assoc props :onDelete delete-fn))
 ```
 
-**Correct:**
+**Correct Pattern:**
 ```clojure
-(defsc Person [this {:person/keys [name]} {:keys [onDelete]}] ; computed props
+;; Define the component with a third parameter for computed props
+(defsc Person [this {:person/keys [name]} {:keys [onDelete]}]
   (dom/div (dom/button {:onClick #(onDelete name)} "Delete")))
 
-;; Parent passes computed props
-(ui-person (comp/computed person-data {:onDelete delete-fn}))
+(def ui-person (comp/factory Person {:keyfn :person/id}))
+
+;; Parent passes computed props using comp/computed
+(defsc PersonList [this {:list/keys [people]}]
+  (let [delete-fn (fn [id] (println "Deleting" id))]
+    (dom/div
+      (dom/ul
+        (mapv (fn [person]
+                (ui-person (comp/computed person {:onDelete delete-fn})))
+          people)))))
 ```
+
+Why is this necessary? Fulcro optimizes component refreshes by only querying for child data when the parent hasn't changed. If callbacks are passed as regular props, they'll be lost during these optimized refreshes because only database data gets supplied. Using `comp/computed` ensures callbacks persist through these optimizations.
+
+You can also access computed props in the component body using `(comp/get-computed this)`.
 
 ## Hot Code Reload
 - Shadow-cljs provides automatic hot reload
 - Edit component code and save
 - UI updates without losing state
-- Use refresh function for manual updates
+- The `refresh` function in client.cljs handles re-mounting and query refresh
+- Use `comp/refresh-dynamic-queries!` to ensure dynamic queries are updated (Fulcro 3.3.0+)

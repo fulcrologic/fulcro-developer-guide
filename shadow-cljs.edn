@@ -5,14 +5,15 @@
                    :output-dir      "docs/js/book"
                    :asset-path      "/js/book"
                    :module-loader   true
-                   :closure-defines {com.fulcrologic.fulcro.inspect.inspect-client/INSPECT true}
-                   :modules         {:book    {:entries [book.main]
+                   :closure-defines {com.fulcrologic.fulcro.inspect.inspect-client/INSPECT true
+                                     com.fulcrologic.devtools.common.target/INSPECT        true}
+                   :modules         {:book    {:entries [
+                                                         book.main]
                                                :init-fn book.main/init}
                                      ; For the dynamic code splitting demo
                                      :ui-main {:entries    [book.demos.dynamic-ui-main]
                                                :init-fn    book.demos.dynamic-ui-main/init
                                                :depends-on #{:book}}}
-                   :devtools        {:preloads  [com.fulcrologic.devtools.chrome-preload]
-                                     :http-root "resources/public"
+                   :devtools        {:http-root "resources/public"
                                      :http-port 9005}}}}
 
