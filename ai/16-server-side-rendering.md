@@ -95,11 +95,11 @@ You could run the application in headless mode with loopback remotes, trigger mu
 Once you have the normalized database, rendering to an HTML string is straightforward:
 
 ```clojure
-(defn render-app-html [normalized-db]
+(defn render-app-html [app normalized-db]
   (let [props (fdn/db->tree (comp/get-query ui/Root normalized-db) normalized-db normalized-db)
         root-factory (comp/factory ui/Root)]
     ;; CRITICAL: Bind the app in context (some Fulcro APIs require this)
-    (binding [comp/*app* your-app-instance]
+    (binding [comp/*app* app]
       (dom/render-to-str (root-factory props)))))
 ```
 

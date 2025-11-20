@@ -271,8 +271,9 @@ Custom types work automatically with:
   (try
     (transit/install-type-handler!
       (transit/type-handler type tag write-fn read-fn))
-    (catch :default e
-      (js/console.error "Failed to install type handler:" tag e))))
+    (catch #?(:clj Exception :cljs :default) e
+      #?(:clj  (println "Failed to install type handler:" tag e)
+         :cljs (js/console.error "Failed to install type handler:" tag e)))))
 ```
 
 ### 5. Development vs Production

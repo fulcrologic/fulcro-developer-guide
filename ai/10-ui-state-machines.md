@@ -68,7 +68,8 @@ UI State Machines (UISM) provide a powerful way to organize complex UI logic and
 ;; Declare actor names in the machine definition
 (defstatemachine session-machine
   {::uism/actor-names #{:actor/current-session :actor/login-form}
-   ...})
+   ::uism/states {:state/logged-out {...}
+                  :state/logged-in {...}}})
 ```
 
 ### Actor Assignment at Runtime
@@ -132,7 +133,7 @@ UI State Machines (UISM) provide a powerful way to organize complex UI logic and
 ### From Components
 ```clojure
 (defsc LoginForm [this props]
-  {:query [...]}
+  {:query [:form/id :form/username :form/password]} ;; Your actual query fields
   (dom/div
     (dom/button
       {:onClick #(uism/trigger! this ::session-sm :event/login {:credentials creds})}
@@ -324,7 +325,7 @@ UI State Machines (UISM) provide a powerful way to organize complex UI logic and
 ```clojure
 ;; To use get-active-state, you must query for the machine's ident
 (defsc Component [this props]
-  {:query (fn [] [(uism/asm-ident ::my-machine) ...])}
+  {:query (fn [] [(uism/asm-ident ::my-machine) :component/id :component/name])}
   (let [current-state (uism/get-active-state this ::my-machine)]
     (dom/div
       (str "Current state: " current-state))))
@@ -335,7 +336,8 @@ UI State Machines (UISM) provide a powerful way to organize complex UI logic and
 ;; Add to event handlers
 (defn login-handler [env]
   (log/info "Login attempted for" (uism/actor->ident env :actor/current-session))
-  (-> env ...))
+  (-> env
+      (uism/activate :state/authenticating)))
 ```
 
 ## Best Practices

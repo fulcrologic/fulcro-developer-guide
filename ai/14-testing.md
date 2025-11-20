@@ -276,39 +276,36 @@ Data loading is tested by verifying state updates after loads complete:
             "Should have people after load")))))
 ```
 
-## Testing with Pathom Mock Server
+## Testing with Mocked Server Interactions
 
-For testing with server interactions, use Pathom's mock server infrastructure:
+For testing with server interactions, you can create a custom mock remote:
 
 ```clojure
 (ns app.server-test
   (:require
     [cljs.test :refer [deftest is testing]]
     [com.fulcrologic.fulcro.application :as app]
-    [com.fulcrologic.pathom.core :as pc]
-    [com.fulcrologic.fulcro.networking.mock-server :as mock]))
+    [com.fulcrologic.fulcro.algorithms.tx-processing :as txn]))
 
-;; Define resolvers for testing
-(pc/defresolver person-resolver [env {:person/keys [id]}]
-  {::pc/input #{:person/id}
-   ::pc/output [:person/name :person/age]}
-  (case id
-    1 {:person/name "John" :person/age 30}
-    2 {:person/name "Jane" :person/age 28}
-    nil))
+;; Create a mock remote that returns predefined responses
+(defn mock-remote [response-map]
+  (reify txn/FulcroRemoteI
+    (transmit! [this {::txn/keys [ast result-handler]}]
+      ;; Return mocked data based on the query
+      (let [query (:query ast)
+            response (get response-map query)]
+        (result-handler (or response {}))))))
 
-(pc/defresolver all-people-resolver [env _]
-  {::pc/output [{:people [:person/id]}]}
-  {:people [{:person/id 1} {:person/id 2}]})
-
-(def test-resolvers [person-resolver all-people-resolver])
-
-(deftest mock-server-test
-  (testing "resolvers return expected data"
-    (let [app (app/fulcro-app {:remotes {:remote (mock/mock-remote test-resolvers)}})]
-      ;; Tests would trigger transactions and verify state
+(deftest mock-remote-test
+  (testing "app can use mocked remote responses"
+    (let [mock-responses {[:person/id 1] {:person/id 1 :person/name "John"}}
+          app (app/fulcro-app {:remotes {:remote (mock-remote mock-responses)}})]
+      ;; Trigger loads and verify state using app's state atom
+      ;; @(::app/state-atom app)
       )))
 ```
+
+**Note**: For comprehensive server testing with Pathom resolvers, test your resolvers directly using Pathom's testing utilities on the server side, then use simple mocked responses in client tests.
 
 ## Testing Best Practices
 

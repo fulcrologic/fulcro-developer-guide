@@ -147,9 +147,9 @@ Static configuration (no atom, immutable):
     {:my-app/api-endpoint "https://api.example.com"
      :my-app/feature-set :premium}))
 
-;; Access static config
+;; Access custom config (custom keys are stored directly on app)
 (defn get-api-endpoint [app]
-  (get-in app [::app/config :my-app/api-endpoint]))
+  (:my-app/api-endpoint app))
 ```
 
 **Important**: The `::config` structure itself is **considered unstable and may change between Fulcro versions**. Always use your own namespaced keys for any configuration you want to preserve across version upgrades. Do not rely on the internal structure of `::config`.

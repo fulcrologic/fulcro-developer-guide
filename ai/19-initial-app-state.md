@@ -29,7 +29,7 @@ Every component that needs initial state follows this pattern:
 ```clojure
 (defsc ComponentName [this props]
   {:initial-state (fn [params] {...})  ; Function that returns initial state map
-   :ident         [:component/id :component/id]  ; How to identify this component in normalized DB
+   :ident         :component/id  ; How to identify this component in normalized DB (template form)
    :query         [:component/id ...]} ; What data this component needs
   ...)
 ```
@@ -39,7 +39,7 @@ Every component that needs initial state follows this pattern:
 ```clojure
 (defsc Child [this props]
   {:initial-state (fn [params] {:child/id 1})
-   :ident         [:child/id :child/id]
+   :ident         :child/id
    :query         [:child/id]}
   ...)
 ```
@@ -48,10 +48,10 @@ Every component that needs initial state follows this pattern:
 
 ```clojure
 (defsc Parent [this props]
-  {:initial-state (fn [params] 
-                    {:parent/id 1 
+  {:initial-state (fn [params]
+                    {:parent/id 1
                      :parent/child (comp/get-initial-state Child)})
-   :ident         [:parent/id :parent/id]
+   :ident         :parent/id
    :query         [:parent/id {:parent/child (comp/get-query Child)}]}
   ...)
 ```
@@ -227,11 +227,11 @@ Use consistent ident patterns:
 
 ;; Leaf component
 (defsc User [this {:keys [user/id user/name user/email]}]
-  {:initial-state (fn [{:keys [id name email]}] 
+  {:initial-state (fn [{:keys [id name email]}]
                     {:user/id    id
-                     :user/name  name  
+                     :user/name  name
                      :user/email email})
-   :ident         [:user/id :user/id]
+   :ident         :user/id
    :query         [:user/id :user/name :user/email]}
   (dom/div
     (dom/h3 name)
@@ -245,7 +245,7 @@ Use consistent ident patterns:
                     {:user-list/id    :main
                      :user-list/users [(comp/get-initial-state User {:id 1 :name "Alice" :email "alice@example.com"})
                                        (comp/get-initial-state User {:id 2 :name "Bob" :email "bob@example.com"})]})
-   :ident         [:user-list/id :user-list/id]
+   :ident         :user-list/id
    :query         [:user-list/id {:user-list/users (comp/get-query User)}]}
   (dom/div
     (dom/h2 "Users")

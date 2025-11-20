@@ -173,8 +173,8 @@ Modern Fulcro uses `clojure.spec.alpha` for validation. Define specs for your fi
   (s/and string?
          #(re-matches #"[^@]+@[^@]+\.[^@]+" %)))
 
-;; Integer range
-(s/def :person/age (s/int-in-range? 1 120 %))
+;; Integer range (1 to 120 exclusive)
+(s/def :person/age (s/int-in 1 120))
 
 ;; Composite spec for entire entity
 (s/def :person (s/keys :req [:person/id :person/name :person/email]))
@@ -546,7 +546,7 @@ Manage form lifecycle with Fulcro's actor model:
 
 ### Validation Strategy
 - **Define specs early**: Create specs for all form fields before creating the form component
-- **Use spec predicates**: Leverage `s/and`, `s/int-in-range?`, `re-matches`, etc.
+- **Use spec predicates**: Leverage `s/and`, `s/int-in`, `re-matches`, etc.
 - **Mark fields complete selectively**: Use `fs/mark-complete!` on blur or submit, not on every keystroke
 - **Client-side is convenience**: Server validation is authoritative; always validate on server too
 - **Meaningful error messages**: Validation tells you a field is invalid, but specs don't provide messages—add custom UI to display helpful text
